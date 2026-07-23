@@ -1,0 +1,76 @@
+Costeos
+
+Contexto:
+El objeto de esta funcionalidad es registrar los costeos de los proyectos con los cliente. Básicamente se trata de identificar todo tipo de costo y gasto en que se incurrirá durante la vida del proyecto.
+
+La empresa se dedica a ofrecer servicios de seguridad, principalmente de Seguridad Física. Es decir que la empresa guardias de seguridad para cuidar las personas y los bienes y negocios de los clientes.
+
+La estructura de un proyecto se puede entender con la siguiente estructura
+- CLIENTE: el cliente existe, tiene un código y un nombre, identificación tributaria, todos sus datos generales.
+
+- CONTRATO: los contratos se hacen con los clientes. Un cliente puede tener uno o varios contratos activos. El contrato tiene un número, una fecha, una fecha de inicio y un plazo (en meses) de vigencia. Tienen la moneda en la que está definido el contrato. Hay un estado que indica el estatus del contrato (vigente, terminado, etc.)
+
+- SITIOS: El cliente tiene ubicaciones físicas (dirección, país, departamento, municipio) donde se va a prestar el servicio. Estas ubicaciones se les conoce como Sitios, y comercialmente se les da un nombre, como por ejemplo, "oficinas centrales", "bodega zona 4", "la formuladora", "agencia sur", etc. Se pueden conocer las coordenadas de longitud y latitud, como para poderlas plotear en un mapa. Posiblemente sea necesario e importante codificar los Sitios, es decir que cada Sitio tenga un código ya sea a nivel de Contrato o bien a nivel general.
+
+- PUESTOS: En los Sitio hay lo que se conoce como Puestos, que son las "posiciones" en donde estarán los guardias (o el personal) trabajando, por ejemplo, "Garita", "Puerta Principal", "Parqueo", etc. Aquí no se necesita tener un catálogo, ya que es muy personalizable según el proyecto del cliente, es un "texto" libre. Al igual que en los Sitios, tal vez sea importante codificarlos. Estos Puestos también tienen información propia como por ejemplo los días de cobertura, de lunes a viernes, lunes a domingo, solo los martes. Y también tienen un horario por día, por ejemplo de 8am a 8pm, o de 24 horas (de 6am a 6am del día siguiente). Por lo general se manejan Turnos de 12 horas.
+
+- RECURSOS: Los recursos son los "tipos de cosas" que se colocan en los Puestos, que pueden ser RECURSO HUMANO (los guaridas, personal de limpieza, etc.), EQUIPOS (armamento, comunicación, vehículos, computadoras, etc.), ARTICULOS (micro-ondas, linterna, cuadernos, etc.). En otras palabras en el Puesto se especifican los tipos de recursos que serán asignados y la cantidad con la que se cubrirá el turno (hay cierta información adicional que depende del tipo de recurso, si es RECURSO HUMANO se necesita cierta información, si son EQUIPO de COMUNICACION se necesita otro tipo de información, si son VEHICULOS es otra la información, y así sucesivamente)
+
+- PRECIO VENTA: se debe asignar a nivel del recurso en el Puesto, es decir al guardia (al Recurso Humano). El precio de venta por lo general solo afecta al personal que se instalará en el Puesto, pero hay veces que un equipo específico lleva también precio de venta, o un Servicio también puede llevar Precio de Venta. Todos los precios de venta estarán expresado en la moneda del contrato.
+
+- RECETAS: Todos los items (son todos los recursos) pueden tener una receta, que es un conjunto de otros items que van "de la mano" con el item seleccionado. Por ejemplo, al seleccionar un item de recurso humano: GUARDIA ESTANDAR DE SEGURIDAD, este item puede llegar a tener varias recetas asociadas, por ejemplo una Financiera, que incluye Salario, Bonos, Prestaciones, etc. o valores financieros como seguros, mora proyectada, etc. y además, se le asocia una receta para el UNIFORME que se va a utilizar: una camisa, un pantalón, zapatos, etc. Otro ejemplo, si se escoge un item tipo Arma, un REVOLVER, este lleva como parte de su receta el porta revolver, el cincho, etc. 
+
+El manejo de RECETAS facilita el "llenado" del Costeo. El usuario que está armando el proyecto no necesita recordarse de incluir todos estos tipos de items y sus detalles. Por lo general, él solo entiende REVOLVER, pero todo lo amarrado al revolver se debe incluir automáticamente (según la receta) dentro del Costeo. Y en algunos casos el usuario debe poder quitar items de esas recetas, todo según configuración de la receta.
+
+También puede darse el caso que un item tiene una Receta, y dentro de los items de esa receta hay otro item que también tiene una receta, y así sucesivamente. Aquí es importante que se tenga definido hasta qué nivel de recetas se puede llegar a aceptar manejar para evitar un escenario que un itme tiene receta, y un item de esta tiene receta, y otro item de esta también tiene receta, y así casi que la que nunca acabar. Por lo general un 4to nivel de "profundidad" pudiera cubrir el 100% de los escenarios y si se llegara dar una necesidad muy eventual de algo más "profundo", el usuario debería estar en la capacidad de replantear la estructura.
+
+- COSTO ITEMS: Los costos de los items son manejados por el ERP. Dependiendo de los items, estos costos pueden salir de las Compras de los productos, por Cotizaciones de productos y servicios, de los Salarios de los empleados, de los servicios que se pagan. En esta aplicación, por el momento, el costo será proveído por el ERP.
+
+Lo que sí se espera de esta aplicación es que pueda calcular los costos de todo el proyecto de forma mensual (mensualizando los costos - hay costos mensuales y hay costos completos), de forma anual y de forma completa tomando en cuenta toda la duración del proyecto
+
+- ESQUEMA DE PROYECTO:
+
+CLIENTE
+	| CONTRATO
+		| SITIO 1
+			| SIN PUESTO
+				| COORDINADOR SITIO (RECETA)
+					| SALARIOS (SUB-RECETA)
+						| SUELDO ORDINARIO (ITEM)
+						| BONO DECRETO  (ITEM)
+						| SEGURO SOCIAL  (ITEM)
+					| UNIFORME A (SUB-RECETA)
+						| CAMISA  (ITEM)
+						| PANTALON  (ITEM)
+						| ZAPATOS  (ITEM)
+			| PUESTO 1
+				| RECURSO HUMANO 1 (RECETA)
+					| SALARIOS (SUB-RECETA)
+						| SUELDO ORDINARIO (ITEM)
+						| BONO DECRETO  (ITEM)
+						| SEGURO SOCIAL  (ITEM)
+					| UNIFORME A (SUB-RECETA)
+						| CAMISA  (ITEM)
+						| PANTALON  (ITEM)
+						| ZAPATOS  (ITEM)
+				| RECURSO HUMANO 2 (RECETA)
+					| SALARIOS (SUB-RECETA)
+						| SUELDO ORDINARIO  (ITEM)
+						| BONO DECRETO  (ITEM)
+						| SEGURO SOCIAL  (ITEM)
+					| UNIFORME A (SUB-RECETA)
+						| CAMISA  (ITEM)
+						| PANTALON  (ITEM)
+						| ZAPATOS  (ITEM)
+				| EQUIPO COMUNICACION 1 (RECETA)
+					| ESTUCHE  (ITEM)
+					| PLAN DE DATOS  (ITEM)
+				| ARMAMA 1 (COSTO + RECETA)
+					| PORTA ARMA (ITEM)
+					| CINCHO (ITEM)
+				| COMPUTADORA (NO TIENE RECETA, SOLO TIENE COSTO)
+
+- NUMEROS FINANCIEROS: Los números que debe arrojar el Costeo, principalmente es el TOTAL VENTA (dependiendo MENSUAL, ANUAL, DURACION PROYECTO), TOTAL COSTO, aquí hay que categorizarlo según las Categorías de los Items, de manera tal que se vea TOTAL SALARIOS, TOTAL COMUNICACION, TOTAL ARMAMENTO por ejemplo. Debe calcular el Gross Margin y el ROI de los proyectos
+
+- USUARIOS
+Los usuarios de esta aplicación son personas con poca formación Financiera, y muchos indican no ser muy tecnológicos, por lo que se necesita que esta funcionalidad sea muy fácil de utilizar, debe ser muy clara en lo que el usuario debe ingresar, los mensajes de error y/o informativos deben ser muy claros y puntuales para que realmente sepan por qué está pasando.

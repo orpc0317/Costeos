@@ -1,0 +1,127 @@
+"use client";
+
+import React from 'react';
+import { useCosteo } from '@/lib/context/CosteoContext';
+import { MapPin, Briefcase, User, Box, Shield, Monitor, FileText, ChevronRight, ChevronDown, AlertTriangle } from 'lucide-react';
+import { CategoriaItem } from '@/lib/types/costeos';
+import { AddSitioDialog } from './modals/AddSitioDialog';
+import { AddPuestoDialog } from './modals/AddPuestoDialog';
+import { AddRecursoDialog } from './modals/AddRecursoDialog';
+import { isNodeValid } from '@/lib/utils/validation';
+
+export default function TreeViewSidebar() {
+  const { proyecto, selectedNode, dispatch } = useCosteo();
+
+  if (!proyecto) return null;
+
+  const handleSelectNode = (type: 'SITIO' | 'PUESTO' | 'RECURSO' | 'PROYECTO', id: string) => {
+    dispatch({ type: 'SELECT_NODE', payload: { type, id } });
+  };
+
+  const getIconForCategory = (categoria: CategoriaItem) => {
+    switch (categoria) {
+      case 'RECURSO_HUMANO': return <User className="w-3.5 h-3.5 text-blue-600" />;
+      case 'EQUIPO': return <Monitor className="w-3.5 h-3.5 text-purple-600" />;
+      case 'ARTICULO': return <Box className="w-3.5 h-3.5 text-orange-600" />;
+      case 'SERVICIO': return <FileText className="w-3.5 h-3.5 text-emerald-600" />;
+      default: return <Box className="w-3.5 h-3.5" />;
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="p-3 border-b flex justify-between items-center bg-slate-100/50 shrink-0">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Estructura del Proyecto</h2>
+      </div>
+      
+      <div className="flex-1 overflow-y-auto p-2 space-y-1 text-sm">
+        {/* Raíz del Proyecto */}
+        <div 
+          className={`flex items-center justify-between px-2 py-1.5 rounded-md cursor-pointer group ${selectedNode?.id === proyecto.id ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-slate-100 text-slate-700'}`}
+          onClick={() => handleSelectNode('PROYECTO', proyecto.id)}
+        >
+          <div className="flex items-center gap-1.5 overflow-hidden">
+            <Briefcase className="w-4 h-4 text-slate-500 shrink-0" />
+            <span className="truncate">{proyecto.nombreProyecto || 'Sin Nombre'}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            {!isNodeValid(proyecto, 'PROYECTO') && (
+              <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" title="Falta información requerida" />
+            )}
+            <AddSitioDialog />
+          </div>
+        </div>
+
+        {/* Sitios */}
+        <div className="ml-2 border-l border-slate-200 pl-2 mt-1 space-y-1">
+          {proyecto.sitios.map(sitio => (
+            <div key={sitio.id} className="space-y-1">
+              <div 
+                className={`flex items-center justify-between px-2 py-1.5 rounded-md cursor-pointer group ${selectedNode?.id === sitio.id ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-slate-100 text-slate-700'}`}
+                onClick={() => handleSelectNode('SITIO', sitio.id)}
+              >
+                <div className="flex items-center gap-1.5 overflow-hidden">
+                  <MapPin className={`w-4 h-4 shrink-0 ${selectedNode?.id === sitio.id ? 'text-blue-600' : 'text-slate-400'}`} />
+                  <span className="truncate">{sitio.nombre || 'Nuevo Sitio'}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {!isNodeValid(sitio, 'SITIO') && (
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0 mr-1" title="Falta información requerida" />
+                  )}
+                  <AddPuestoDialog sitioId={sitio.id} />
+                </div>
+              </div>
+
+              {/* Puestos */}
+              <div className="ml-3 border-l border-slate-200 pl-2 space-y-1">
+                {sitio.puestos.map(puesto => (
+                  <div key={puesto.id} className="space-y-1">
+                    <div 
+                      className={`flex items-center justify-between px-2 py-1 rounded-md cursor-pointer group ${selectedNode?.id === puesto.id ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-slate-100 text-slate-600'}`}
+                      onClick={() => handleSelectNode('PUESTO', puesto.id)}
+                    >
+                      <div className="flex items-center gap-1.5 overflow-hidden">
+                        <Shield className={`w-3.5 h-3.5 shrink-0 ${selectedNode?.id === puesto.id ? 'text-blue-600' : 'text-slate-400'}`} />
+                        <span className="truncate text-[13px]">{puesto.nombre || 'Nuevo Puesto'}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {!isNodeValid(puesto, 'PUESTO') && (
+                          <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" title="Falta información requerida" />
+                        )}
+                        <AddRecursoDialog sitioId={sitio.id} puestoId={puesto.id} />
+                      </div>
+                    </div>
+
+                    {/* Recursos */}
+                    <div className="ml-3 border-l border-slate-200 pl-2 space-y-0.5 pb-1">
+                      {puesto.recursos.map(recurso => (
+                        <div 
+                          key={recurso.id}
+                          className={`flex items-center justify-between px-2 py-1 rounded-md cursor-pointer ${selectedNode?.id === recurso.id ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-slate-100 text-slate-500'}`}
+                          onClick={() => handleSelectNode('RECURSO', recurso.id)}
+                        >
+                          <div className="flex items-center gap-1.5 overflow-hidden">
+                            {getIconForCategory(recurso.categoria)}
+                            <span className="truncate text-xs">{recurso.nombre}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {!isNodeValid(recurso, 'RECURSO') && (
+                              <AlertTriangle className="w-3 h-3 text-red-500 shrink-0" title="Falta información requerida" />
+                            )}
+                            {recurso.cantidad > 1 && (
+                              <span className="text-[10px] bg-slate-200 px-1 rounded font-medium text-slate-600 shrink-0">x{recurso.cantidad}</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

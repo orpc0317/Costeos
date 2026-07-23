@@ -1,0 +1,300 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── AUTH ────────────────────────────────────────────────────────────────────
+
+model Usuario {
+  id              Int      @id @default(autoincrement())
+  nombre          String   @db.VarChar(200)
+  email           String   @unique @db.VarChar(200)
+  passwordHash    String   @db.VarChar(255) @map("password_hash")
+  rol             String   @db.VarChar(20) @default("ANALISTA") // ADMIN | MANAGER | ANALISTA | VIEWER
+  usuarioErp      String   @db.VarChar(10) @map("usuario_erp")
+  activo          Boolean  @default(false)
+  agregoUsuario   Int      @default(0) @map("agrego_usuario")
+  agregoFecha     DateTime @default(now()) @map("agrego_fecha")
+  modificoUsuario Int      @default(0) @map("modifico_usuario")
+  modificoFecha   DateTime @updatedAt @map("modifico_fecha")
+
+  contratosCreados  Contrato[] @relation("ContratoCreador")
+  contratoAprobados Contrato[] @relation("ContratoAprobador")
+  costeosCreados    Costeo[]   @relation("CosteoCreador")
+  costeosAprobados  Costeo[]   @relation("CosteoAprobador")
+  auditLogs         AuditLog[]
+
+  @@map("t_usuario")
+}
+
+// ─── CLIENTES ────────────────────────────────────────────────────────────────
+//
+// Dos casos:
+//   1. Cliente existente en ERP → erp_cliente_id lleno, es_nuevo = false
+//   2. Cliente nuevo (aún no en ERP) → codigo_temp = "TEMP-{timestamp}",
+//      es_nuevo = true. Al aprobar el contrato, ERP crea el cliente y devuelve
+//      el ID real, que reemplaza codigo_temp y llena erp_cliente_id.
+
+model Cliente {
+  id              Int       @id @default(autoincrement())
+  erpClienteId    Int?      @map("erp_cliente_id")       // null hasta sincronizar con ERP
+  codigoTemp      String?   @db.VarChar(50) @map("codigo_temp") // "TEMP-{timestamp}"
+  nit             String    @db.VarChar(30)
+  razonSocial     String    @db.VarChar(200) @map("razon_social")
+  direccionFiscal String?   @db.VarChar(500) @map("direccion_fiscal")
+  esNuevo         Boolean   @default(false) @map("es_nuevo") // true = creado aquí, false = del ERP
+  sincronizadoEn  DateTime? @map("sincronizado_en")      // cuándo ERP devolvió el ID real
+  creadoEn        DateTime  @default(now()) @map("creado_en")
+  modificadoEn    DateTime  @updatedAt @map("modificado_en")
+
+  contratos Contrato[]
+
+  @@map("costeos_cliente")
+}
+
+// ─── CONTRATOS ───────────────────────────────────────────────────────────────
+//
+// El Contrato es la unidad de trabajo principal. Se crea aquí y se envía
+// al ERP al aprobar. Un contrato tiene Sitios y cada Sitio tiene Puestos.
+
+model Contrato {
+  id             Int       @id @default(autoincrement())
+  clienteId      Int       @map("cliente_id")
+  numero         String    @db.VarChar(50)
+  nombre         String    @db.VarChar(200)
+  fechaInicio    DateTime  @db.Date @map("fecha_inicio")
+  plazoMeses     Int       @map("plazo_meses")
+  moneda         String    @db.VarChar(10) @default("GTQ") // GTQ | USD
+  estado         String    @db.VarChar(20) @default("BORRADOR")
+  // BORRADOR | APROBADO | VIGENTE | TERMINADO
+  erpContratoId  Int?      @map("erp_contrato_id") // asignado por ERP al aprobar
+  empresaId      Int       @default(1) @map("empresa_id") // La empresa que firma/emite
+  notas          String?   @db.Text
+  aprobadoPor    Int?      @map("aprobado_por")
+  aprobadoEn     DateTime? @map("aprobado_en")
+  creadoPor      Int       @map("creado_por")
+  creadoEn       DateTime  @default(now()) @map("creado_en")
+  modificadoEn   DateTime  @updatedAt @map("modificado_en")
+
+  cliente   Cliente  @relation(fields: [clienteId], references: [id])
+  creador   Usuario  @relation("ContratoCreador", fields: [creadoPor], references: [id])
+  aprobador Usuario? @relation("ContratoAprobador", fields: [aprobadoPor], references: [id])
+  sitios    Sitio[]
+  costeo    Costeo?
+
+  @@map("costeos_contrato")
+}
+
+// ─── SITIOS ───────────────────────────────────────────────────────────────────
+//
+// Ubicaciones físicas donde se prestará el servicio.
+// Ej: "Oficinas Centrales", "Bodega Zona 4", "La Formuladora"
+
+model Sitio {
+  id           Int      @id @default(autoincrement())
+  contratoId   Int      @map("contrato_id")
+  codigo       String?  @db.VarChar(20)
+  nombre       String   @db.VarChar(200)
+  direccion    String?  @db.VarChar(500)
+  pais         String?  @db.VarChar(100)
+  departamento String?  @db.VarChar(100)
+  municipio    String?  @db.VarChar(100)
+  latitud      Decimal? @db.Decimal(10, 7)
+  longitud     Decimal? @db.Decimal(10, 7)
+
+  contrato Contrato @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+  puestos  Puesto[]
+
+  @@map("costeos_sitio")
+}
+
+// ─── PUESTOS ──────────────────────────────────────────────────────────────────
+//
+// Posiciones dentro de un Sitio donde estará el personal o equipo.
+// Ej: "Garita", "Puerta Principal", "Parqueo"
+// Los puestos tienen cobertura por días y horario.
+
+model Puesto {
+  id            Int    @id @default(autoincrement())
+  sitioId       Int    @map("sitio_id")
+  codigo        String? @db.VarChar(20)
+  nombre        String  @db.VarChar(200) // texto libre
+  diasCobertura String  @db.VarChar(100) @map("dias_cobertura")
+  // Ej: "LUN-VIE", "LUN-DOM", "MAR,JUE,SAB"
+  horaInicio    String  @db.VarChar(5) @map("hora_inicio")  // "06:00"
+  horaFin       String  @db.VarChar(5) @map("hora_fin")     // "18:00"
+  personas      Int     @default(1)
+  horasSemana   Int     @default(0) @map("horas_semana")
+
+  sitio    Sitio           @relation(fields: [sitioId], references: [id], onDelete: Cascade)
+  recursos PuestoRecurso[]
+
+  @@map("costeos_puesto")
+}
+
+// ─── RECURSOS EN PUESTO ───────────────────────────────────────────────────────
+//
+// Items del ERP asignados a un Puesto.
+// Tipos: RECURSO_HUMANO | EQUIPO | ARTICULO | SERVICIO
+//
+// Ciclo de vida de costos:
+//   BORRADOR → costo_unitario_erp = null (se refresca del ERP al abrir)
+//   APROBADO → costo_unitario_erp = precio congelado al momento de aprobar
+//
+// Precio de venta:
+//   LISTA  → viene del ERP (precio_venta en ErpItem)
+//   MANUAL → ingresado por el usuario
+
+model PuestoRecurso {
+  id                 Int       @id @default(autoincrement())
+  puestoId           Int       @map("puesto_id")
+  erpItemId          Int       @map("erp_item_id")        // ID del item en ERP
+  itemNombre         String    @db.VarChar(200) @map("item_nombre")   // snapshot
+  itemTipo           String    @db.VarChar(30) @map("item_tipo")
+  // RECURSO_HUMANO | EQUIPO | ARTICULO | SERVICIO
+  itemCategoria      String    @db.VarChar(100) @map("item_categoria") // ej: "SALARIOS"
+  itemTipoCosto      String    @db.VarChar(10) @map("item_tipo_costo") // MENSUAL | UNICO
+  cantidad           Int       @default(1)
+  costoUnitarioErp   Decimal?  @db.Decimal(18, 4) @map("costo_unitario_erp") // null en BORRADOR
+  precioVenta        Decimal?  @db.Decimal(18, 2) @map("precio_venta")
+  precioVentaOrigen  String    @db.VarChar(10) @default("LISTA") @map("precio_venta_origen")
+  // LISTA | MANUAL
+  congeladoEn        DateTime? @map("congelado_en")       // null en BORRADOR
+  orden              Int       @default(0)
+
+  puesto     Puesto       @relation(fields: [puestoId], references: [id], onDelete: Cascade)
+  recetaSnap RecetaSnap[]
+
+  @@map("costeos_puesto_recurso")
+}
+
+// ─── SNAPSHOT DE RECETA ───────────────────────────────────────────────────────
+//
+// Snapshot completo de la receta expandida (hasta 4 niveles).
+// Solo se crea al aprobar el Costeo. Mientras está en BORRADOR, las recetas
+// se leen vivas del ERP.
+//
+// Permite auditar exactamente qué items y costos tenía el costeo al aprobar.
+
+model RecetaSnap {
+  id              Int     @id @default(autoincrement())
+  puestoRecursoId Int     @map("puesto_recurso_id")
+  nivel           Int     // 1, 2, 3, 4 (profundidad dentro de la receta)
+  erpItemId       Int     @map("erp_item_id")
+  itemNombre      String  @db.VarChar(200) @map("item_nombre")
+  itemCategoria   String  @db.VarChar(100) @map("item_categoria")
+  itemTipoCosto   String  @db.VarChar(10) @map("item_tipo_costo") // MENSUAL | UNICO
+  cantidad        Decimal @db.Decimal(10, 4)
+  costoUnitario   Decimal @db.Decimal(18, 4) @map("costo_unitario")
+  subtotal        Decimal @db.Decimal(18, 2)
+  esOpcional      Boolean @default(false) @map("es_opcional")
+  fueEliminado    Boolean @default(false) @map("fue_eliminado") // el usuario lo quitó
+
+  puestoRecurso PuestoRecurso @relation(fields: [puestoRecursoId], references: [id], onDelete: Cascade)
+
+  @@map("costeos_receta_snap")
+}
+
+// ─── COSTEO ───────────────────────────────────────────────────────────────────
+//
+// Un Contrato tiene exactamente un Costeo activo.
+// Cuando se actualizan costos post-aprobación, se crea una nueva versión
+// (version+1) con costeo_padre_id apuntando al aprobado anterior.
+
+model Costeo {
+  id              Int       @id @default(autoincrement())
+  contratoId      Int       @unique @map("contrato_id")
+  version         Int       @default(1)
+  costeoPadreId   Int?      @map("costeo_padre_id")
+  estado          String    @db.VarChar(20) @default("BORRADOR")
+  // BORRADOR | APROBADO | CANCELADO
+  overheadPct     Decimal   @db.Decimal(5, 2) @default(0.00) @map("overhead_pct")
+  contingenciaPct Decimal   @db.Decimal(5, 2) @default(0.00) @map("contingencia_pct")
+  margenPct       Decimal   @db.Decimal(5, 2) @default(0.00) @map("margen_pct")
+  notas           String?   @db.Text
+  aprobadoPor     Int?      @map("aprobado_por")
+  aprobadoEn      DateTime? @map("aprobado_en")
+  creadoPor       Int       @map("creado_por")
+  creadoEn        DateTime  @default(now()) @map("creado_en")
+  modificadoEn    DateTime  @updatedAt @map("modificado_en")
+
+  contrato     Contrato   @relation(fields: [contratoId], references: [id])
+  creador      Usuario    @relation("CosteoCreador", fields: [creadoPor], references: [id])
+  aprobador    Usuario?   @relation("CosteoAprobador", fields: [aprobadoPor], references: [id])
+  costeoPadre  Costeo?    @relation("VersionesCosteo", fields: [costeoPadreId], references: [id])
+  versiones    Costeo[]   @relation("VersionesCosteo")
+  resultado    Resultado?
+  auditLogs    AuditLog[]
+
+  @@map("costeos_costeo")
+}
+
+// ─── RESULTADO ────────────────────────────────────────────────────────────────
+//
+// Snapshot financiero calculado al momento de aprobar el Costeo.
+// Incluye totales mensual / anual / duración completa del proyecto.
+
+model Resultado {
+  id                  Int      @id @default(autoincrement())
+  costeoId            Int      @unique @map("costeo_id")
+  costoMensual        Decimal  @db.Decimal(18, 2) @map("costo_mensual")
+  costoAnual          Decimal  @db.Decimal(18, 2) @map("costo_anual")
+  costoTotalProyecto  Decimal  @db.Decimal(18, 2) @map("costo_total_proyecto")
+  ventaMensual        Decimal  @db.Decimal(18, 2) @map("venta_mensual")
+  ventaAnual          Decimal  @db.Decimal(18, 2) @map("venta_anual")
+  ventaTotalProyecto  Decimal  @db.Decimal(18, 2) @map("venta_total_proyecto")
+  grossMarginPct      Decimal  @db.Decimal(5, 2)  @map("gross_margin_pct")
+  roiPct              Decimal  @db.Decimal(5, 2)  @map("roi_pct")
+  calculadoEn         DateTime @map("calculado_en")
+
+  costeo     Costeo              @relation(fields: [costeoId], references: [id], onDelete: Cascade)
+  categorias ResultadoCategoria[]
+
+  @@map("costeos_resultado")
+}
+
+// ─── RESULTADO POR CATEGORÍA ──────────────────────────────────────────────────
+//
+// Desglose del resultado por categoría de item (SALARIOS, COMUNICACIÓN, etc.)
+// Permite los reportes financieros categorizados.
+
+model ResultadoCategoria {
+  id            Int     @id @default(autoincrement())
+  resultadoId   Int     @map("resultado_id")
+  categoria     String  @db.VarChar(100)           // "SALARIOS", "COMUNICACIÓN"
+  costoMensual  Decimal @db.Decimal(18, 2) @map("costo_mensual")
+  costoTotal    Decimal @db.Decimal(18, 2) @map("costo_total")
+  ventaMensual  Decimal? @db.Decimal(18, 2) @map("venta_mensual") // null si no aplica
+
+  resultado Resultado @relation(fields: [resultadoId], references: [id], onDelete: Cascade)
+
+  @@map("costeos_resultado_categoria")
+}
+
+// ─── AUDITORÍA ────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id           Int      @id @default(autoincrement())
+  tabla        String   @db.VarChar(100)
+  registroId   Int      @map("registro_id")
+  accion       String   @db.VarChar(20) // CREATE | UPDATE | DELETE | APPROVE
+  usuarioId    Int      @map("usuario_id")
+  costeoId     Int?     @map("costeo_id") // para filtrar auditoría por costeo
+  datosAntes   String?  @db.LongText @map("datos_antes")   // JSON
+  datosDespues String?  @db.LongText @map("datos_despues") // JSON
+  en           DateTime @default(now())
+
+  usuario Usuario  @relation(fields: [usuarioId], references: [id])
+  costeo  Costeo?  @relation(fields: [costeoId], references: [id])
+
+  @@index([tabla, registroId])
+  @@index([costeoId])
+  @@map("costeos_audit_log")
+}

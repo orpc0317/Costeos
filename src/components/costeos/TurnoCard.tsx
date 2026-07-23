@@ -1,0 +1,63 @@
+import React from 'react';
+import { Clock, Users } from 'lucide-react';
+import { TurnoItem } from '@/app/actions/puestos';
+
+interface TurnoCardProps {
+  turno: TurnoItem;
+}
+
+export function TurnoCard({ turno }: TurnoCardProps) {
+  const diasSemana = [
+    { label: 'L', name: 'lunes', val: turno.lunes, hrs: turno.lunes_horas },
+    { label: 'M', name: 'martes', val: turno.martes, hrs: turno.martes_horas },
+    { label: 'M', name: 'miercoles', val: turno.miercoles, hrs: turno.miercoles_horas },
+    { label: 'J', name: 'jueves', val: turno.jueves, hrs: turno.jueves_horas },
+    { label: 'V', name: 'viernes', val: turno.viernes, hrs: turno.viernes_horas },
+    { label: 'S', name: 'sabado', val: turno.sabado, hrs: turno.sabado_horas },
+    { label: 'D', name: 'domingo', val: turno.domingo, hrs: turno.domingo_horas },
+  ];
+
+  const totalHoras = diasSemana.reduce((sum, dia) => sum + (dia.val === 1 ? (dia.hrs || 0) : 0), 0);
+
+  return (
+    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2 text-slate-700">
+          <Clock className="w-4 h-4 text-blue-500" />
+          <span className="font-semibold text-sm">Detalles del Turno</span>
+        </div>
+        <div className="flex items-center gap-1.5 bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full text-xs font-medium">
+          <Users className="w-3.5 h-3.5" />
+          <span>{turno.personas} {turno.personas === 1 ? 'Persona' : 'Personas'}</span>
+        </div>
+      </div>
+      
+      <div className="flex gap-1.5 sm:gap-2 justify-between">
+        {diasSemana.map((dia) => {
+          const isActivo = dia.val === 1;
+          return (
+            <div 
+              key={dia.name} 
+              className={`flex flex-col items-center justify-center w-12 h-14 rounded-md border ${
+                isActivo 
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm' 
+                  : 'bg-red-50 border-red-200 text-red-400'
+              }`}
+            >
+              <span className="text-xs font-bold">{dia.label}</span>
+              <span className={`text-[10px] font-medium ${isActivo ? 'text-emerald-600' : 'text-red-400'}`}>
+                {isActivo ? `${dia.hrs}h` : '0h'}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      
+      <div className="mt-3 text-right">
+        <span className="text-xs text-slate-500 font-medium">
+          Total Semanal: <span className="text-slate-700">{totalHoras}h</span>
+        </span>
+      </div>
+    </div>
+  );
+}
