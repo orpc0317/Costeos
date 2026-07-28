@@ -17,7 +17,7 @@ import { erp } from '@/lib/erp'
 
 type ActionResult<T = void> =
   | { ok: true; data: T }
-  | { ok: false; error: string }
+  | { ok: false; error: string; field?: string }
 
 // ─── Guard: solo ADMIN puede gestionar usuarios ───────────────────────────────
 
@@ -73,7 +73,7 @@ export async function crearUsuario(
   const raw = {
     nombre: formData.get('nombre'),
     email: formData.get('email'),
-    password: formData.get('password'),
+    password: formData.get('password') || 'TEMP_Pass123!', // TODO: Manejo real de contraseñas a futuro
     rol: formData.get('rol'),
     usuarioErp: formData.get('usuarioErp') || '',
   }
@@ -88,22 +88,38 @@ export async function crearUsuario(
   // Verificar email único
   const existente = await prisma.usuario.findUnique({ where: { email } })
   if (existente) {
-    return { ok: false, error: 'Ya existe un usuario con ese correo electrónico' }
+    return { ok: false, error: 'Ya existe un usuario con ese correo electrónico', field: 'email' }
   }
 
   // Validar contra ERP si se provee
   if (parsed.data.usuarioErp) {
     const esValidoERP = await validarUsuarioERP(parsed.data.usuarioErp)
     if (!esValidoERP) {
-      return { ok: false, error: 'El usuario especificado no existe o no está activo en el ERP' }
+      return { ok: false, error: 'El usuario especificado no existe o no está activo en el ERP', field: 'usuarioErp' }
     }
   }
 
   const passwordHash = await bcrypt.hash(password, 12)
 
   const usuario = await prisma.usuario.create({
-    data: { nombre, email, passwordHash, rol, usuarioErp: parsed.data.usuarioErp ?? null, agregoUsuario: guard.userId, modificoUsuario: guard.userId },
-    select: { id: true },
+    data: { nombre, email, passwordHash, rol, usuarioErp: parsed.data.usuarioErp ?? null, activo: true, agregoUsuario: guard.userId, modificoUsuario: guard.userId },
+    select: { id: true, nombre: true, email: true, rol: true, usuarioErp: true, activo: true },
+  })
+
+  await prisma.auditLog.create({
+    data: {
+      tabla: 't_usuario',
+      registroId: usuario.id,
+      accion: 'CREATE',
+      usuarioId: guard.userId,
+      datosDespues: JSON.stringify({
+        nombre: usuario.nombre,
+        email: usuario.email,
+        rol: usuario.rol,
+        usuarioErp: usuario.usuarioErp,
+        activo: usuario.activo
+      })
+    }
   })
 
   revalidatePath('/dashboard/configuracion/usuarios')
@@ -135,21 +151,25 @@ export async function editarUsuario(
 
   const { nombre, email, password, rol } = parsed.data
 
+  const usuarioActual = await prisma.usuario.findUnique({ where: { id } })
+  if (!usuarioActual) {
+    return { ok: false, error: 'Usuario no encontrado' }
+  }
+
   // Verificar email único (excluyendo al mismo usuario)
   const existente = await prisma.usuario.findFirst({
     where: { email, NOT: { id } },
   })
   if (existente) {
-    return { ok: false, error: 'Ya existe un usuario con ese correo electrónico' }
+    return { ok: false, error: 'Ya existe un usuario con ese correo electrónico', field: 'email' }
   }
 
   // Verificar si usuarioErp cambió y validarlo en el ERP
   if (parsed.data.usuarioErp) {
-    const usuarioActual = await prisma.usuario.findUnique({ where: { id } })
-    if (usuarioActual && usuarioActual.usuarioErp !== parsed.data.usuarioErp) {
+    if (usuarioActual.usuarioErp !== parsed.data.usuarioErp) {
       const esValidoERP = await validarUsuarioERP(parsed.data.usuarioErp)
       if (!esValidoERP) {
-        return { ok: false, error: 'El usuario especificado no existe o no está activo en el ERP' }
+        return { ok: false, error: 'El usuario especificado no existe o no está activo en el ERP', field: 'usuarioErp' }
       }
     }
   }
@@ -167,7 +187,25 @@ export async function editarUsuario(
     updateData.passwordHash = await bcrypt.hash(password, 12)
   }
 
-  await prisma.usuario.update({ where: { id }, data: updateData })
+  const usuarioNuevo = await prisma.usuario.update({ 
+    where: { id }, 
+    data: updateData,
+    select: { nombre: true, email: true, rol: true, usuarioErp: true, activo: true }
+  })
+
+  // Evitar guardar contraseña en los logs de auditoría
+  const { passwordHash: _1, agregoFecha: _2, modificoFecha: _3, ...datosAntesSeguros } = usuarioActual as any
+
+  await prisma.auditLog.create({
+    data: {
+      tabla: 't_usuario',
+      registroId: id,
+      accion: 'UPDATE',
+      usuarioId: guard.userId,
+      datosAntes: JSON.stringify(datosAntesSeguros),
+      datosDespues: JSON.stringify(usuarioNuevo)
+    }
+  })
 
   revalidatePath('/dashboard/configuracion/usuarios')
   return { ok: true, data: undefined }
@@ -190,12 +228,24 @@ export async function toggleActivo(id: number): Promise<ActionResult> {
   })
   if (!usuario) return { ok: false, error: 'Usuario no encontrado' }
 
-  await prisma.usuario.update({
+  const usuarioNuevo = await prisma.usuario.update({
     where: { id },
     data: { 
       activo: !usuario.activo,
       modificoUsuario: guard.userId
     },
+    select: { activo: true }
+  })
+
+  await prisma.auditLog.create({
+    data: {
+      tabla: 't_usuario',
+      registroId: id,
+      accion: 'UPDATE',
+      usuarioId: guard.userId,
+      datosAntes: JSON.stringify({ activo: usuario.activo }),
+      datosDespues: JSON.stringify({ activo: usuarioNuevo.activo })
+    }
   })
 
   revalidatePath('/dashboard/configuracion/usuarios')

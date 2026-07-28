@@ -4,6 +4,11 @@ Este documento contiene las reglas y componentes estandarizados que han nacido o
 
 ## UI y Formularios
 
+### Tablas y Pantallas CRUD
+- **Regla:** NUNCA implementar tablas HTML planas ni iterar listas manualmente para vistas principales de entidades (CRUDs).
+- **Solución:** Utilizar siempre el componente estándar `<DataTable>` ubicado en `src/components/ui/data-table.tsx`.
+- **Detalle:** Consultar `docs/crud-standard.md` para ver la forma correcta de implementar columnas, persistencia y theming unificado.
+
 ### Inputs Numéricos (Cantidades, Costos, Porcentajes)
 - **Regla:** NUNCA utilizar `<input type="number">` directamente en componentes de React que estén enlazados a un estado (State/Context) para evitar el error de hidratación y el "síndrome del punto decimal fantasma".
 - **Solución:** Utilizar el componente reutilizable `<NumericInput>` ubicado en `src/components/ui/numeric-input.tsx`.

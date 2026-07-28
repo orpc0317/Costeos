@@ -15,6 +15,8 @@ export type CosteoAction =
   | { type: 'UPDATE_PUESTO'; payload: { sitioId: string; puestoId: string; data: Partial<PuestoCosteo> } }
   | { type: 'ADD_RECURSO'; payload: { sitioId: string; puestoId: string | null; recurso: RecursoCosteo } }
   | { type: 'UPDATE_RECURSO'; payload: { sitioId: string; puestoId: string | null; recursoId: string; data: Partial<RecursoCosteo> } }
+  | { type: 'REMOVE_PUESTO'; payload: { sitioId: string; puestoId: string } }
+  | { type: 'REMOVE_RECURSO'; payload: { sitioId: string; puestoId: string | null; recursoId: string } }
   | { type: 'SELECT_NODE'; payload: { type: 'SITIO' | 'PUESTO' | 'RECURSO' | 'PROYECTO'; id: string } };
 
 interface CosteoState {
@@ -141,6 +143,81 @@ function costeoReducer(state: CosteoState, action: CosteoAction): CosteoState {
         ...state,
         proyecto: proyectoConRecursos,
         resumen: calcularResumenFinanciero(proyectoConRecursos),
+      };
+    case 'REMOVE_SITIO':
+      if (!state.proyecto) return state;
+      const proyectoSinSitio = { 
+        ...state.proyecto, 
+        sitios: state.proyecto.sitios.filter(s => s.id !== action.payload) 
+      };
+      return {
+        ...state,
+        proyecto: proyectoSinSitio,
+        resumen: calcularResumenFinanciero(proyectoSinSitio),
+      };
+    case 'REMOVE_PUESTO':
+      if (!state.proyecto) return state;
+      const sitiosSinPuesto = state.proyecto.sitios.map(s => {
+        if (s.id !== action.payload.sitioId) return s;
+        return { ...s, puestos: s.puestos.filter(p => p.id !== action.payload.puestoId) };
+      });
+      const proyectoSinPuesto = { ...state.proyecto, sitios: sitiosSinPuesto };
+      return {
+        ...state,
+        proyecto: proyectoSinPuesto,
+        resumen: calcularResumenFinanciero(proyectoSinPuesto),
+      };
+    case 'REMOVE_RECURSO':
+      if (!state.proyecto) return state;
+      
+      // Encontrar el recurso para saber si tiene grupoTurnoId
+      let grupoTurnoIdToRemove: string | undefined = undefined;
+      const sitioTarget = state.proyecto.sitios.find(s => s.id === action.payload.sitioId);
+      if (sitioTarget) {
+        if (action.payload.puestoId) {
+          const puestoTarget = sitioTarget.puestos.find(p => p.id === action.payload.puestoId);
+          if (puestoTarget) {
+            const recursoTarget = puestoTarget.recursos.find(r => r.id === action.payload.recursoId);
+            if (recursoTarget && recursoTarget.grupoTurnoId) {
+              grupoTurnoIdToRemove = recursoTarget.grupoTurnoId;
+            }
+          }
+        } else {
+          const recursoTarget = sitioTarget.recursosSinPuesto.find(r => r.id === action.payload.recursoId);
+          if (recursoTarget && recursoTarget.grupoTurnoId) {
+            grupoTurnoIdToRemove = recursoTarget.grupoTurnoId;
+          }
+        }
+      }
+
+      const sitiosSinRecurso = state.proyecto.sitios.map(s => {
+        if (s.id !== action.payload.sitioId) return s;
+        
+        if (action.payload.puestoId) {
+          const puestosAct = s.puestos.map(p => {
+            if (p.id !== action.payload.puestoId) return p;
+            const recursosFiltrados = p.recursos.filter(r => {
+              if (grupoTurnoIdToRemove && r.grupoTurnoId === grupoTurnoIdToRemove) return false;
+              if (!grupoTurnoIdToRemove && r.id === action.payload.recursoId) return false;
+              return true;
+            });
+            return { ...p, recursos: recursosFiltrados };
+          });
+          return { ...s, puestos: puestosAct };
+        } else {
+          const recursosSinPuestoFiltrados = s.recursosSinPuesto.filter(r => {
+            if (grupoTurnoIdToRemove && r.grupoTurnoId === grupoTurnoIdToRemove) return false;
+            if (!grupoTurnoIdToRemove && r.id === action.payload.recursoId) return false;
+            return true;
+          });
+          return { ...s, recursosSinPuesto: recursosSinPuestoFiltrados };
+        }
+      });
+      const proyectoSinRecurso = { ...state.proyecto, sitios: sitiosSinRecurso };
+      return {
+        ...state,
+        proyecto: proyectoSinRecurso,
+        resumen: calcularResumenFinanciero(proyectoSinRecurso),
       };
     case 'SELECT_NODE':
       return {

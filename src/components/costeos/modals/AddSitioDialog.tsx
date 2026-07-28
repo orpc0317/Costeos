@@ -17,7 +17,7 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import { getDepartamentos, getMunicipios, UbicacionItem } from '@/app/actions/ubicaciones';
 
 export function AddSitioDialog() {
-  const { dispatch } = useCosteo();
+  const { proyecto, dispatch } = useCosteo();
   const [open, setOpen] = useState(false);
   
   const [nombre, setNombre] = useState('');
@@ -30,10 +30,14 @@ export function AddSitioDialog() {
   const [loadingDeptos, setLoadingDeptos] = useState(false);
   const [loadingMunis, setLoadingMunis] = useState(false);
 
+  const tc = proyecto?.tipoCosteo;
+  const lblN1 = tc?.nivel1Etiqueta || 'Sitio';
+  const hasDireccion = tc?.nivel1ConDireccion ?? true;
+
   // Cargar departamentos al abrir el modal
   useEffect(() => {
     let active = true;
-    if (open) {
+    if (open && hasDireccion) {
       const fetchDeptos = async () => {
         setLoadingDeptos(true);
         const data = await getDepartamentos('GT');
@@ -44,7 +48,7 @@ export function AddSitioDialog() {
         }
       };
       fetchDeptos();
-    } else {
+    } else if (!open) {
       // Limpiar al cerrar
       setNombre('');
       setDireccion('');
@@ -52,12 +56,12 @@ export function AddSitioDialog() {
       setMunicipio('');
     }
     return () => { active = false; };
-  }, [open]);
+  }, [open, hasDireccion]);
 
   // Cargar municipios al cambiar departamento
   useEffect(() => {
     let active = true;
-    if (open && departamento) {
+    if (open && departamento && hasDireccion) {
       const fetchMunis = async () => {
         setLoadingMunis(true);
         const data = await getMunicipios('GT', departamento);
@@ -69,12 +73,12 @@ export function AddSitioDialog() {
         }
       };
       fetchMunis();
-    } else {
+    } else if (!open || !hasDireccion) {
       setMunicipios([]);
       setMunicipio('');
     }
     return () => { active = false; };
-  }, [open, departamento]);
+  }, [open, departamento, hasDireccion]);
 
   const handleAdd = () => {
     const cleanNombre = normalizeText(nombre);
@@ -84,7 +88,7 @@ export function AddSitioDialog() {
       id: `SIT-${Date.now()}`,
       nombre: cleanNombre,
       direccion: normalizeText(direccion),
-      pais: 'GT',
+      pais: hasDireccion ? 'GT' : '',
       departamento: departamento,
       municipio: municipio,
       puestos: [],
@@ -94,17 +98,31 @@ export function AddSitioDialog() {
     dispatch({ type: 'ADD_SITIO', payload: nuevoSitio });
     dispatch({ type: 'SELECT_NODE', payload: { type: 'SITIO', id: nuevoSitio.id } });
     
+    // Si no hay nivel 2 activo, creamos un puesto por defecto
+    if (tc && !tc.nivel2Activo) {
+      const defaultPuesto = {
+        id: `PST-${Date.now()}`,
+        nombre: 'DEFAULT',
+        recursos: [],
+      };
+      dispatch({ type: 'ADD_PUESTO', payload: { sitioId: nuevoSitio.id, puesto: defaultPuesto } });
+    }
+    
     setOpen(false);
   };
 
+  const isFormValid = hasDireccion 
+    ? (nombre.trim() && direccion.trim() && departamento && municipio)
+    : (nombre.trim());
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<button className="p-1 hover:bg-slate-200 rounded text-slate-500" title="Agregar Sitio" />}>
+      <DialogTrigger render={<button className="p-1 hover:bg-slate-200 rounded text-slate-500" title={`Agregar ${lblN1}`} />}>
         <Plus className="w-4 h-4" />
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Agregar Nuevo Sitio</DialogTitle>
+          <DialogTitle>Agregar Nuevo {lblN1}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
@@ -116,60 +134,65 @@ export function AddSitioDialog() {
               className="uppercase"
             />
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Dirección</label>
-            <Input 
-              value={direccion} 
-              onChange={e => setDireccion(e.target.value)} 
-              placeholder="Ej: ZONA 10, CIUDAD" 
-              className="uppercase"
-            />
-          </div>
+          
+          {hasDireccion && (
+            <>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Dirección</label>
+                <Input 
+                  value={direccion} 
+                  onChange={e => setDireccion(e.target.value)} 
+                  placeholder="Ej: ZONA 10, CIUDAD" 
+                  className="uppercase"
+                />
+              </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">País</label>
-              <SearchableSelect
-                options={[{ value: 'GT', label: 'GUATEMALA' }]}
-                value="GT"
-                onChange={() => {}}
-                disabled={true}
-              />
-            </div>
-            
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Departamento {loadingDeptos && <span className="text-xs text-slate-400">(cargando...)</span>}
-              </label>
-              <SearchableSelect
-                options={departamentos.map(d => ({ value: d.codigo, label: d.nombre }))}
-                value={departamento}
-                onChange={setDepartamento}
-                disabled={loadingDeptos || departamentos.length === 0}
-                placeholder="Seleccione..."
-              />
-            </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">País</label>
+                  <SearchableSelect
+                    options={[{ value: 'GT', label: 'GUATEMALA' }]}
+                    value="GT"
+                    onChange={() => {}}
+                    disabled={true}
+                  />
+                </div>
+                
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Departamento {loadingDeptos && <span className="text-xs text-slate-400">(cargando...)</span>}
+                  </label>
+                  <SearchableSelect
+                    options={departamentos.map(d => ({ value: d.codigo, label: d.nombre }))}
+                    value={departamento}
+                    onChange={setDepartamento}
+                    disabled={loadingDeptos || departamentos.length === 0}
+                    placeholder="Seleccione..."
+                  />
+                </div>
 
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Municipio {loadingMunis && <span className="text-xs text-slate-400">(cargando...)</span>}
-              </label>
-              <SearchableSelect
-                options={municipios.map(m => ({ value: m.codigo, label: m.nombre }))}
-                value={municipio}
-                onChange={setMunicipio}
-                disabled={loadingMunis || !departamento || municipios.length === 0}
-                placeholder="Seleccione..."
-              />
-            </div>
-          </div>
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Municipio {loadingMunis && <span className="text-xs text-slate-400">(cargando...)</span>}
+                  </label>
+                  <SearchableSelect
+                    options={municipios.map(m => ({ value: m.codigo, label: m.nombre }))}
+                    value={municipio}
+                    onChange={setMunicipio}
+                    disabled={loadingMunis || !departamento || municipios.length === 0}
+                    placeholder="Seleccione..."
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
           <Button 
             className="w-full bg-blue-600 hover:bg-blue-700" 
             onClick={handleAdd}
-            disabled={!nombre.trim() || !direccion.trim() || !departamento || !municipio}
+            disabled={!isFormValid}
           >
-            Crear Sitio
+            Crear {lblN1}
           </Button>
         </div>
       </DialogContent>

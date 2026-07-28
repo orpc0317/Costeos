@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { ChevronDownIcon, CheckIcon, SearchIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { UI_THEME } from '@/lib/theme'
 
 export interface SelectOption {
   value: string
@@ -17,6 +18,7 @@ interface SearchableSelectProps {
   className?: string
   disabled?: boolean
   error?: boolean
+  autoFocus?: boolean
 }
 
 export function SearchableSelect({
@@ -26,7 +28,8 @@ export function SearchableSelect({
   placeholder = "Seleccionar...",
   className,
   disabled = false,
-  error = false
+  error = false,
+  autoFocus = false
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -54,16 +57,33 @@ export function SearchableSelect({
     }
   }, [isOpen])
 
+  useEffect(() => {
+    if (autoFocus && !disabled && containerRef.current) {
+      const button = containerRef.current.querySelector('button');
+      if (button) {
+        setTimeout(() => button.focus(), 10);
+      }
+    }
+  }, [autoFocus, disabled]);
+
   return (
     <div className={cn("relative w-full", className)} ref={containerRef}>
       <button
         type="button"
-        disabled={disabled}
-        onClick={() => setIsOpen(!isOpen)}
+        aria-disabled={disabled}
+        autoFocus={autoFocus}
+        onClick={(e) => {
+          if (disabled) {
+            e.preventDefault();
+            return;
+          }
+          setIsOpen(!isOpen);
+        }}
         className={cn(
-          "flex w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          UI_THEME.forms.inputBase,
+          "flex w-full items-center justify-between shadow-sm ring-offset-background aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
           !selectedOption && "text-muted-foreground",
-          error && "border-red-400 focus:ring-red-400"
+          error && "border-red-400 focus:ring-red-400 focus-visible:ring-red-400"
         )}
       >
         <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>

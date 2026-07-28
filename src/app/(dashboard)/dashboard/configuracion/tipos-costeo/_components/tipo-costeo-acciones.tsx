@@ -3,14 +3,13 @@
 import { useState } from 'react'
 import { Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { UsuarioDialog } from './usuario-dialog'
-import type { UsuarioRow } from '@/lib/types/usuarios'
+import { FormTipoCosteo } from './form-tipo-costeo'
 
-interface UsuarioAccionesProps {
-  usuario: UsuarioRow
+interface TipoCosteoAccionesProps {
+  tipo: any
 }
 
-export function UsuarioAcciones({ usuario }: UsuarioAccionesProps) {
+export function TipoCosteoAcciones({ tipo }: TipoCosteoAccionesProps) {
   const [editOpen, setEditOpen] = useState(false)
 
   return (
@@ -23,10 +22,11 @@ export function UsuarioAcciones({ usuario }: UsuarioAccionesProps) {
       >
         <Eye className="h-4 w-4 text-blue-600" />
       </Button>
-      <UsuarioDialog
-        usuario={usuario}
+
+      <FormTipoCosteo
         open={editOpen}
         onOpenChange={setEditOpen}
+        tipo={tipo}
       />
     </>
   )

@@ -84,14 +84,36 @@ export async function createCosteo(formData: FormData) {
     })
 
     // 3. Crear el Costeo asociado
+    const tipoCosteoIdStr = formData.get('tipoCosteoId') as string
+    const tipoCosteoId = tipoCosteoIdStr ? parseInt(tipoCosteoIdStr, 10) : undefined
     const costeo = await tx.costeo.create({
       data: {
         contratoId: contrato.id,
+        tipoCosteoId,
         version: 1,
         estado: 'BORRADOR',
         creadoPor: parseInt(session.user.id as string, 10),
       }
     })
+
+    // 4. Crear nodos por defecto si el tipo de costeo deshabilita niveles
+    if (tipoCosteoId) {
+      const tc = await tx.tipoCosteo.findUnique({ where: { id: tipoCosteoId } })
+      if (tc) {
+        if (!tc.nivel1Activo) {
+          // Crear Sitio por defecto y Puesto por defecto
+          const sitio = await tx.sitio.create({
+            data: { contratoId: contrato.id, nombre: 'DEFAULT', codigo: 'DEF' }
+          })
+          await tx.puesto.create({
+            data: { sitioId: sitio.id, nombre: 'DEFAULT', codigo: 'DEF', diasCobertura: 'LUN-DOM', horaInicio: '00:00', horaFin: '23:59' }
+          })
+        } else if (!tc.nivel2Activo) {
+          // No nivel 2: pero el nivel 1 lo crea el usuario. Wait, if the user creates a Nivel 1 (Sitio), 
+          // they won't see Nivel 2, so the system must automatically create a Default Nivel 2 (Puesto) inside that Sitio when the Sitio is created.
+        }
+      }
+    }
 
     return costeo
   })

@@ -60,13 +60,10 @@ export const mockProyectoInicial: ProyectoCosteo = {
         {
           id: 'PUE-001',
           nombre: 'Garita Principal',
-          diasCobertura: 'Lunes a Domingo',
-          horario: '06:00 a 18:00',
-          horasTurno: 12,
           recursos: [
             {
               id: 'REC-001',
-              itemCatalogoId: 'RH_01',
+              erpItemId: 10,
               nombre: 'Guardia Estándar 12h',
               categoria: 'RECURSO_HUMANO',
               tipoCosto: 'MENSUAL',
@@ -79,9 +76,9 @@ export const mockProyectoInicial: ProyectoCosteo = {
                   recetaCatalogoId: 'REC_UNIFORME',
                   nombre: 'Uniforme Estándar',
                   items: [
-                    { id: 'ITR-001', itemCatalogoId: 'AR_01', nombre: 'Camisa Uniforme', categoria: 'ARTICULO', tipoCosto: 'UNICO', cantidad: 2, costoUnitario: 150 },
-                    { id: 'ITR-002', itemCatalogoId: 'AR_02', nombre: 'Pantalón Uniforme', categoria: 'ARTICULO', tipoCosto: 'UNICO', cantidad: 2, costoUnitario: 200 },
-                    { id: 'ITR-003', itemCatalogoId: 'AR_03', nombre: 'Zapatos de Seguridad', categoria: 'ARTICULO', tipoCosto: 'UNICO', cantidad: 1, costoUnitario: 400 },
+                    { id: 'ITR-001', erpItemId: 1, nombre: 'Camisa Uniforme', categoria: 'ARTICULO', tipoCosto: 'UNICO', cantidad: 2, costoUnitario: 150 },
+                    { id: 'ITR-002', erpItemId: 2, nombre: 'Pantalón Uniforme', categoria: 'ARTICULO', tipoCosto: 'UNICO', cantidad: 2, costoUnitario: 200 },
+                    { id: 'ITR-003', erpItemId: 3, nombre: 'Zapatos de Seguridad', categoria: 'ARTICULO', tipoCosto: 'UNICO', cantidad: 1, costoUnitario: 400 },
                   ]
                 }
               ]

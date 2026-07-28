@@ -130,8 +130,11 @@ model Puesto {
   // Ej: "LUN-VIE", "LUN-DOM", "MAR,JUE,SAB"
   horaInicio    String  @db.VarChar(5) @map("hora_inicio")  // "06:00"
   horaFin       String  @db.VarChar(5) @map("hora_fin")     // "18:00"
-  personas      Int     @default(1)
-  horasSemana   Int     @default(0) @map("horas_semana")
+  personas       Int     @default(1)
+  horasSemana    Int     @default(0) @map("horas_semana")
+  turnoCodigo    Int?    @map("turno_codigo")
+  uniformeCodigo String? @db.VarChar(50) @map("uniforme_codigo")
+  cubreDescanso  Int     @default(0) @map("cubre_descanso")
 
   sitio    Sitio           @relation(fields: [sitioId], references: [id], onDelete: Cascade)
   recursos PuestoRecurso[]
@@ -211,6 +214,7 @@ model RecetaSnap {
 model Costeo {
   id              Int       @id @default(autoincrement())
   contratoId      Int       @unique @map("contrato_id")
+  tipoCosteoId    Int?      @map("tipo_costeo_id")
   version         Int       @default(1)
   costeoPadreId   Int?      @map("costeo_padre_id")
   estado          String    @db.VarChar(20) @default("BORRADOR")
@@ -225,6 +229,7 @@ model Costeo {
   creadoEn        DateTime  @default(now()) @map("creado_en")
   modificadoEn    DateTime  @updatedAt @map("modificado_en")
 
+  tipoCosteo   TipoCosteo? @relation(fields: [tipoCosteoId], references: [id])
   contrato     Contrato   @relation(fields: [contratoId], references: [id])
   creador      Usuario    @relation("CosteoCreador", fields: [creadoPor], references: [id])
   aprobador    Usuario?   @relation("CosteoAprobador", fields: [aprobadoPor], references: [id])
@@ -298,3 +303,25 @@ model AuditLog {
   @@index([costeoId])
   @@map("costeos_audit_log")
 }
+
+// ─── TIPOS DE COSTEO ──────────────────────────────────────────────────────────
+
+model TipoCosteo {
+  id               Int      @id @default(autoincrement())
+  codigo           String   @unique @db.VarChar(20)
+  nombre           String   @db.VarChar(200)
+  nivel1Activo     Boolean  @default(true) @map("nivel1_activo")
+  nivel1Etiqueta   String?  @db.VarChar(50) @map("nivel1_etiqueta") // ej: "Sitio"
+  nivel1ConDireccion Boolean @default(false) @map("nivel1_con_direccion")
+  nivel2Activo     Boolean  @default(true) @map("nivel2_activo")
+  nivel2Etiqueta   String?  @db.VarChar(50) @map("nivel2_etiqueta") // ej: "Puesto"
+  recursosEtiqueta String   @default("Item") @db.VarChar(50) @map("recursos_etiqueta")
+  activo           Boolean  @default(true)
+  creadoEn         DateTime @default(now()) @map("creado_en")
+  modificadoEn     DateTime @updatedAt @map("modificado_en")
+
+  costeos          Costeo[]
+
+  @@map("costeos_tipo_costeo")
+}
+

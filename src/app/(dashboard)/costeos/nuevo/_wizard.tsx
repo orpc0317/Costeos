@@ -26,9 +26,10 @@ import { Search, Plus } from 'lucide-react'
 
 type WizardCosteoProps = {
   empresas: ErpEmpresa[]
+  tiposCosteo?: any[]
 }
 
-export function WizardCosteo({ empresas }: WizardCosteoProps) {
+export function WizardCosteo({ empresas, tiposCosteo }: WizardCosteoProps) {
   const [empresaId, setEmpresaId] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
   const [clientes, setClientes] = useState<ErpCliente[]>([])
@@ -60,59 +61,70 @@ export function WizardCosteo({ empresas }: WizardCosteoProps) {
     setSelectedCliente(null)
   }
 
+// Paso 3 (o 2 expandido): Formulario de Detalles del Proyecto
+  const [showForm, setShowForm] = useState(false)
+  const [tipoCosteoId, setTipoCosteoId] = useState<string>('')
+  const [moneda, setMoneda] = useState<string>('GTQ')
+
   const handleSelectCliente = (cliente: ErpCliente) => {
     setSelectedCliente(cliente)
-    alert(`Cliente seleccionado: ${cliente.nombreComercial}. Aquí arrancaría el paso 2 del Wizard.`)
-    // TODO: Ir al siguiente paso del Wizard.
+    setShowForm(true)
+  }
+
+  const handleBackToSearch = () => {
+    setShowForm(false)
+    setSelectedCliente(null)
   }
 
   return (
     <div className="space-y-6">
       {/* Paso 1: Filtros de Búsqueda */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg text-indigo-900">1. Datos Iniciales</CardTitle>
-          <CardDescription>Selecciona la empresa y busca al cliente para el costeo.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSearch} className="flex gap-4 items-end">
-            <div className="w-1/3 space-y-2">
-              <Label htmlFor="empresa">Empresa</Label>
-              <Select value={empresaId} onValueChange={handleEmpresaChange}>
-                <SelectTrigger id="empresa">
-                  <SelectValue placeholder="Selecciona una empresa" />
-                </SelectTrigger>
-                <SelectContent>
-                  {empresas.map((emp) => (
-                    <SelectItem key={emp.id} value={String(emp.id)}>
-                      {emp.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="w-1/2 space-y-2">
-              <Label htmlFor="search">Buscar Cliente (NIT, Código, Nombre)</Label>
-              <Input 
-                id="search" 
-                placeholder="Ej. Constructora..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                disabled={!empresaId}
-              />
-            </div>
+      {!showForm && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg text-indigo-900">1. Datos Iniciales</CardTitle>
+            <CardDescription>Selecciona la empresa y busca al cliente para el costeo.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSearch} className="flex gap-4 items-end">
+              <div className="w-1/3 space-y-2">
+                <Label htmlFor="empresa">Empresa</Label>
+                <Select value={empresaId} onValueChange={handleEmpresaChange}>
+                  <SelectTrigger id="empresa">
+                    <SelectValue placeholder="Selecciona una empresa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {empresas.map((emp) => (
+                      <SelectItem key={emp.id} value={String(emp.id)}>
+                        {emp.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="w-1/2 space-y-2">
+                <Label htmlFor="search">Buscar Cliente (NIT, Código, Nombre)</Label>
+                <Input 
+                  id="search" 
+                  placeholder="Ej. Constructora..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  disabled={!empresaId}
+                />
+              </div>
 
-            <Button type="submit" disabled={!empresaId || isLoading} className="bg-indigo-600 hover:bg-indigo-700">
-              <Search className="mr-2 h-4 w-4" />
-              {isLoading ? 'Buscando...' : 'Buscar'}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+              <Button type="submit" disabled={!empresaId || isLoading} className="bg-indigo-600 hover:bg-indigo-700">
+                <Search className="mr-2 h-4 w-4" />
+                {isLoading ? 'Buscando...' : 'Buscar'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Paso 2: Resultados */}
-      {searched && (
+      {searched && !showForm && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
@@ -159,6 +171,80 @@ export function WizardCosteo({ empresas }: WizardCosteoProps) {
                 <p>No se encontraron clientes que coincidan con la búsqueda.</p>
               </div>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Paso 3: Detalles del Costeo */}
+      {showForm && selectedCliente && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg text-indigo-900">2. Detalles del Costeo</CardTitle>
+            <CardDescription>
+              Cliente seleccionado: <span className="font-semibold text-indigo-700">{selectedCliente.razonSocial}</span> ({selectedCliente.nit})
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form action="/api/costeos/create" method="POST" className="space-y-6">
+              <input type="hidden" name="empresa" value={empresaId} />
+              <input type="hidden" name="erpClienteData" value={JSON.stringify(selectedCliente)} />
+              <input type="hidden" name="isNewClient" value="false" />
+              <input type="hidden" name="tipoCosteoId" value={tipoCosteoId} />
+              <input type="hidden" name="moneda" value={moneda} />
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nombreProyecto">Nombre del Proyecto</Label>
+                  <Input id="nombreProyecto" name="nombreProyecto" required placeholder="Ej. Seguridad Oficinas Centrales" className="uppercase" />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="tipoCosteoIdSelect">Tipo de Costeo</Label>
+                  <Select value={tipoCosteoId} onValueChange={setTipoCosteoId} required>
+                    <SelectTrigger id="tipoCosteoIdSelect">
+                      <SelectValue placeholder="Selecciona un tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tiposCosteo?.map((tc: any) => (
+                        <SelectItem key={tc.id} value={String(tc.id)}>
+                          {tc.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="plazoMeses">Plazo en Meses</Label>
+                  <Input id="plazoMeses" name="plazoMeses" type="number" required defaultValue="12" min="1" />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="monedaSelect">Moneda</Label>
+                  <Select value={moneda} onValueChange={setMoneda}>
+                    <SelectTrigger id="monedaSelect">
+                      <SelectValue placeholder="Moneda" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="GTQ">Quetzales (GTQ)</SelectItem>
+                      <SelectItem value="USD">Dólares (USD)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex justify-between pt-4">
+                <Button type="button" variant="outline" onClick={handleBackToSearch}>
+                  Cambiar Cliente
+                </Button>
+                <Button type="submit" disabled={!tipoCosteoId} formAction={async (formData) => {
+                  const { createCosteo } = await import('@/app/actions/costeos')
+                  await createCosteo(formData)
+                }} className="bg-indigo-600 hover:bg-indigo-700">
+                  Crear Proyecto
+                </Button>
+              </div>
+            </form>
           </CardContent>
         </Card>
       )}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useCosteo } from '@/lib/context/CosteoContext';
 import { NumericInput } from '@/components/ui/numeric-input';
 import { normalizeText } from '@/lib/utils/text';
@@ -8,8 +8,10 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getDepartamentos, getMunicipios, UbicacionItem } from '@/app/actions/ubicaciones';
 import { getTurnos, getUniformes, TurnoItem, UniformeItem } from '@/app/actions/puestos';
-import { MapPin, Briefcase } from 'lucide-react';
+import { MapPin, Briefcase, Settings, Trash2 } from 'lucide-react';
 import { TurnoCard } from './TurnoCard';
+import { RecursosSummaryTable } from './RecursosSummaryTable';
+import { ConfirmDeleteDialog } from './modals/ConfirmDeleteDialog';
 
 export default function EditorPanel() {
   const { proyecto, selectedNode, dispatch } = useCosteo();
@@ -25,6 +27,11 @@ export default function EditorPanel() {
   }
 
   // Encontrar el nodo en el árbol y guardar IDs padres
+  const tc = proyecto.tipoCosteo;
+  const lblN1 = tc?.nivel1Etiqueta || 'Sitio';
+  const lblN2 = tc?.nivel2Etiqueta || 'Puesto';
+  const lblR = tc?.recursosEtiqueta || 'Recurso';
+
   let nodeData: any = null;
   let title = '';
   let parentSitioId: string | null = null;
@@ -36,7 +43,7 @@ export default function EditorPanel() {
   } else if (selectedNode.type === 'SITIO') {
     nodeData = proyecto.sitios.find(s => s.id === selectedNode.id);
     parentSitioId = selectedNode.id;
-    title = 'Detalles del Sitio';
+    title = `Detalles del ${lblN1}`;
   } else if (selectedNode.type === 'PUESTO') {
     for (const sitio of proyecto.sitios) {
       const puesto = sitio.puestos.find(p => p.id === selectedNode.id);
@@ -44,7 +51,7 @@ export default function EditorPanel() {
         nodeData = puesto;
         parentSitioId = sitio.id;
         parentPuestoId = puesto.id;
-        title = 'Detalles del Puesto';
+        title = `Detalles del ${lblN2}`;
         break;
       }
     }
@@ -56,7 +63,7 @@ export default function EditorPanel() {
           nodeData = recurso;
           parentSitioId = sitio.id;
           parentPuestoId = puesto.id;
-          title = 'Detalles del Recurso';
+          title = `Detalles del ${lblR}`;
           break;
         }
       }
@@ -66,7 +73,7 @@ export default function EditorPanel() {
           nodeData = recursoSp;
           parentSitioId = sitio.id;
           parentPuestoId = null;
-          title = 'Detalles del Recurso (Sin Puesto)';
+          title = `Detalles del ${lblR} (Sin ${lblN2})`;
           break;
         }
       }
@@ -114,6 +121,26 @@ export default function EditorPanel() {
     }
   };
 
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  const confirmDelete = () => {
+    if (selectedNode.type === 'SITIO' && parentSitioId) {
+      dispatch({ type: 'REMOVE_SITIO', payload: parentSitioId });
+    } else if (selectedNode.type === 'PUESTO' && parentSitioId && parentPuestoId) {
+      dispatch({ type: 'REMOVE_PUESTO', payload: { sitioId: parentSitioId, puestoId: parentPuestoId } });
+    } else if (selectedNode.type === 'RECURSO' && parentSitioId) {
+      dispatch({ 
+        type: 'REMOVE_RECURSO', 
+        payload: { sitioId: parentSitioId, puestoId: parentPuestoId, recursoId: selectedNode.id } 
+      });
+    }
+    // Deseleccionar el nodo y volver al PROYECTO
+    dispatch({ type: 'SELECT_NODE', payload: { type: 'PROYECTO', id: proyecto.id } });
+    setIsDeleteDialogOpen(false);
+  };
+
+  const handleDeleteClick = () => setIsDeleteDialogOpen(true);
+
   return (
     <div className="flex flex-col h-full">
       <div className="p-6 border-b flex justify-between items-start">
@@ -126,42 +153,61 @@ export default function EditorPanel() {
       <div className="p-6 overflow-y-auto flex-1 bg-slate-50/30">
         
         {selectedNode.type === 'PROYECTO' && (
-          <div className="space-y-4 max-w-2xl">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Nombre del Proyecto</label>
-                <input 
-                  type="text" 
-                  className={`w-full border rounded-md p-2 outline-none transition-all ${!nodeData.nombreProyecto?.trim() ? 'border-red-400 focus:ring-2 focus:ring-red-400' : 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}`} 
-                  value={nodeData.nombreProyecto} 
-                  onChange={(e) => handleChange('nombreProyecto', e.target.value)} 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Plazo (meses)</label>
-                <NumericInput 
-                  className="w-full border rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
-                  value={nodeData.plazoMeses} 
-                  onChange={(val) => handleChange('plazoMeses', val)} 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Overhead (%)</label>
-                <NumericInput 
-                  className="w-full border rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
-                  value={nodeData.porcentajeOverhead} 
-                  onChange={(val) => handleChange('porcentajeOverhead', val)} 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Contingencia (%)</label>
-                <NumericInput 
-                  className="w-full border rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
-                  value={nodeData.porcentajeContingencia} 
-                  onChange={(val) => handleChange('porcentajeContingencia', val)} 
-                />
-              </div>
-            </div>
+          <div className="max-w-4xl">
+            <Tabs defaultValue="general" className="w-full">
+              <TabsList className="mb-4">
+                <TabsTrigger value="general">General</TabsTrigger>
+                <TabsTrigger value="resumen">Resumen</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="general" className="space-y-4 outline-none">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nombre del Proyecto</label>
+                    <input 
+                      type="text" 
+                      className={`w-full border rounded-md p-2 outline-none transition-all ${!nodeData.nombreProyecto?.trim() ? 'border-red-400 focus:ring-2 focus:ring-red-400' : 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}`} 
+                      value={nodeData.nombreProyecto} 
+                      onChange={(e) => handleChange('nombreProyecto', e.target.value)} 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Plazo (meses)</label>
+                    <NumericInput 
+                      className="w-full border rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
+                      value={nodeData.plazoMeses}
+                      isInteger={true}
+                      onChange={(val) => handleChange('plazoMeses', val)} 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Overhead (%)</label>
+                    <NumericInput 
+                      className="w-full border rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
+                      value={nodeData.porcentajeOverhead} 
+                      onChange={(val) => handleChange('porcentajeOverhead', val)} 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Contingencia (%)</label>
+                    <NumericInput 
+                      className="w-full border rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
+                      value={nodeData.porcentajeContingencia} 
+                      onChange={(val) => handleChange('porcentajeContingencia', val)} 
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="resumen" className="outline-none">
+                {(() => {
+                  const allRecursos = nodeData.sitios.flatMap((s: any) => 
+                    s.puestos.flatMap((p: any) => p.recursos).concat(s.recursosSinPuesto || [])
+                  );
+                  return <RecursosSummaryTable recursos={allRecursos} />;
+                })()}
+              </TabsContent>
+            </Tabs>
           </div>
         )}
 
@@ -169,6 +215,10 @@ export default function EditorPanel() {
           <SitioEditor 
             nodeData={nodeData} 
             handleChange={handleChange} 
+            handleDelete={handleDeleteClick}
+            lblN1={lblN1}
+            lblN2={lblN2}
+            tc={tc}
           />
         )}
 
@@ -176,6 +226,8 @@ export default function EditorPanel() {
           <PuestoEditor 
             nodeData={nodeData} 
             handleChange={handleChange} 
+            handleDelete={handleDeleteClick}
+            lblN2={lblN2}
           />
         )}
 
@@ -190,14 +242,15 @@ export default function EditorPanel() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Cantidad</label>
                 <NumericInput 
                   className="w-full border rounded-md p-2 font-medium text-blue-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
-                  value={nodeData.cantidad} 
+                  value={nodeData.cantidad}
+                  isInteger={true}
                   onChange={(val) => handleChange('cantidad', val)} 
                   min="0"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 border-t pt-4">
+            <div className="grid grid-cols-3 gap-4 border-t pt-4">
                <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Costo Unitario</label>
                 <div className="relative">
@@ -210,7 +263,7 @@ export default function EditorPanel() {
                 </div>
               </div>
                <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Precio de Venta</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Precio Venta ({proyecto.moneda})</label>
                 <div className="relative">
                   <span className="absolute left-3 top-2.5 text-slate-500">{proyecto.moneda === 'GTQ' ? 'Q' : '$'}</span>
                   <NumericInput 
@@ -218,6 +271,30 @@ export default function EditorPanel() {
                     value={nodeData.precioVentaUnitario} 
                     onChange={(val) => handleChange('precioVentaUnitario', val)} 
                   />
+                </div>
+              </div>
+               <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Total</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-slate-500">{proyecto.moneda === 'GTQ' ? 'Q' : '$'}</span>
+                  {(() => {
+                    const total = (nodeData.precioVentaUnitario || 0) * (nodeData.cantidad || 0);
+                    const formatCurrency = (val: number) => {
+                      try {
+                        return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
+                      } catch(e) {
+                        return val.toFixed(2);
+                      }
+                    };
+                    return (
+                      <input 
+                        type="text"
+                        className="w-full border rounded-md p-2 pl-8 bg-slate-100 text-blue-700 font-bold outline-none cursor-not-allowed" 
+                        value={formatCurrency(total)} 
+                        readOnly 
+                      />
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -256,19 +333,42 @@ export default function EditorPanel() {
                 ))}
               </div>
             )}
+            <div className="pt-6 border-t border-slate-200 mt-6">
+              <button 
+                onClick={handleDeleteClick}
+                className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Eliminar Recurso
+              </button>
+            </div>
           </div>
         )}
 
       </div>
+      
+      {/* Diálogo de Confirmación de Eliminación */}
+      <ConfirmDeleteDialog 
+        open={isDeleteDialogOpen} 
+        onOpenChange={setIsDeleteDialogOpen} 
+        onConfirm={confirmDelete} 
+        nodeName={nodeData.nombre || 'Sin nombre'} 
+        nodeType={
+          selectedNode.type === 'SITIO' ? lblN1 : 
+          selectedNode.type === 'PUESTO' ? lblN2 : 
+          lblR
+        }
+      />
     </div>
   );
 }
 
-function SitioEditor({ nodeData, handleChange }: { nodeData: any, handleChange: (field: string, value: any) => void }) {
+function SitioEditor({ nodeData, handleChange, handleDelete, lblN1, lblN2, tc }: { nodeData: any, handleChange: (field: string, value: any) => void, handleDelete: () => void, lblN1: string, lblN2: string, tc: any }) {
   const [departamentos, setDepartamentos] = useState<UbicacionItem[]>([]);
   const [municipios, setMunicipios] = useState<UbicacionItem[]>([]);
   const [loadingDeptos, setLoadingDeptos] = useState(true);
   const [loadingMunis, setLoadingMunis] = useState(false);
+  const hasDireccion = tc?.nivel1ConDireccion ?? true;
 
   // Cargar departamentos al inicio (País fijo a 'GT')
   useEffect(() => {
@@ -326,6 +426,7 @@ function SitioEditor({ nodeData, handleChange }: { nodeData: any, handleChange: 
       <Tabs defaultValue="general" className="w-full">
         <TabsList className="mb-4">
           <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="resumen">Resumen</TabsTrigger>
         </TabsList>
         <TabsContent value="general" className="space-y-4 outline-none">
           <div className="grid grid-cols-2 gap-4">
@@ -339,128 +440,113 @@ function SitioEditor({ nodeData, handleChange }: { nodeData: any, handleChange: 
           />
         </div>
         
-        <div className="col-span-2 pt-4 pb-1 border-b border-slate-200 flex items-center gap-2">
-          <MapPin className="w-4 h-4 text-slate-400" />
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">UBICACION</h3>
-        </div>
+        {hasDireccion && (
+          <>
+            <div className="col-span-2 pt-4 pb-1 border-b border-slate-200 flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-slate-400" />
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">UBICACION</h3>
+            </div>
 
-        <div className="col-span-2">
-          <label className="block text-sm font-medium text-slate-700 mb-1">Dirección</label>
-          <input 
-            type="text" 
-            className={`w-full border rounded-md p-2 outline-none transition-all uppercase ${!nodeData.direccion?.trim() ? 'border-red-400 focus:ring-2 focus:ring-red-400' : 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}`}
-            value={nodeData.direccion} 
-            onChange={(e) => handleChange('direccion', e.target.value)} 
-          />
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Dirección</label>
+              <input 
+                type="text" 
+                className={`w-full border rounded-md p-2 outline-none transition-all uppercase ${!nodeData.direccion?.trim() ? 'border-red-400 focus:ring-2 focus:ring-red-400' : 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}`}
+                value={nodeData.direccion || ''} 
+                onChange={(e) => handleChange('direccion', e.target.value)} 
+              />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-1">País</label>
+              <SearchableSelect
+                options={[{ value: 'GT', label: 'GUATEMALA' }]}
+                value={nodeData.pais}
+                onChange={(val) => handleChange('pais', val)}
+                disabled={true}
+              />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Departamento {loadingDeptos && <span className="text-xs text-slate-400">(cargando...)</span>}
+              </label>
+              <SearchableSelect
+                options={departamentos.map(d => ({ value: d.codigo, label: d.nombre }))}
+                value={nodeData.departamento}
+                onChange={(val) => handleChange('departamento', val)}
+                disabled={loadingDeptos}
+                placeholder="Seleccione un departamento"
+                error={!nodeData.departamento}
+              />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Municipio {loadingMunis && <span className="text-xs text-slate-400">(cargando...)</span>}
+              </label>
+              <SearchableSelect
+                options={municipios.map(m => ({ value: m.codigo, label: m.nombre }))}
+                value={nodeData.municipio}
+                onChange={(val) => handleChange('municipio', val)}
+                disabled={loadingMunis || !nodeData.departamento}
+                placeholder="Seleccione un municipio"
+                error={!nodeData.municipio}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Latitud</label>
+              <NumericInput 
+                className="w-full border rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
+                value={nodeData.latitud} 
+                onChange={(val) => handleChange('latitud', val)} 
+                placeholder="Ej: 14.6349"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Longitud</label>
+              <NumericInput 
+                className="w-full border rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
+                value={nodeData.longitud} 
+                onChange={(val) => handleChange('longitud', val)} 
+                placeholder="Ej: -90.5069"
+              />
+            </div>
+          </>
+        )}
         </div>
-        <div className="col-span-2">
-          <label className="block text-sm font-medium text-slate-700 mb-1">País</label>
-          <SearchableSelect
-            options={[{ value: 'GT', label: 'GUATEMALA' }]}
-            value={nodeData.pais}
-            onChange={(val) => handleChange('pais', val)}
-            disabled={true}
-          />
-        </div>
-        <div className="col-span-2">
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            Departamento {loadingDeptos && <span className="text-xs text-slate-400">(cargando...)</span>}
-          </label>
-          <SearchableSelect
-            options={departamentos.map(d => ({ value: d.codigo, label: d.nombre }))}
-            value={nodeData.departamento}
-            onChange={(val) => handleChange('departamento', val)}
-            disabled={loadingDeptos}
-            placeholder="Seleccione un departamento"
-            error={!nodeData.departamento}
-          />
-        </div>
-        <div className="col-span-2">
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            Municipio {loadingMunis && <span className="text-xs text-slate-400">(cargando...)</span>}
-          </label>
-          <SearchableSelect
-            options={municipios.map(m => ({ value: m.codigo, label: m.nombre }))}
-            value={nodeData.municipio}
-            onChange={(val) => handleChange('municipio', val)}
-            disabled={loadingMunis || !nodeData.departamento}
-            placeholder="Seleccione un municipio"
-            error={!nodeData.municipio}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Latitud</label>
-          <NumericInput 
-            className="w-full border rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
-            value={nodeData.latitud} 
-            onChange={(val) => handleChange('latitud', val)} 
-            placeholder="Ej: 14.6349"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Longitud</label>
-          <NumericInput 
-            className="w-full border rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
-            value={nodeData.longitud} 
-            onChange={(val) => handleChange('longitud', val)} 
-            placeholder="Ej: -90.5069"
-          />
-        </div>
-        </div>
+          
+          <div className="pt-6 border-t border-slate-200 mt-6">
+            <button 
+              onClick={handleDelete}
+              className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              Eliminar Sitio
+            </button>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="resumen" className="outline-none">
+          {(() => {
+            const allRecursos = nodeData.puestos.flatMap((p: any) => p.recursos).concat(nodeData.recursosSinPuesto || []);
+            return <RecursosSummaryTable recursos={allRecursos} />;
+          })()}
         </TabsContent>
       </Tabs>
     </div>
   );
 }
 
-function PuestoEditor({ nodeData, handleChange }: { nodeData: any, handleChange: (field: string, value: any) => void }) {
-  const { proyecto } = useCosteo();
-  const [turnos, setTurnos] = useState<TurnoItem[]>([]);
-  const [uniformes, setUniformes] = useState<UniformeItem[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    if (!proyecto?.empresaId) return;
-    
-    const fetchData = async () => {
-      setLoading(true);
-      const [tData, uData] = await Promise.all([
-        getTurnos(proyecto.empresaId),
-        getUniformes(proyecto.empresaId)
-      ]);
-      if (active) {
-        setTurnos(tData);
-        setUniformes(uData);
-        setLoading(false);
-      }
-    };
-    fetchData();
-    return () => { active = false; };
-  }, []);
-
-  const selectedTurno = turnos.find(t => t.codigo === nodeData.turnoCodigo);
-
-  const diasSemana = [
-    { label: 'L', name: 'lunes', val: selectedTurno?.lunes, hrs: selectedTurno?.lunes_horas },
-    { label: 'M', name: 'martes', val: selectedTurno?.martes, hrs: selectedTurno?.martes_horas },
-    { label: 'M', name: 'miercoles', val: selectedTurno?.miercoles, hrs: selectedTurno?.miercoles_horas },
-    { label: 'J', name: 'jueves', val: selectedTurno?.jueves, hrs: selectedTurno?.jueves_horas },
-    { label: 'V', name: 'viernes', val: selectedTurno?.viernes, hrs: selectedTurno?.viernes_horas },
-    { label: 'S', name: 'sabado', val: selectedTurno?.sabado, hrs: selectedTurno?.sabado_horas },
-    { label: 'D', name: 'domingo', val: selectedTurno?.domingo, hrs: selectedTurno?.domingo_horas },
-  ];
-
+function PuestoEditor({ nodeData, handleChange, handleDelete, lblN2 }: { nodeData: any, handleChange: (field: string, value: any) => void, handleDelete: () => void, lblN2: string }) {
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-4xl">
       <Tabs defaultValue="general" className="w-full">
         <TabsList className="mb-4">
           <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="resumen">Resumen</TabsTrigger>
         </TabsList>
         <TabsContent value="general" className="space-y-6 outline-none">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Nombre</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Nombre del {lblN2}</label>
               <input 
                 type="text" 
                 className={`w-full border rounded-md p-2 outline-none transition-all uppercase ${!nodeData.nombre?.trim() ? 'border-red-400 focus:ring-2 focus:ring-red-400' : 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}`}
@@ -468,71 +554,21 @@ function PuestoEditor({ nodeData, handleChange }: { nodeData: any, handleChange:
                 onChange={(e) => handleChange('nombre', e.target.value)} 
               />
             </div>
-            
-            <div className="col-span-2 pt-2 pb-1 border-b border-slate-200 flex items-center gap-2">
-              <Briefcase className="w-4 h-4 text-slate-400" />
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Configuración</h3>
-            </div>
-
-            <div className="col-span-1">
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Turno {loading && <span className="text-xs text-slate-400">(cargando...)</span>}
-              </label>
-              <SearchableSelect
-                options={turnos.map(t => ({ value: String(t.codigo), label: t.descripcion }))}
-                value={nodeData.turnoCodigo !== undefined ? String(nodeData.turnoCodigo) : ''}
-                onChange={(val) => {
-                  const numVal = parseInt(val, 10);
-                  const turnoSeleccionado = turnos.find(t => t.codigo === numVal);
-                  let personas = 1;
-                  let horasSemana = 0;
-                  
-                  if (turnoSeleccionado) {
-                    personas = turnoSeleccionado.personas;
-                    horasSemana = 
-                      (turnoSeleccionado.lunes === 1 ? turnoSeleccionado.lunes_horas : 0) +
-                      (turnoSeleccionado.martes === 1 ? turnoSeleccionado.martes_horas : 0) +
-                      (turnoSeleccionado.miercoles === 1 ? turnoSeleccionado.miercoles_horas : 0) +
-                      (turnoSeleccionado.jueves === 1 ? turnoSeleccionado.jueves_horas : 0) +
-                      (turnoSeleccionado.viernes === 1 ? turnoSeleccionado.viernes_horas : 0) +
-                      (turnoSeleccionado.sabado === 1 ? turnoSeleccionado.sabado_horas : 0) +
-                      (turnoSeleccionado.domingo === 1 ? turnoSeleccionado.domingo_horas : 0);
-                  }
-                  
-                  handleChange({
-                    turnoCodigo: numVal,
-                    personas,
-                    horasSemana
-                  });
-                }}
-                disabled={loading}
-                placeholder="Seleccione..."
-                error={nodeData.turnoCodigo === undefined}
-              />
-            </div>
-
-            <div className="col-span-1">
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Uniforme {loading && <span className="text-xs text-slate-400">(cargando...)</span>}
-              </label>
-              <SearchableSelect
-                options={uniformes.map(u => ({ value: u.codigo, label: u.descripcion }))}
-                value={nodeData.uniformeCodigo}
-                onChange={(val) => handleChange('uniformeCodigo', val)}
-                disabled={loading}
-                placeholder="Seleccione..."
-                error={!nodeData.uniformeCodigo}
-              />
-            </div>
           </div>
-
-          {/* TARJETA VISUAL DE TURNO */}
-          {selectedTurno && (
-            <div className="mt-6">
-              <TurnoCard turno={selectedTurno} />
-            </div>
-          )}
-
+          
+          <div className="pt-6 border-t border-slate-200 mt-6">
+            <button 
+              onClick={handleDelete}
+              className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              Eliminar Puesto
+            </button>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="resumen" className="outline-none">
+          <RecursosSummaryTable recursos={nodeData.recursos} />
         </TabsContent>
       </Tabs>
     </div>

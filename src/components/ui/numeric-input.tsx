@@ -7,6 +7,7 @@ interface NumericInputProps {
   min?: string;
   max?: string;
   placeholder?: string;
+  isInteger?: boolean;
 }
 
 /**
@@ -17,15 +18,18 @@ interface NumericInputProps {
  * números decimales de forma fluida, y manteniendo un valor string intermedio 
  * mientras se despacha el número limpio al estado global.
  */
-export const NumericInput = ({ value, onChange, className, min, max, placeholder }: NumericInputProps) => {
+export const NumericInput = ({ value, onChange, className, min, max, placeholder, isInteger = false }: NumericInputProps) => {
   const [localValue, setLocalValue] = React.useState(value === undefined ? '' : value.toString());
+  const [isFocused, setIsFocused] = React.useState(false);
 
   React.useEffect(() => {
     const valueStr = value === undefined ? '' : value.toString();
-    if (parseFloat(localValue) !== value && localValue !== valueStr + '.') {
+    // Solo actualizamos el valor local desde afuera si no estamos enfocados, 
+    // o si el valor externo cambió y no coincide con nuestra interpretación local.
+    if (!isFocused && parseFloat(localValue) !== value && localValue !== valueStr + '.') {
       setLocalValue(valueStr);
     }
-  }, [value, localValue]);
+  }, [value, localValue, isFocused]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value;
@@ -33,7 +37,11 @@ export const NumericInput = ({ value, onChange, className, min, max, placeholder
       val = val.replace(/^0+/, '');
     }
     
-    if (!/^-?\d*\.?\d*$/.test(val)) return;
+    if (isInteger) {
+      if (!/^-?\d*$/.test(val)) return;
+    } else {
+      if (!/^-?\d*\.?\d*$/.test(val)) return;
+    }
 
     setLocalValue(val);
     
@@ -47,7 +55,12 @@ export const NumericInput = ({ value, onChange, className, min, max, placeholder
     }
   };
 
+  const handleFocus = () => {
+    setIsFocused(true);
+  };
+
   const handleBlur = () => {
+    setIsFocused(false);
     if (localValue.endsWith('.') || localValue === '-' || localValue === '-.') {
       const parsed = parseFloat(localValue);
       onChange(isNaN(parsed) ? undefined : parsed);
@@ -58,13 +71,34 @@ export const NumericInput = ({ value, onChange, className, min, max, placeholder
     }
   };
 
+  const displayValue = React.useMemo(() => {
+    if (isFocused) return localValue;
+    if (value === undefined || isNaN(value)) return localValue === '' ? '' : localValue;
+    
+    try {
+      if (isInteger) {
+        return new Intl.NumberFormat('en-US', {
+          maximumFractionDigits: 0,
+        }).format(value);
+      } else {
+        return new Intl.NumberFormat('en-US', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 6,
+        }).format(value);
+      }
+    } catch (e) {
+      return value.toString();
+    }
+  }, [isFocused, localValue, value, isInteger]);
+
   return (
     <input 
       type="text" 
-      inputMode="decimal"
+      inputMode={isInteger ? "numeric" : "decimal"}
       className={className}
-      value={localValue}
+      value={displayValue}
       onChange={handleChange}
+      onFocus={handleFocus}
       onBlur={handleBlur}
       min={min}
       max={max}

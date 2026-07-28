@@ -21,6 +21,7 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
   const costeo = await prisma.costeo.findUnique({
     where: { id: costeoId },
     include: {
+      tipoCosteo: true,
       contrato: {
         include: {
           cliente: true,
@@ -60,6 +61,16 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
     estado: costeo.estado as 'BORRADOR' | 'APROBADO',
     porcentajeOverhead: Number(costeo.overheadPct),
     porcentajeContingencia: Number(costeo.contingenciaPct),
+    tipoCosteo: costeo.tipoCosteo ? {
+      id: costeo.tipoCosteo.id,
+      nombre: costeo.tipoCosteo.nombre,
+      nivel1Activo: costeo.tipoCosteo.nivel1Activo,
+      nivel1Etiqueta: costeo.tipoCosteo.nivel1Etiqueta,
+      nivel1ConDireccion: costeo.tipoCosteo.nivel1ConDireccion,
+      nivel2Activo: costeo.tipoCosteo.nivel2Activo,
+      nivel2Etiqueta: costeo.tipoCosteo.nivel2Etiqueta,
+      recursosEtiqueta: costeo.tipoCosteo.recursosEtiqueta,
+    } : undefined,
     sitios: costeo.contrato.sitios.map(s => ({
       id: s.id.toString(),
       nombre: s.nombre,
@@ -74,7 +85,9 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
       puestos: s.puestos.map(p => ({
         id: p.id.toString(),
         nombre: p.nombre,
-        turnoCodigo: p.codigo ? parseInt(p.codigo, 10) : undefined,
+        turnoCodigo: p.turnoCodigo ?? (p.codigo ? parseInt(p.codigo, 10) : undefined),
+        uniformeCodigo: p.uniformeCodigo ?? undefined,
+        cubreDescanso: p.cubreDescanso,
         personas: p.personas,
         horasSemana: p.horasSemana,
         recursos: p.recursos.map(r => ({

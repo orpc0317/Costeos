@@ -24,7 +24,7 @@ export const crearUsuarioSchema = z.object({
   }),
   usuarioErp: z
     .string()
-    .max(10, 'El usuario ERP es demasiado largo (máx 10)')
+    .max(5, 'El usuario ERP es demasiado largo (máx 5)')
     .trim()
     .optional()
     .transform((v) => (v === '' ? undefined : v)),
@@ -53,7 +53,7 @@ export const editarUsuarioSchema = z.object({
   }),
   usuarioErp: z
     .string()
-    .max(10, 'El usuario ERP es demasiado largo (máx 10)')
+    .max(5, 'El usuario ERP es demasiado largo (máx 5)')
     .trim()
     .optional()
     .transform((v) => (v === '' ? undefined : v)),

@@ -11,37 +11,39 @@ import {
   ChevronRight,
   Building2,
   Calculator,
+  Network
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
   {
-    label: 'Dashboard',
+    label: 'DASHBOARD',
     href: '/dashboard',
     icon: LayoutDashboard,
     exact: true,
   },
   {
-    label: 'Costeos',
+    label: 'COSTEOS',
     href: '/costeos',
     icon: Calculator,
   },
   {
-    label: 'Contratos',
+    label: 'CONTRATOS',
     href: '/dashboard/contratos',
     icon: FileText,
   },
   {
-    label: 'Clientes',
+    label: 'CLIENTES',
     href: '/dashboard/clientes',
     icon: Building2,
   },
   {
-    label: 'Configuración',
+    label: 'CONFIGURACION',
     href: '/dashboard/configuracion',
     icon: Settings,
     children: [
-      { label: 'Usuarios', href: '/dashboard/configuracion/usuarios' },
+      { label: 'Tipos Costeo', href: '/dashboard/configuracion/tipos-costeo', icon: Network },
+      { label: 'Usuarios', href: '/dashboard/configuracion/usuarios', icon: Users },
     ],
   },
 ]
@@ -105,7 +107,7 @@ interface NavItemDef {
   href: string
   icon?: React.ElementType
   exact?: boolean
-  children?: { label: string; href: string }[]
+  children?: { label: string; href: string; icon?: React.ElementType }[]
 }
 
 function NavItem({ item, pathname }: { item: NavItemDef; pathname: string }) {
@@ -145,20 +147,24 @@ function NavItem({ item, pathname }: { item: NavItemDef; pathname: string }) {
       {/* Sub-items */}
       {hasChildren && (
         <div className="mt-0.5 ml-4 pl-3 border-l border-sidebar-border/50 space-y-0.5">
-          {item.children!.map((child) => (
-            <Link
-              key={child.href}
-              href={child.href}
-              className={cn(
-                'flex items-center px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors',
-                pathname === child.href || pathname.startsWith(child.href)
-                  ? 'text-sidebar-primary bg-sidebar-accent/80'
-                  : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/40',
-              )}
-            >
-              {child.label}
-            </Link>
-          ))}
+          {item.children!.map((child) => {
+            const ChildIcon = child.icon
+            return (
+              <Link
+                key={child.href}
+                href={child.href}
+                className={cn(
+                  'flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors',
+                  pathname === child.href || pathname.startsWith(child.href)
+                    ? 'text-sidebar-primary bg-sidebar-accent/80'
+                    : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/40',
+                )}
+              >
+                {ChildIcon && <ChildIcon className="w-3.5 h-3.5 shrink-0" />}
+                <span>{child.label}</span>
+              </Link>
+            )
+          })}
         </div>
       )}
     </div>

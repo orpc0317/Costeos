@@ -73,7 +73,6 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
           data: {
             contratoId: costeo.contratoId,
             nombre: sitioFront.nombre,
-            codigo: sitioFront.codigo || null,
             direccion: sitioFront.direccion || null,
             pais: sitioFront.pais || null,
             departamento: sitioFront.departamento || null,
@@ -87,7 +86,6 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
           where: { id: sId },
           data: {
             nombre: sitioFront.nombre,
-            codigo: sitioFront.codigo || null,
             direccion: sitioFront.direccion || null,
             pais: sitioFront.pais || null,
             departamento: sitioFront.departamento || null,
@@ -124,12 +122,15 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
             data: {
               sitioId: sitioIdDb,
               nombre: puestoFront.nombre,
-              codigo: puestoFront.turnoCodigo ? String(puestoFront.turnoCodigo) : null,
+              codigo: null,
               diasCobertura: 'LUN-DOM',
               horaInicio: '06:00',
               horaFin: '18:00',
-              personas: puestoFront.personas || 1,
-              horasSemana: puestoFront.horasSemana || 0,
+              personas: 1,
+              horasSemana: 0,
+              turnoCodigo: null,
+              uniformeCodigo: null,
+              cubreDescanso: 0,
             }
           })
           puestoIdDb = nuevoPuesto.id
@@ -139,12 +140,15 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
             where: { id: pId },
             data: {
               nombre: puestoFront.nombre,
-              codigo: puestoFront.turnoCodigo ? String(puestoFront.turnoCodigo) : null,
+              codigo: null,
               diasCobertura: 'LUN-DOM',
               horaInicio: '06:00',
               horaFin: '18:00',
-              personas: puestoFront.personas || 1,
-              horasSemana: puestoFront.horasSemana || 0,
+              personas: 1,
+              horasSemana: 0,
+              turnoCodigo: null,
+              uniformeCodigo: null,
+              cubreDescanso: 0,
             }
           })
           puestoIdDb = pId

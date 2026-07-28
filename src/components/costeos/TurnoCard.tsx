@@ -4,9 +4,10 @@ import { TurnoItem } from '@/app/actions/puestos';
 
 interface TurnoCardProps {
   turno: TurnoItem;
+  cantidadTurnos?: number;
 }
 
-export function TurnoCard({ turno }: TurnoCardProps) {
+export function TurnoCard({ turno, cantidadTurnos = 1 }: TurnoCardProps) {
   const diasSemana = [
     { label: 'L', name: 'lunes', val: turno.lunes, hrs: turno.lunes_horas },
     { label: 'M', name: 'martes', val: turno.martes, hrs: turno.martes_horas },
@@ -18,6 +19,7 @@ export function TurnoCard({ turno }: TurnoCardProps) {
   ];
 
   const totalHoras = diasSemana.reduce((sum, dia) => sum + (dia.val === 1 ? (dia.hrs || 0) : 0), 0);
+  const totalPersonas = turno.personas * cantidadTurnos;
 
   return (
     <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 shadow-sm">
@@ -28,7 +30,7 @@ export function TurnoCard({ turno }: TurnoCardProps) {
         </div>
         <div className="flex items-center gap-1.5 bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full text-xs font-medium">
           <Users className="w-3.5 h-3.5" />
-          <span>{turno.personas} {turno.personas === 1 ? 'Persona' : 'Personas'}</span>
+          <span>{totalPersonas} {totalPersonas === 1 ? 'Persona' : 'Personas'}</span>
         </div>
       </div>
       
@@ -53,9 +55,12 @@ export function TurnoCard({ turno }: TurnoCardProps) {
         })}
       </div>
       
-      <div className="mt-3 text-right">
+      <div className="mt-3 flex justify-between items-center border-t border-slate-200 pt-3">
         <span className="text-xs text-slate-500 font-medium">
-          Total Semanal: <span className="text-slate-700">{totalHoras}h</span>
+          Horas del Turno: <span className="text-slate-700">{totalHoras}h</span>
+        </span>
+        <span className="text-xs text-slate-500 font-medium">
+          Total HH Semanal: <span className="text-slate-900 font-bold">{totalHoras * totalPersonas}h</span>
         </span>
       </div>
     </div>

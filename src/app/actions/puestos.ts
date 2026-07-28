@@ -77,3 +77,46 @@ export async function getUniformes(empresaId: number): Promise<UniformeItem[]> {
     return []
   }
 }
+
+export interface ServicioVentaItem {
+  codigo: string;
+  descripcion: string;
+  unidad_medida: string;
+  tipo_bien: number;
+  tipo_item: number;
+  item_registro: number;
+  recurrente: number;
+  requiere_direccion: number;
+  precio_venta_cero: number;
+  perfil: number;
+  manejo_costos: number;
+}
+
+export async function getServiciosVenta(empresaId: number, searchText: string = ''): Promise<ServicioVentaItem[]> {
+  try {
+    const pool = await getErpDbConnection();
+    const request = pool.request();
+    
+    request.input('PrmEmpresa', empresaId);
+    request.input('PrmSearchText', searchText);
+    const result = await request.execute('sp_buscar_servicios_venta');
+    
+    return result.recordset.map(row => ({
+      codigo: String(row.codigo),
+      descripcion: row.descripcion || '',
+      unidad_medida: row.unidad_medida || '',
+      tipo_bien: row.tipo_bien || 0,
+      tipo_item: row.tipo_item || 0,
+      item_registro: row.item_registro || 0,
+      recurrente: row.recurrente || 0,
+      requiere_direccion: row.requiere_direccion || 0,
+      precio_venta_cero: row.precio_venta_cero || 0,
+      perfil: row.perfil || 0,
+      manejo_costos: row.manejo_costos || 0,
+    }));
+  } catch (error) {
+    console.error('Error fetching servicios venta:', error);
+    return [];
+  }
+}
+

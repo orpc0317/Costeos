@@ -26,7 +26,10 @@ interface AddRecursoDialogProps {
 }
 
 export function AddRecursoDialog({ sitioId, puestoId }: AddRecursoDialogProps) {
-  const { dispatch } = useCosteo();
+  const { proyecto, dispatch } = useCosteo();
+  const tc = proyecto?.tipoCosteo;
+  const lblR = tc?.recursosEtiqueta || 'Recurso';
+  const lblN2 = tc?.nivel2Etiqueta || 'Puesto';
   const [open, setOpen] = useState(false);
   
   const [items, setItems] = useState<ErpItem[]>([]);
@@ -107,11 +110,11 @@ export function AddRecursoDialog({ sitioId, puestoId }: AddRecursoDialogProps) {
       <DialogTrigger 
         render={<button className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium mt-1 ml-2" />}
       >
-        <Plus className="w-3 h-3" /> Agregar Recurso
+        <Plus className="w-3 h-3" /> Agregar {lblR}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Agregar Recurso al Puesto</DialogTitle>
+          <DialogTitle>Agregar {lblR} al {puestoId ? lblN2 : tc?.nivel1Etiqueta || 'Sitio'}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
@@ -141,7 +144,7 @@ export function AddRecursoDialog({ sitioId, puestoId }: AddRecursoDialogProps) {
             disabled={!selectedItemId || isAdding}
           >
             {isAdding && <Loader2 className="w-4 h-4 animate-spin" />}
-            {isAdding ? "Agregando..." : "Agregar Recurso"}
+            {isAdding ? "Agregando..." : `Agregar ${lblR}`}
           </Button>
         </div>
       </DialogContent>

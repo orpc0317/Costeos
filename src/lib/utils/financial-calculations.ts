@@ -101,8 +101,10 @@ export function calcularResumenFinanciero(proyecto: ProyectoCosteo, selectedNode
 
       // Las métricas del puesto se suman SOLO si no estamos filtrando por un RECURSO específico
       if (!selectedNode || selectedNode.type !== 'RECURSO') {
-        resumen.totalPersonas += (puesto.personas || 0);
-        resumen.totalHorasHombre += (puesto.personas || 0) * (puesto.horasSemana || 0);
+        // Contar personas de los recursos humanos
+        const personas = puesto.recursos.filter(r => r.categoria === 'RECURSO_HUMANO').length;
+        resumen.totalPersonas += personas;
+        // horasSemana y ventaPuesto se manejan a nivel de Recurso ahora
       }
       
       puesto.recursos.forEach((recurso) => {

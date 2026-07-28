@@ -72,15 +72,20 @@ export interface RecursoCosteo {
   precioVentaUnitario?: number;
   precioVentaOrigen?: 'LISTA' | 'MANUAL';
   recetas: RecetaCosteo[];
+  
+  // Nuevos campos transferidos desde PuestoCosteo
+  itemServicio?: any;
+  turnoCodigo?: number;
+  uniformeCodigo?: string;
+  personas?: number;
+  horasSemana?: number;
+  cubreDescanso?: number;
+  grupoTurnoId?: string; // Identificador para agrupar recursos humanos del mismo turno
 }
 
 export interface PuestoCosteo {
   id: string;
   nombre: string;
-  turnoCodigo?: number;
-  uniformeCodigo?: string;
-  personas?: number;
-  horasSemana?: number;
   recursos: RecursoCosteo[];
 }
 
@@ -113,4 +118,14 @@ export interface ProyectoCosteo {
   sitios: SitioCosteo[];
   porcentajeOverhead: number;
   porcentajeContingencia: number;
+  tipoCosteo?: {
+    id: number;
+    nombre: string;
+    nivel1Activo: boolean;
+    nivel1Etiqueta: string | null;
+    nivel1ConDireccion: boolean;
+    nivel2Activo: boolean;
+    nivel2Etiqueta: string | null;
+    recursosEtiqueta: string;
+  };
 }
