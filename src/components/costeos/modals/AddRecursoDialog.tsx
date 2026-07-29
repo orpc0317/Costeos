@@ -28,7 +28,7 @@ interface AddRecursoDialogProps {
 export function AddRecursoDialog({ sitioId, puestoId }: AddRecursoDialogProps) {
   const { proyecto, dispatch } = useCosteo();
   const tc = proyecto?.tipoCosteo;
-  const lblR = tc?.recursosEtiqueta || 'Recurso';
+  const lblR = tc?.lineaEtiqueta || 'Línea';
   const lblN2 = tc?.nivel2Etiqueta || 'Puesto';
   const [open, setOpen] = useState(false);
   

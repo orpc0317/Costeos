@@ -126,6 +126,6 @@ export interface ProyectoCosteo {
     nivel1ConDireccion: boolean;
     nivel2Activo: boolean;
     nivel2Etiqueta: string | null;
-    recursosEtiqueta: string;
+    lineaEtiqueta: string;
   };
 }

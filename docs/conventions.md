@@ -36,8 +36,13 @@ Este documento contiene las reglas y componentes estandarizados que han nacido o
 ### Selects (Comboboxes) y Cascada
 - **Regla 1 (Filtro):** Para listados con múltiples opciones, se debe utilizar un componente que permita buscar/filtrar (como `Command` + `Popover` de `shadcn/ui`, equivalente a un Combobox) para que el usuario pueda escribir parte del nombre.
 - **Regla 2 (Código vs Nombre):** Los selects deben desplegar el nombre/descripción al usuario, pero **siempre** deben guardar el código correspondiente en la base de datos o estado.
-- **Regla 3 (Auto-selección):** Siempre se debe auto-seleccionar el primer registro disponible (ej: si se carga una lista de departamentos, el primero de la lista debe quedar seleccionado automáticamente).
+- **Regla 3 (Auto-selección):** Siempre se debe auto-seleccionar el primer registro disponible al cargar los datos, de manera global. **Excepciones:** Las búsquedas de "Clientes" o "Ítems", o a menos que se indique explícitamente lo contrario, NO se autoseleccionan.
 - **Regla 4 (Cascadas Automáticas):** Si un Select depende de otro (ej. Municipio depende de Departamento), al cambiar el padre, se debe limpiar la selección del hijo, cargar la nueva lista y aplicar la *Regla 3* (auto-seleccionar el primero) de forma encadenada.
+
+### Labels y Títulos (Naming Conventions)
+- **Regla:** Todos los labels, botones y títulos de pantallas deben evitar el uso de preposiciones como "de", "y", "del", "el", "la". Tratar que se lean con 1 a 3 palabras.
+- **Ejemplo:** En lugar de "Tipos de Costeos", usar "Tipos Costeos". En lugar de "Nuevo Tipo de Costeo", usar "Nuevo Tipo Costeo".
+- **Formato:** Siempre usar Title Case (la primera letra de cada palabra en Mayúscula).
 
 ### Normalización de Textos (Mayúsculas y sin Tildes)
 - **Regla:** TODO el texto ingresado por el usuario en campos de texto libre (nombres, direcciones, etc.) debe guardarse SIEMPRE en MAYÚSCULAS y SIN TILDES (diacríticos) para facilitar las búsquedas y evitar duplicidad de registros (ej. "Petén" vs "PETEN").

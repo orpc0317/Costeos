@@ -33,7 +33,7 @@ export default function TreeViewSidebar() {
   const hasN2 = tc?.nivel2Activo ?? true;
   const lblN1 = tc?.nivel1Etiqueta || 'Sitio';
   const lblN2 = tc?.nivel2Etiqueta || 'Puesto';
-  const lblR = tc?.recursosEtiqueta || 'Recursos';
+  const lblR = tc?.lineaEtiqueta || 'Líneas';
 
   // Helper para renderizar los recursos (Nivel 3)
   const renderRecursos = (recursos: any[]) => {

@@ -24,6 +24,7 @@ const MAPA_CAMPOS: Record<string, string> = {
   rol: 'Rol',
   usuarioErp: 'Usuario ERP',
   activo: 'Estado',
+  baseEvaluacion: 'Base de Evaluación',
 }
 
 function formatValor(valor: any, campo: string): string {

@@ -68,8 +68,24 @@ export function MiEntidadClient({ data }: { data: any[] }) {
 }
 ```
 
-## Theming (Estilos)
-Si se desea cambiar el color de los encabezados, tamaño de letra, o color de registros, **NO se debe cambiar en cada pantalla individualmente**. Se debe editar la constante `TABLE_THEME` directamente en `src/components/ui/data-table.tsx`.
+## Theming y Diseño Centralizado (Estilos)
+
+El objetivo principal de esta arquitectura es que **si en el futuro se desea cambiar un color, tamaño de letra o estilo global de las tablas, se haga en un solo lugar**.
+
+1. **Estilos Globales de la Tabla**: 
+   NO se debe cambiar el estilo individualmente en cada pantalla. Edita la constante `TABLE_THEME` directamente en `src/components/ui/data-table.tsx`. Esto controla el fondo de encabezados, color y fuente de las filas por defecto, y los colores de bordes.
+
+2. **Estilos de Celdas (Tipografía Interna)**:
+   Al definir las columnas en los archivos `*-client.tsx`, debes apegarte a las siguientes reglas CSS (basadas en Tailwind) para el contenido renderizado, de modo que hereden armónicamente del `TABLE_THEME`:
+   
+   - **Datos Principales (Nombres, Códigos, Identificadores)**: 
+     Utilizar `<span className="font-medium">`. NO apliques colores fijos (como `text-slate-700`); deja que herede el color del tema global, solo aplicando peso a la tipografía.
+   - **Datos Secundarios (Descripciones, Correos, Textos de Apoyo)**: 
+     Utilizar `<span className="text-muted-foreground">` o `<span className="text-sm text-muted-foreground">`. Esto asegura que se vean atenuados en comparación a los datos principales.
+   - **Fechas**: 
+     Utilizar `<span className="text-sm text-muted-foreground">`.
+   - **Badges/Estados**: 
+     Utilizar el componente `<Badge>` preferentemente con las variantes `default` (Activo/Positivo), `secondary` (Inactivo/Neutro), u `outline`. Si ocupas colores personalizados, usa utilidades con opacidad controlada (ej. `bg-emerald-500/15 text-emerald-600 border-emerald-500/20`).
 
 ## Estándar para Modales (Formularios CRUD)
 
@@ -78,4 +94,9 @@ Para mantener una apariencia corporativa ("ERP state of the art"):
 2. **Pestaña por defecto**: Siempre debe existir la pestaña `General` (`value="general"`).
 3. **Pestañas adicionales**: Si el formulario requiere configuración avanzada o mucha información, divídelo lógicamente en más pestañas (ej: "Configuración", "Estructura").
 4. **Layout de Cuadrícula (Grid)**: Dentro de cada `TabsContent`, los campos deben agruparse utilizando CSS Grid de mínimo 2 columnas (`<div className="grid grid-cols-2 gap-x-6 gap-y-4">`). No usar listas verticales simples.
-5. **Estética ERP**: Los componentes base (`Input`, `Select`, `Label`) ya están modificados globalmente para usar una alta densidad visual (más pequeños, tipografía `text-sm`, `rounded-sm`), garantizando una experiencia profesional.
+9. **Estética ERP**: Los componentes base (`Input`, `Select`, `Label`) ya están modificados globalmente para usar una alta densidad visual (más pequeños, tipografía `text-sm`, `rounded-sm`), garantizando una experiencia profesional.
+10. **Flujo de Edición (Editar -> Guardar -> Ver)**:
+    - Al guardar exitosamente una modificación (UPDATE), el modal **NO** debe cerrarse.
+    - El Backend (Server Action) debe devolver el registro recién actualizado en la respuesta.
+    - El Frontend debe tomar este nuevo registro, actualizar su estado interno (`initialData`) y cambiar inmediatamente a modo "vista" (`setMode('view')`).
+    - Esto permite que el usuario visualice sus cambios aplicados instantáneamente (incluyendo marcas de tiempo o campos calculados) y brinda una mejor experiencia tipo "Guardado exitoso".

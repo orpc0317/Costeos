@@ -97,7 +97,7 @@ export function HistorialDrawer({
                       </p>
                     )}
                     
-                    {item.cambios && item.cambios.length > 0 && (
+                    {item.accion !== 'CREATE' && item.cambios && item.cambios.length > 0 && (
                       <div className="mt-3 space-y-2">
                         <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
                           Campos Modificados

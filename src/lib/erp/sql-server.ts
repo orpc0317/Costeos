@@ -205,7 +205,7 @@ export class SqlServerErpRepository implements ErpRepository {
     const pool = await getPool()
     const result = await pool
       .request()
-      .input('PrmUsuario', sql.VarChar(5), usuarioId)
+      .input('PrmUsuario', usuarioId)
       .execute('sp_usuario_empresas')
 
     return result.recordset.map((r) => ({

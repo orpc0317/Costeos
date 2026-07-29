@@ -69,7 +69,7 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
       nivel1ConDireccion: costeo.tipoCosteo.nivel1ConDireccion,
       nivel2Activo: costeo.tipoCosteo.nivel2Activo,
       nivel2Etiqueta: costeo.tipoCosteo.nivel2Etiqueta,
-      recursosEtiqueta: costeo.tipoCosteo.recursosEtiqueta,
+      lineaEtiqueta: costeo.tipoCosteo.lineaEtiqueta,
     } : undefined,
     sitios: costeo.contrato.sitios.map(s => ({
       id: s.id.toString(),

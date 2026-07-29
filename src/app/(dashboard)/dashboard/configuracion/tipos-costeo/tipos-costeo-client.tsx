@@ -1,48 +1,59 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import React, { useMemo } from 'react'
 import { ColumnDef } from '@tanstack/react-table'
-import { Button } from '@/components/ui/button'
-import { Plus, Network } from 'lucide-react'
-import { useRouter } from 'next/navigation'
-import { DataTable } from '@/components/ui/data-table'
 import { Badge } from '@/components/ui/badge'
-import { TipoCosteoAcciones } from './_components/tipo-costeo-acciones'
-import { FormTipoCosteo } from './_components/form-tipo-costeo'
+import { DataTable } from '@/components/ui/data-table'
+import { NuevoTipoCosteoButton } from '@/components/tipos-costeo/nuevo-tipo-costeo-button'
+import { TipoCosteoAcciones } from '@/components/tipos-costeo/tipo-costeo-acciones'
+import { Hash } from 'lucide-react'
+import type { TipoCosteoRow } from '@/lib/types/tipos-costeo'
 
-export function TiposCosteoClient({ data }: { data: any[] }) {
-  const [open, setOpen] = useState(false)
-  const router = useRouter()
-
-  const handleCreate = () => {
-    setOpen(true)
-  }
-
-
-  const columns = useMemo<ColumnDef<any>[]>(
+export function TiposCosteoClient({ tiposCosteo }: { tiposCosteo: TipoCosteoRow[] }) {
+  const columns: ColumnDef<TipoCosteoRow>[] = useMemo(
     () => [
       {
         accessorKey: 'codigo',
         header: 'Código',
-        meta: { align: 'center' },
         cell: ({ row }) => <span className="font-medium">{row.original.codigo}</span>,
+      },
+      {
+        accessorKey: 'empresaNombre',
+        header: 'Empresa',
+        cell: ({ row }) => <span className="font-medium">{row.original.empresaNombre || `Empresa ${row.original.empresaId}`}</span>,
       },
       {
         accessorKey: 'nombre',
         header: 'Nombre',
+        cell: ({ row }) => <span className="font-medium">{row.original.nombre}</span>,
       },
       {
-        id: 'estructura',
-        accessorFn: (row) => {
-          let str = ''
-          if (row.nivel1Activo) str += row.nivel1Etiqueta
-          if (row.nivel1Activo && row.nivel2Activo) str += ` > ${row.nivel2Etiqueta}`
-          if (row.nivel1Activo || row.nivel2Activo) str += ` > `
-          str += row.recursosEtiqueta
-          return str
+        accessorKey: 'nivel1',
+        header: 'Nivel 1',
+        meta: { align: 'center' },
+        cell: ({ row }) => {
+          if (!row.original.nivel1Activo) return <span className="text-muted-foreground">-</span>
+          return <span>{row.original.nivel1Etiqueta || 'Sí'}</span>
         },
-        header: 'Estructura',
-        cell: ({ getValue }) => <span className="text-muted-foreground">{getValue() as string}</span>,
+      },
+      {
+        accessorKey: 'nivel2',
+        header: 'Nivel 2',
+        meta: { align: 'center' },
+        cell: ({ row }) => {
+          if (!row.original.nivel2Activo) return <span className="text-muted-foreground">-</span>
+          return <span>{row.original.nivel2Etiqueta || 'Sí'}</span>
+        },
+      },
+      {
+        accessorKey: 'lineaEtiqueta',
+        header: 'Línea',
+        meta: { align: 'center' },
+        cell: ({ row }) => (
+          <span className="text-muted-foreground">
+            {row.original.lineaEtiqueta}
+          </span>
+        ),
       },
       {
         accessorKey: 'activo',
@@ -65,45 +76,58 @@ export function TiposCosteoClient({ data }: { data: any[] }) {
         },
       },
       {
+        accessorKey: 'creadoEn',
+        header: 'Fecha Registro',
+        meta: { align: 'center' },
+        cell: ({ row }) => {
+          const date = new Date(row.original.creadoEn)
+          return (
+            <span className="text-sm text-muted-foreground">
+              {date.toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+              })}
+            </span>
+          )
+        },
+      },
+      {
         id: 'acciones',
         header: '',
-        enableHiding: false,
+        enableHiding: false, // Las acciones no se deben ocultar normalmente
         meta: { align: 'center' },
-        cell: ({ row }) => <TipoCosteoAcciones tipo={row.original} />,
+        cell: ({ row }) => <TipoCosteoAcciones tipoCosteo={row.original} />,
       },
     ],
     []
   )
 
-  const customToolbarActions = (
-    <Button onClick={handleCreate} className="gap-2">
-      <Plus className="w-4 h-4" /> Nuevo Tipo
-    </Button>
-  )
-
   return (
-    <div>
-      <div className="mb-6">
-        <div className="flex items-center gap-2 text-indigo-900">
-          <Network className="h-6 w-6" />
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Tipos de Costeo</h1>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-indigo-900">
+            <Hash className="h-6 w-6" />
+            <h1 className="text-2xl font-bold tracking-tight">Tipos Costeos</h1>
+          </div>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {tiposCosteo.length === 1
+              ? '1 tipo costeo registrado'
+              : `${tiposCosteo.length} tipos costeos registrados`}
+          </p>
         </div>
-        <p className="text-slate-500 mt-0.5">Configura las estructuras de los árboles de costeo.</p>
       </div>
 
+      {/* Tabla Estandarizada */}
       <DataTable
         columns={columns}
-        data={data}
-        tableId="tipos-costeo-crud"
+        data={tiposCosteo}
+        tableId="tipos-costeo-crud-v3"
         searchPlaceholder="Buscar por código o nombre..."
-        searchKey="nombre" // Usar nombre como default si no proveemos un filtro complejo
-        customToolbarActions={customToolbarActions}
-      />
-
-      <FormTipoCosteo 
-        open={open} 
-        onOpenChange={setOpen} 
-        tipo={null} 
+        searchKey="nombre" // Búsqueda por defecto usando el nombre
+        customToolbarActions={<NuevoTipoCosteoButton />}
       />
     </div>
   )

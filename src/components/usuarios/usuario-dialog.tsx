@@ -61,7 +61,7 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
   function handleToggle() {
     if (!usuario) return
     startTransitionToggle(async () => {
-      const result = await toggleActivo(usuario.id)
+      const result = await toggleActivo(usuario.id, usuario.registroVersion)
       if (result.ok) {
         toast.success(
           usuario.activo
@@ -104,6 +104,10 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
     formData.append('email', email)
     formData.append('usuarioErp', usuarioErp)
     formData.append('rol', rol)
+    
+    if (mode === 'edit' && usuario) {
+      formData.append('registroVersion', String(usuario.registroVersion))
+    }
 
     try {
       let result
@@ -136,7 +140,14 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
       }
 
       toast.success(usuario ? 'Usuario actualizado' : 'Usuario creado')
-      onOpenChange(false)
+      if (mode === 'edit') {
+        if (result?.data) {
+          setInitialUsuario(result.data as any)
+        }
+        setMode('view')
+      } else {
+        onOpenChange(false)
+      }
     } catch (err: any) {
       setError(err.message)
     } finally {

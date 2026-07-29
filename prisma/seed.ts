@@ -33,6 +33,7 @@ async function main() {
       email,
       passwordHash,
       rol: 'ADMIN',
+      usuarioErp: 'ADMIN',
       activo: true,
     },
   })

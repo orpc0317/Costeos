@@ -54,6 +54,7 @@ export async function listarUsuarios(busqueda?: string): Promise<UsuarioRow[]> {
       activo: true,
       usuarioErp: true,
       agregoFecha: true,
+      registroVersion: true,
     },
     orderBy: [{ activo: 'desc' }, { nombre: 'asc' }],
   })
@@ -132,7 +133,7 @@ export async function editarUsuario(
   id: number,
   _prev: unknown,
   formData: FormData,
-): Promise<ActionResult> {
+): Promise<ActionResult<any>> {
   const guard = await soloAdmin()
   if (!guard.ok) return guard
 
@@ -142,6 +143,7 @@ export async function editarUsuario(
     password: formData.get('password') || '',
     rol: formData.get('rol'),
     usuarioErp: formData.get('usuarioErp') || '',
+    registroVersion: formData.get('registroVersion'),
   }
 
   const parsed = editarUsuarioSchema.safeParse(raw)
@@ -149,7 +151,7 @@ export async function editarUsuario(
     return { ok: false, error: parsed.error.issues[0].message }
   }
 
-  const { nombre, email, password, rol } = parsed.data
+  const { nombre, email, password, rol, registroVersion } = parsed.data
 
   const usuarioActual = await prisma.usuario.findUnique({ where: { id } })
   if (!usuarioActual) {
@@ -164,13 +166,11 @@ export async function editarUsuario(
     return { ok: false, error: 'Ya existe un usuario con ese correo electrónico', field: 'email' }
   }
 
-  // Verificar si usuarioErp cambió y validarlo en el ERP
+  // Validar siempre en el ERP si hay un usuarioErp provisto
   if (parsed.data.usuarioErp) {
-    if (usuarioActual.usuarioErp !== parsed.data.usuarioErp) {
-      const esValidoERP = await validarUsuarioERP(parsed.data.usuarioErp)
-      if (!esValidoERP) {
-        return { ok: false, error: 'El usuario especificado no existe o no está activo en el ERP', field: 'usuarioErp' }
-      }
+    const esValidoERP = await validarUsuarioERP(parsed.data.usuarioErp)
+    if (!esValidoERP) {
+      return { ok: false, error: 'El usuario especificado no existe o no está activo en el ERP', field: 'usuarioErp' }
     }
   }
 
@@ -181,16 +181,29 @@ export async function editarUsuario(
     usuarioErp?: string | null
     passwordHash?: string
     modificoUsuario: number
-  } = { nombre, email, rol, usuarioErp: parsed.data.usuarioErp ?? null, modificoUsuario: guard.userId }
+    registroVersion: { increment: number }
+  } = { nombre, email, rol, usuarioErp: parsed.data.usuarioErp ?? null, modificoUsuario: guard.userId, registroVersion: { increment: 1 } }
 
   if (password) {
     updateData.passwordHash = await bcrypt.hash(password, 12)
   }
 
-  const usuarioNuevo = await prisma.usuario.update({ 
-    where: { id }, 
-    data: updateData,
-    select: { nombre: true, email: true, rol: true, usuarioErp: true, activo: true }
+  const updateResult = await prisma.usuario.updateMany({ 
+    where: { 
+      id,
+      registroVersion
+    }, 
+    data: updateData
+  })
+
+  if (updateResult.count === 0) {
+    return { ok: false, error: 'El registro ha sido modificado por otro usuario. Por favor, recarga la información e intenta de nuevo.' }
+  }
+
+  // Obtenemos el registro actualizado para la auditoría
+  const usuarioNuevo = await prisma.usuario.findUnique({
+    where: { id },
+    select: { nombre: true, email: true, rol: true, usuarioErp: true, activo: true, registroVersion: true }
   })
 
   // Evitar guardar contraseña en los logs de auditoría
@@ -208,12 +221,12 @@ export async function editarUsuario(
   })
 
   revalidatePath('/dashboard/configuracion/usuarios')
-  return { ok: true, data: undefined }
+  return { ok: true, data: usuarioNuevo }
 }
 
 // ─── Toggle activo / inactivo ─────────────────────────────────────────────────
 
-export async function toggleActivo(id: number): Promise<ActionResult> {
+export async function toggleActivo(id: number, registroVersion: number): Promise<ActionResult> {
   const guard = await soloAdmin()
   if (!guard.ok) return guard
 
@@ -224,17 +237,30 @@ export async function toggleActivo(id: number): Promise<ActionResult> {
 
   const usuario = await prisma.usuario.findUnique({
     where: { id },
-    select: { activo: true },
+    select: { activo: true, registroVersion: true },
   })
   if (!usuario) return { ok: false, error: 'Usuario no encontrado' }
 
-  const usuarioNuevo = await prisma.usuario.update({
-    where: { id },
+  const updateResult = await prisma.usuario.updateMany({
+    where: { 
+      id,
+      registroVersion // Validamos OCC
+    },
     data: { 
       activo: !usuario.activo,
-      modificoUsuario: guard.userId
-    },
-    select: { activo: true }
+      modificoUsuario: guard.userId,
+      registroVersion: { increment: 1 }
+    }
+  })
+
+  if (updateResult.count === 0) {
+    return { ok: false, error: 'El registro ha sido modificado por otro usuario. Por favor, recarga la información e intenta de nuevo.' }
+  }
+
+  // Obtener el nuevo registroVersion para el log
+  const usuarioNuevo = await prisma.usuario.findUnique({
+    where: { id },
+    select: { activo: true, registroVersion: true }
   })
 
   await prisma.auditLog.create({
@@ -243,8 +269,8 @@ export async function toggleActivo(id: number): Promise<ActionResult> {
       registroId: id,
       accion: 'UPDATE',
       usuarioId: guard.userId,
-      datosAntes: JSON.stringify({ activo: usuario.activo }),
-      datosDespues: JSON.stringify({ activo: usuarioNuevo.activo })
+      datosAntes: JSON.stringify({ activo: usuario.activo, registroVersion: usuario.registroVersion }),
+      datosDespues: JSON.stringify({ activo: usuarioNuevo?.activo, registroVersion: usuarioNuevo?.registroVersion })
     }
   })
 

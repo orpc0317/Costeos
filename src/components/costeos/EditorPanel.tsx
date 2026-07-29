@@ -30,7 +30,7 @@ export default function EditorPanel() {
   const tc = proyecto.tipoCosteo;
   const lblN1 = tc?.nivel1Etiqueta || 'Sitio';
   const lblN2 = tc?.nivel2Etiqueta || 'Puesto';
-  const lblR = tc?.recursosEtiqueta || 'Recurso';
+  const lblR = tc?.lineaEtiqueta || 'Línea';
 
   let nodeData: any = null;
   let title = '';

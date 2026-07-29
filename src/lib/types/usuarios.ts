@@ -57,6 +57,7 @@ export const editarUsuarioSchema = z.object({
     .trim()
     .optional()
     .transform((v) => (v === '' ? undefined : v)),
+  registroVersion: z.coerce.number().int().positive(),
 })
 
 // ─── Tipos derivados ──────────────────────────────────────────────────────────
@@ -74,4 +75,5 @@ export type UsuarioRow = {
   activo: boolean
   usuarioErp: string | null
   agregoFecha: Date
+  registroVersion: number
 }

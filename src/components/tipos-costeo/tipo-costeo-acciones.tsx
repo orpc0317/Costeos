@@ -3,13 +3,14 @@
 import { useState } from 'react'
 import { Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { FormTipoCosteo } from './form-tipo-costeo'
+import { TipoCosteoDialog } from './tipo-costeo-dialog'
+import type { TipoCosteoRow } from '@/lib/types/tipos-costeo'
 
 interface TipoCosteoAccionesProps {
-  tipo: any
+  tipoCosteo: TipoCosteoRow
 }
 
-export function TipoCosteoAcciones({ tipo }: TipoCosteoAccionesProps) {
+export function TipoCosteoAcciones({ tipoCosteo }: TipoCosteoAccionesProps) {
   const [editOpen, setEditOpen] = useState(false)
 
   return (
@@ -22,11 +23,10 @@ export function TipoCosteoAcciones({ tipo }: TipoCosteoAccionesProps) {
       >
         <Eye className="h-4 w-4 text-blue-600" />
       </Button>
-
-      <FormTipoCosteo
+      <TipoCosteoDialog
+        tipoCosteo={tipoCosteo}
         open={editOpen}
         onOpenChange={setEditOpen}
-        tipo={tipo}
       />
     </>
   )
