@@ -104,9 +104,14 @@ export function AddPuestoDialog({ sitioId }: AddPuestoDialogProps) {
     const cleanNombre = normalizeText(nombre);
     
     const nuevoPuesto: PuestoCosteo = {
-      id: `PUE-${Date.now()}`,
+      id: `TMP-PUESTO-${Date.now()}`,
       nombre: cleanNombre,
-      recursos: []
+      recursos: [],
+      turnoCodigo,
+      uniformeCodigo,
+      cubreDescanso,
+      personas: 0,
+      horasSemana: 0
     };
 
     if (isEstandar) {
@@ -172,6 +177,12 @@ export function AddPuestoDialog({ sitioId }: AddPuestoDialogProps) {
         (turno.sabado === 1 ? turno.sabado_horas : 0) +
         (turno.domingo === 1 ? turno.domingo_horas : 0);
     }
+    
+    nuevoPuesto.turnoCodigo = turnoCodigo;
+    nuevoPuesto.uniformeCodigo = uniformeCodigo;
+    nuevoPuesto.cubreDescanso = cubreDescanso;
+    nuevoPuesto.personas = personas;
+    nuevoPuesto.horasSemana = horasSemana;
     
     // RRHH: crear (cantidadTurnos * personas) recursos agrupados por turno
     for (let t = 0; t < cantidadTurnos; t++) {

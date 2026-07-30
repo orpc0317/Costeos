@@ -86,6 +86,11 @@ export interface RecursoCosteo {
 export interface PuestoCosteo {
   id: string;
   nombre: string;
+  turnoCodigo?: number;
+  uniformeCodigo?: string;
+  cubreDescanso?: number;
+  personas?: number;
+  horasSemana?: number;
   recursos: RecursoCosteo[];
 }
 
@@ -127,5 +132,8 @@ export interface ProyectoCosteo {
     nivel2Activo: boolean;
     nivel2Etiqueta: string | null;
     lineaEtiqueta: string;
+    manejoPlazo: 'LIBRE' | 'FIJO' | 'NO_APLICA';
+    fijarPlazo: number;
+    baseEvaluacion: 'GLOBAL' | 'MENSUAL';
   };
 }

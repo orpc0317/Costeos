@@ -6,7 +6,9 @@ Para mantener la consistencia en el proyecto, **todas las pantallas CRUD** (list
 
 1. **Uso de DataTable**: NO debes implementar tablas HTML manuales (`<table>`, `<tr>`, etc.) ni iterar colecciones directamente en la vista principal para listas de datos complejas. Debes instanciar el componente `<DataTable>`.
 2. **Componente Cliente**: El renderizado de `DataTable` con sus columnas (que usualmente requieren hooks como `useMemo` o botones con interactividad) debe hacerse en un **Client Component** (con `'use client'`).
-3. **Página de Servidor**: Se recomienda que la página (`page.tsx`) sea un Server Component que obtenga la lista completa de datos desde la base de datos (por ejemplo, llamando a un action) y se la pase al Client Component que contiene el `<DataTable>`.
+3. **Página de Servidor (Layout y Ancho)**: Se recomienda que la página (`page.tsx`) sea un Server Component que obtenga la lista completa de datos desde la base de datos (por ejemplo, llamando a un action) y se la pase al Client Component que contiene el `<DataTable>`. 
+   - **IMPORTANTE (Layout):** El contenedor de la página que llama al Client Component **NO debe restringir el ancho** (por ejemplo, evitar clases como `max-w-7xl mx-auto`). La tabla de un CRUD siempre debe ocupar el 100% del ancho disponible de la pantalla para mantener consistencia visual con el resto de la aplicación.
+4. **Creación de Registros**: Por defecto usar el "Modal Estándar" explicado más abajo, a menos que el proceso de creación sea un flujo complejo (ej. asistentes de configuración multi-paso como el de Costeos), en cuyo caso el botón "Nuevo" debe redirigir a una página/ruta dedicada ocupando la pantalla completa, pero la tabla base del CRUD se mantiene con el mismo estándar.
 
 ## Características del DataTable
 
@@ -100,3 +102,35 @@ Para mantener una apariencia corporativa ("ERP state of the art"):
     - El Backend (Server Action) debe devolver el registro recién actualizado en la respuesta.
     - El Frontend debe tomar este nuevo registro, actualizar su estado interno (`initialData`) y cambiar inmediatamente a modo "vista" (`setMode('view')`).
     - Esto permite que el usuario visualice sus cambios aplicados instantáneamente (incluyendo marcas de tiempo o campos calculados) y brinda una mejor experiencia tipo "Guardado exitoso".
+11. **Manejo de Errores de Validación (Server Actions)**:
+    - Todos los formularios deben incluir el atributo `noValidate` (`<form onSubmit={handleSubmit} noValidate>`) para deshabilitar las burbujas de error nativas del navegador y asegurar un estilo de error 100% consistente gestionado por nuestra UI.
+    - Las validaciones fallidas devueltas por Zod desde el servidor deben incluir el nombre del campo (`field: parsed.error.issues[0].path[0]`).
+    - En el componente cliente, se debe mantener un estado `fieldErrors` para mapear los errores por campo.
+    - Cuando ocurra un error, el modal debe navegar automáticamente a la pestaña que contiene el campo (`setActiveTab`), aplicarle el foco usando `document.getElementById(...).focus()` tras un breve timeout de renderizado.
+    - Los controles (`Input`, `NumericInput`, etc.) deben recibir la propiedad `aria-invalid={!!fieldErrors.nombreCampo}` (o `error` en caso de usar selectores) para marcarse con un borde rojo.
+    - El mensaje de error debe renderizarse de forma *inline* debajo del control afectado, usando `<p className="text-xs text-red-500 mt-1">{fieldErrors.nombreCampo}</p>`.
+
+## 6. Configuración Visual de Pestañas (Tabs)
+
+Para garantizar un estilo visual uniforme (estilo "Premium" con fondo transparente y borde inferior azul/índigo) en los formularios y pantallas que utilicen pestañas, se debe utilizar siempre la variante `line` provista por nuestro sistema de diseño:
+
+- **Configuración del Componente**:
+  - Utilizar `<TabsList variant="line" className="mb-4">` (u otro margen inferior si aplica).
+  - Los `<TabsTrigger>` no necesitan ninguna clase personalizada manual; el componente central `ui/tabs.tsx` se encargará de estilizarlos automáticamente.
+
+Ejemplo correcto:
+```tsx
+<Tabs defaultValue="general" className="w-full">
+  <TabsList variant="line" className="mb-4">
+    <TabsTrigger value="general">
+      <Settings2 className="w-4 h-4 mr-2" />
+      General
+    </TabsTrigger>
+    <TabsTrigger value="permisos">
+      <Shield className="w-4 h-4 mr-2" />
+      Permisos
+    </TabsTrigger>
+  </TabsList>
+  {/* TabsContent ... */}
+</Tabs>
+```

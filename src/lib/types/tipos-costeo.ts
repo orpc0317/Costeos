@@ -32,6 +32,11 @@ export const crearTipoCosteoSchema = z.object({
     .toUpperCase()
     .trim(),
   baseEvaluacion: z.enum(['GLOBAL', 'MENSUAL']).default('GLOBAL'),
+  manejoPlazo: z.enum(['LIBRE', 'FIJO', 'NO_APLICA']).default('NO_APLICA'),
+  fijarPlazo: z.coerce.number().min(0, 'El plazo fijo no puede ser negativo').default(0),
+}).refine(data => data.manejoPlazo !== 'FIJO' || data.fijarPlazo > 0, {
+  message: "Debe especificar una cantidad de meses mayor a 0",
+  path: ["fijarPlazo"],
 })
 
 export const editarTipoCosteoSchema = z.object({
@@ -70,7 +75,12 @@ export const editarTipoCosteoSchema = z.object({
     .toUpperCase()
     .trim(),
   baseEvaluacion: z.enum(['GLOBAL', 'MENSUAL']).default('GLOBAL'),
+  manejoPlazo: z.enum(['LIBRE', 'FIJO', 'NO_APLICA']).default('NO_APLICA'),
+  fijarPlazo: z.coerce.number().min(0, 'El plazo fijo no puede ser negativo').default(0),
   registroVersion: z.coerce.number().min(1, 'La versión de registro es requerida'),
+}).refine(data => data.manejoPlazo !== 'FIJO' || data.fijarPlazo > 0, {
+  message: "Debe especificar una cantidad de meses mayor a 0",
+  path: ["fijarPlazo"],
 })
 
 // ─── Tipos derivados ──────────────────────────────────────────────────────────
@@ -93,6 +103,8 @@ export type TipoCosteoRow = {
   nivel2Etiqueta: string | null
   lineaEtiqueta: string
   baseEvaluacion: 'GLOBAL' | 'MENSUAL'
+  manejoPlazo: 'LIBRE' | 'FIJO' | 'NO_APLICA'
+  fijarPlazo: number
   activo: boolean
   creadoEn: Date
   enUso?: boolean

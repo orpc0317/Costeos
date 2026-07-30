@@ -81,7 +81,7 @@ export async function crearUsuario(
 
   const parsed = crearUsuarioSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0].message }
+    return { ok: false, error: parsed.error.issues[0].message, field: parsed.error.issues[0].path[0] as string }
   }
 
   const { nombre, email, password, rol } = parsed.data
@@ -148,7 +148,7 @@ export async function editarUsuario(
 
   const parsed = editarUsuarioSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0].message }
+    return { ok: false, error: parsed.error.issues[0].message, field: parsed.error.issues[0].path[0] as string }
   }
 
   const { nombre, email, password, rol, registroVersion } = parsed.data

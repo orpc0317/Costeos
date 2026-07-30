@@ -17,7 +17,8 @@ export type CosteoAction =
   | { type: 'UPDATE_RECURSO'; payload: { sitioId: string; puestoId: string | null; recursoId: string; data: Partial<RecursoCosteo> } }
   | { type: 'REMOVE_PUESTO'; payload: { sitioId: string; puestoId: string } }
   | { type: 'REMOVE_RECURSO'; payload: { sitioId: string; puestoId: string | null; recursoId: string } }
-  | { type: 'SELECT_NODE'; payload: { type: 'SITIO' | 'PUESTO' | 'RECURSO' | 'PROYECTO'; id: string } };
+  | { type: 'SELECT_NODE'; payload: { type: 'SITIO' | 'PUESTO' | 'RECURSO' | 'PROYECTO'; id: string } }
+  | { type: 'REPLACE_IDS'; payload: { sitios: Record<string, string>; puestos: Record<string, string>; recursos: Record<string, string> } };
 
 interface CosteoState {
   proyecto: ProyectoCosteo | null;
@@ -223,6 +224,54 @@ function costeoReducer(state: CosteoState, action: CosteoAction): CosteoState {
       return {
         ...state,
         selectedNode: action.payload,
+      };
+    case 'REPLACE_IDS':
+      if (!state.proyecto) return state;
+      const { sitios, puestos, recursos } = action.payload;
+
+      // Actualizar el selectedNode si su ID fue reemplazado
+      let newSelectedNode = state.selectedNode;
+      if (newSelectedNode) {
+        if (newSelectedNode.type === 'SITIO' && sitios[newSelectedNode.id]) {
+          newSelectedNode = { ...newSelectedNode, id: sitios[newSelectedNode.id] };
+        } else if (newSelectedNode.type === 'PUESTO' && puestos[newSelectedNode.id]) {
+          newSelectedNode = { ...newSelectedNode, id: puestos[newSelectedNode.id] };
+        } else if (newSelectedNode.type === 'RECURSO' && recursos[newSelectedNode.id]) {
+          newSelectedNode = { ...newSelectedNode, id: recursos[newSelectedNode.id] };
+        }
+      }
+
+      const proyectoConIdsReemplazados = {
+        ...state.proyecto,
+        sitios: state.proyecto.sitios.map(s => {
+          const sId = sitios[s.id] || s.id;
+          return {
+            ...s,
+            id: sId,
+            puestos: s.puestos.map(p => {
+              const pId = puestos[p.id] || p.id;
+              return {
+                ...p,
+                id: pId,
+                recursos: p.recursos.map(r => ({
+                  ...r,
+                  id: recursos[r.id] || r.id
+                }))
+              };
+            }),
+            recursosSinPuesto: s.recursosSinPuesto.map(r => ({
+              ...r,
+              id: recursos[r.id] || r.id
+            }))
+          };
+        })
+      };
+
+      return {
+        ...state,
+        proyecto: proyectoConIdsReemplazados,
+        // No es estrictamente necesario recalcular resumen porque los IDs no afectan valores financieros
+        selectedNode: newSelectedNode,
       };
     default:
       return state;

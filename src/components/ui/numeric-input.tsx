@@ -1,4 +1,5 @@
 import React from 'react';
+import { Input } from './input';
 
 interface NumericInputProps {
   value: number | undefined;
@@ -8,6 +9,7 @@ interface NumericInputProps {
   max?: string;
   placeholder?: string;
   isInteger?: boolean;
+  'aria-invalid'?: boolean | 'true' | 'false';
 }
 
 /**
@@ -18,7 +20,7 @@ interface NumericInputProps {
  * números decimales de forma fluida, y manteniendo un valor string intermedio 
  * mientras se despacha el número limpio al estado global.
  */
-export const NumericInput = ({ value, onChange, className, min, max, placeholder, isInteger = false }: NumericInputProps) => {
+export const NumericInput = ({ value, onChange, className, min, max, placeholder, isInteger = false, 'aria-invalid': ariaInvalid }: NumericInputProps & React.ComponentProps<"input">) => {
   const [localValue, setLocalValue] = React.useState(value === undefined ? '' : value.toString());
   const [isFocused, setIsFocused] = React.useState(false);
 
@@ -92,7 +94,7 @@ export const NumericInput = ({ value, onChange, className, min, max, placeholder
   }, [isFocused, localValue, value, isInteger]);
 
   return (
-    <input 
+    <Input 
       type="text" 
       inputMode={isInteger ? "numeric" : "decimal"}
       className={className}
@@ -103,6 +105,7 @@ export const NumericInput = ({ value, onChange, className, min, max, placeholder
       min={min}
       max={max}
       placeholder={placeholder}
+      aria-invalid={ariaInvalid}
     />
   );
 };

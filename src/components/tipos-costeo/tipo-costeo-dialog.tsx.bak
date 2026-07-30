@@ -65,8 +65,6 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  const [activeTab, setActiveTab] = useState('general')
   
   const [empresas, setEmpresas] = useState<{value: string, label: string}[]>([])
   const [cargandoEmpresas, setCargandoEmpresas] = useState(false)
@@ -99,7 +97,6 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
 
       setInitialTipoCosteo(tipoCosteo ?? null)
       setMode(tipoCosteo ? 'view' : 'create')
-      setActiveTab('general')
       setEmpresaId(tipoCosteo?.empresaId?.toString() ?? '')
       setCodigo(tipoCosteo?.codigo ?? '')
       setNombre(tipoCosteo?.nombre ?? '')
@@ -113,14 +110,12 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
       setManejoPlazo(tipoCosteo?.manejoPlazo ?? 'NO_APLICA')
       setFijarPlazo(tipoCosteo?.fijarPlazo ?? 0)
       setError(null)
-      setFieldErrors({})
     }
   }, [open, tipoCosteo])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
-    setFieldErrors({})
     setLoading(true)
 
     const formData = new FormData()
@@ -154,30 +149,13 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
       }
 
       if (result && !result.ok) {
-        if (result.field) {
-          const generalFields = ['empresaId', 'codigo', 'nombre', 'lineaEtiqueta']
-          const nivelesFields = ['nivel1Activo', 'nivel1Etiqueta', 'nivel1ConDireccion', 'nivel2Activo', 'nivel2Etiqueta']
-          const evaluacionFields = ['baseEvaluacion', 'manejoPlazo', 'fijarPlazo']
-
-          if (generalFields.includes(result.field)) setActiveTab('general')
-          else if (nivelesFields.includes(result.field)) setActiveTab('niveles')
-          else if (evaluacionFields.includes(result.field)) setActiveTab('evaluacion')
-
-          setTimeout(() => {
-            let elementId = `tc-${result.field}`
-            if (result.field === 'nivel1Etiqueta') elementId = 'tc-n1-etiqueta'
-            if (result.field === 'nivel2Etiqueta') elementId = 'tc-n2-etiqueta'
-            if (result.field === 'lineaEtiqueta') elementId = 'tc-linea-etiqueta'
-
-            const el = document.getElementById(elementId) as HTMLInputElement | HTMLButtonElement
-            if (el) {
-              el.focus()
-            }
-          }, 100)
-
-          setFieldErrors({ [result.field]: result.error })
-          setLoading(false)
-          return
+        if (result.field === 'codigo') {
+          const el = document.getElementById('tc-codigo') as HTMLInputElement
+          if (el) {
+            el.setCustomValidity(result.error)
+            el.reportValidity()
+            return
+          }
         }
         
         throw new Error(result.error)
@@ -210,19 +188,28 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="pt-2" noValidate>
+        <form onSubmit={handleSubmit} className="pt-2">
           {error && <div className="text-red-500 text-sm font-medium mb-4">{error}</div>}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList variant="line" className="mb-4">
-              <TabsTrigger value="general">
+          <Tabs defaultValue="general" className="w-full">
+            <TabsList className="mb-4 bg-transparent border-b w-full justify-start rounded-none p-0 h-auto">
+              <TabsTrigger 
+                value="general" 
+                className="flex-none rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2"
+              >
                 <Settings2 className="w-4 h-4 mr-2" />
                 General
               </TabsTrigger>
-              <TabsTrigger value="niveles">
+              <TabsTrigger 
+                value="niveles" 
+                className="flex-none rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2"
+              >
                 <Hash className="w-4 h-4 mr-2" />
                 Niveles
               </TabsTrigger>
-              <TabsTrigger value="evaluacion">
+              <TabsTrigger 
+                value="evaluacion" 
+                className="flex-none rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2"
+              >
                 <CalendarDays className="w-4 h-4 mr-2" />
                 Evaluación
               </TabsTrigger>
@@ -236,21 +223,17 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                   <Label>
                     Empresa <span className="text-red-500">*</span>
                   </Label>
-                    <SearchableSelect
-                      id="tc-empresaId"
-                      options={empresas}
-                      value={empresaId}
-                      error={!!fieldErrors.empresaId}
-                      onChange={(val) => {
-                        setEmpresaId(val)
-                        setError(null)
-                        setFieldErrors(prev => ({ ...prev, empresaId: '' }))
-                      }}
-                      placeholder={cargandoEmpresas ? "Cargando..." : "Seleccionar empresa"}
-                      disabled={mode === 'view' || mode === 'edit' || cargandoEmpresas}
-                    />
-                    {fieldErrors.empresaId && <p className="text-xs text-red-500 mt-1">{fieldErrors.empresaId}</p>}
-                  </div>
+                  <SearchableSelect
+                    options={empresas}
+                    value={empresaId}
+                    onChange={(val) => {
+                      setEmpresaId(val)
+                      setError(null)
+                    }}
+                    placeholder={cargandoEmpresas ? "Cargando..." : "Seleccionar empresa"}
+                    disabled={mode === 'view' || mode === 'edit' || cargandoEmpresas}
+                  />
+                </div>
 
                 {/* Código */}
                 {mode !== 'create' && (
@@ -264,10 +247,8 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                       value={codigo}
                       readOnly
                       disabled
-                      aria-invalid={!!fieldErrors.codigo}
                       className="bg-muted/50 font-mono text-sm uppercase"
                     />
-                    {fieldErrors.codigo && <p className="text-xs text-red-500 mt-1">{fieldErrors.codigo}</p>}
                   </div>
                 )}
 
@@ -285,7 +266,6 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                     autoComplete="off"
                     className="uppercase"
                     disabled={mode === 'view'}
-                    aria-invalid={!!fieldErrors.nombre}
                     data-view-mode={mode === 'view'}
                     onChange={(e) => {
                       setNombre(normalizeText(e.target.value))
@@ -297,7 +277,6 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                       }
                     }}
                   />
-                  {fieldErrors.nombre && <p className="text-xs text-red-500 mt-1">{fieldErrors.nombre}</p>}
                 </div>
 
                 {/* Línea Etiqueta */}
@@ -314,7 +293,6 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                     autoComplete="off"
                     className="uppercase"
                     disabled={mode === 'view'}
-                    aria-invalid={!!fieldErrors.lineaEtiqueta}
                     data-view-mode={mode === 'view'}
                     onChange={(e) => {
                       setLineaEtiqueta(normalizeText(e.target.value))
@@ -326,7 +304,6 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                       }
                     }}
                   />
-                  {fieldErrors.lineaEtiqueta && <p className="text-xs text-red-500 mt-1">{fieldErrors.lineaEtiqueta}</p>}
                 </div>
               </div>
             </TabsContent>
@@ -372,15 +349,12 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                       autoComplete="off"
                       className="uppercase"
                       disabled={mode === 'view' || !nivel1Activo}
-                      aria-invalid={!!fieldErrors.nivel1Etiqueta}
                       data-view-mode={mode === 'view'}
                       onChange={(e) => {
                         setNivel1Etiqueta(normalizeText(e.target.value))
                         e.target.setCustomValidity('')
-                        setFieldErrors(prev => ({ ...prev, nivel1Etiqueta: '' }))
                       }}
                     />
-                    {fieldErrors.nivel1Etiqueta && <p className="text-xs text-red-500 mt-1">{fieldErrors.nivel1Etiqueta}</p>}
                   </div>
 
                   <div className="flex items-center justify-between pt-2">
@@ -423,15 +397,12 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                       autoComplete="off"
                       className="uppercase"
                       disabled={mode === 'view' || !nivel2Activo}
-                      aria-invalid={!!fieldErrors.nivel2Etiqueta}
                       data-view-mode={mode === 'view'}
                       onChange={(e) => {
                         setNivel2Etiqueta(normalizeText(e.target.value))
                         e.target.setCustomValidity('')
-                        setFieldErrors(prev => ({ ...prev, nivel2Etiqueta: '' }))
                       }}
                     />
-                    {fieldErrors.nivel2Etiqueta && <p className="text-xs text-red-500 mt-1">{fieldErrors.nivel2Etiqueta}</p>}
                   </div>
                 </div>
 
@@ -509,44 +480,63 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                     <p className="text-sm text-slate-500 mb-3">
                       Define cómo se comportará la duración en meses de estos proyectos.
                     </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="flex flex-col gap-1.5 justify-end">
-                        <SearchableSelect
-                          id="tc-manejoPlazo"
-                          value={manejoPlazo}
-                          onChange={(val) => setManejoPlazo(val as 'LIBRE'|'FIJO'|'NO_APLICA')}
-                          options={[
-                            { value: 'NO_APLICA', label: 'No Aplica' },
-                            { value: 'LIBRE', label: 'Libre (Editable al crear)' },
-                            { value: 'FIJO', label: 'Fijo (Forzado a X meses)' }
-                          ]}
-                          disabled={mode === 'view'}
-                          placeholder="Seleccione el manejo..."
-                        />
+                    <RadioGroup
+                      value={manejoPlazo}
+                      onValueChange={(val: 'LIBRE'|'FIJO'|'NO_APLICA') => setManejoPlazo(val)}
+                      disabled={mode === 'view'}
+                      className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+                    >
+                      <div className={cn(
+                        "flex flex-row items-center space-x-3 rounded-md border-2 p-3 cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors",
+                        manejoPlazo === 'NO_APLICA' ? "border-indigo-600 bg-indigo-50/50" : "border-muted bg-popover",
+                        mode === 'view' && "opacity-50 cursor-not-allowed"
+                      )} onClick={() => { if (mode !== 'view') setManejoPlazo('NO_APLICA') }}>
+                        <RadioGroupItem value="NO_APLICA" id="plazo-no-aplica" />
+                        <Label htmlFor="plazo-no-aplica" className="flex-1 cursor-pointer pointer-events-none flex flex-row items-center gap-4 flex-wrap">
+                          <span className="font-semibold text-sm">No Aplica</span>
+                          <span className="text-sm text-slate-500 font-normal leading-tight">Sin duración</span>
+                        </Label>
+                      </div>
+
+                      <div className={cn(
+                        "flex flex-row items-center space-x-3 rounded-md border-2 p-3 cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors",
+                        manejoPlazo === 'LIBRE' ? "border-indigo-600 bg-indigo-50/50" : "border-muted bg-popover",
+                        mode === 'view' && "opacity-50 cursor-not-allowed"
+                      )} onClick={() => { if (mode !== 'view') setManejoPlazo('LIBRE') }}>
+                        <RadioGroupItem value="LIBRE" id="plazo-libre" />
+                        <Label htmlFor="plazo-libre" className="flex-1 cursor-pointer pointer-events-none flex flex-row items-center gap-4 flex-wrap">
+                          <span className="font-semibold text-sm">Libre</span>
+                          <span className="text-sm text-slate-500 font-normal leading-tight">Editable al crear</span>
+                        </Label>
                       </div>
                       
+                      <div className={cn(
+                        "flex flex-row items-center space-x-3 rounded-md border-2 p-3 cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors",
+                        manejoPlazo === 'FIJO' ? "border-indigo-600 bg-indigo-50/50" : "border-muted bg-popover",
+                        mode === 'view' && "opacity-50 cursor-not-allowed"
+                      )} onClick={() => { if (mode !== 'view') setManejoPlazo('FIJO') }}>
+                        <RadioGroupItem value="FIJO" id="plazo-fijo" />
+                        <Label htmlFor="plazo-fijo" className="flex-1 cursor-pointer pointer-events-none flex flex-row items-center gap-4 flex-wrap">
+                          <span className="font-semibold text-sm">Fijo</span>
+                          <span className="text-sm text-slate-500 font-normal leading-tight">Forzado a X meses</span>
+                        </Label>
+                      </div>
+
                       {manejoPlazo === 'FIJO' && (
-                        <div className="flex flex-col w-full">
-                          <div className="flex flex-row items-center gap-3 animate-in fade-in slide-in-from-left-2">
-                            <Label htmlFor="tc-fijar-plazo" className="text-sm font-semibold whitespace-nowrap">Meses Fijos</Label>
-                            <NumericInput
-                              id="tc-fijar-plazo"
-                              value={fijarPlazo || undefined}
-                              onChange={(val) => {
-                                setFijarPlazo(val || 0)
-                                setFieldErrors(prev => ({ ...prev, fijarPlazo: '' }))
-                              }}
-                              isInteger={true}
-                              disabled={mode === 'view'}
-                              aria-invalid={!!fieldErrors.fijarPlazo}
-                              className="w-full"
-                              placeholder="Cantidad de meses..."
-                            />
-                          </div>
-                          {fieldErrors.fijarPlazo && <p className="text-xs text-red-500 mt-1 ml-[100px]">{fieldErrors.fijarPlazo}</p>}
+                        <div className="pt-1 animate-in fade-in slide-in-from-top-2">
+                          <Label htmlFor="tc-fijar-plazo">Meses Fijos</Label>
+                          <NumericInput
+                            id="tc-fijar-plazo"
+                            value={fijarPlazo || undefined}
+                            onChange={(val) => setFijarPlazo(val || 0)}
+                            isInteger={true}
+                            disabled={mode === 'view'}
+                            className="mt-1.5 w-full"
+                            placeholder="Cantidad de meses..."
+                          />
                         </div>
                       )}
-                    </div>
+                    </RadioGroup>
                   </div>
                 </div>
               </div>

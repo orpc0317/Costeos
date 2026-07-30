@@ -31,6 +31,7 @@ model Usuario {
   costeosCreados    Costeo[]   @relation("CosteoCreador")
   costeosAprobados  Costeo[]   @relation("CosteoAprobador")
   auditLogs         AuditLog[]
+  historiales       HistorialAutoGuardado[]
 
   @@map("t_usuario")
 }
@@ -238,6 +239,7 @@ model Costeo {
   versiones   Costeo[]    @relation("VersionesCosteo")
   resultado   Resultado?
   auditLogs   AuditLog[]
+  historiales HistorialAutoGuardado[]
 
   @@map("costeos_costeo")
 }
@@ -324,6 +326,8 @@ model TipoCosteo {
   nivel2Etiqueta     String?  @map("nivel2_etiqueta") @db.VarChar(50) // ej: "Puesto"
   lineaEtiqueta      String         @default("Línea") @map("linea_etiqueta") @db.VarChar(50)
   baseEvaluacion     BaseEvaluacion @default(GLOBAL) @map("base_evaluacion")
+  manejoPlazo        String         @default("NO_APLICA") @map("manejo_plazo") @db.VarChar(20)
+  fijarPlazo         Int            @default(0) @map("fijar_plazo")
   activo             Boolean        @default(true)
   creadoEn           DateTime @default(now()) @map("creado_en")
   modificadoEn       DateTime @updatedAt @map("modificado_en")
@@ -333,4 +337,21 @@ model TipoCosteo {
 
   @@unique([empresaId, codigo])
   @@map("costeos_tipo_costeo")
+}
+
+// ─── HISTORIAL AUTO-GUARDADO ──────────────────────────────────────────────────
+//
+// Snapshot temporal del árbol (ProyectoCosteo) para viajes en el tiempo tipo Docs.
+//
+model HistorialAutoGuardado {
+  id          Int      @id @default(autoincrement())
+  costeoId    Int      @map("costeo_id")
+  usuarioId   Int      @map("usuario_id")
+  datos       String   @db.LongText // JSON completo
+  creadoEn    DateTime @default(now()) @map("creado_en")
+
+  costeo      Costeo   @relation(fields: [costeoId], references: [id], onDelete: Cascade)
+  usuario     Usuario  @relation(fields: [usuarioId], references: [id])
+
+  @@map("costeos_historial_autoguardado")
 }

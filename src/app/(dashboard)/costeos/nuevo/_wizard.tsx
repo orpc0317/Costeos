@@ -1,11 +1,17 @@
 'use client'
 
-import { useState } from 'react'
-import type { ErpEmpresa, ErpCliente } from '@/lib/erp'
+import { useState, useEffect, useMemo } from 'react'
+import type { ErpCliente } from '@/lib/erp'
 import { getClientesAction } from '@/app/actions/erp-actions'
+import { getEmpresasForUser } from '@/app/actions/erp'
+import { normalizeText } from '@/lib/utils/text'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { SearchableSelect } from '@/components/ui/searchable-select'
+import { NumericInput } from '@/components/ui/numeric-input'
+import { createCosteo } from '@/app/actions/costeos'
+import { toast } from 'sonner'
 import {
   Select,
   SelectContent,
@@ -25,11 +31,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Search, Plus } from 'lucide-react'
 
 type WizardCosteoProps = {
-  empresas: ErpEmpresa[]
   tiposCosteo?: any[]
 }
 
-export function WizardCosteo({ empresas, tiposCosteo }: WizardCosteoProps) {
+export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
+  const [empresas, setEmpresas] = useState<{value: string, label: string}[]>([])
+  const [cargandoEmpresas, setCargandoEmpresas] = useState(false)
   const [empresaId, setEmpresaId] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
   const [clientes, setClientes] = useState<ErpCliente[]>([])
@@ -37,18 +44,26 @@ export function WizardCosteo({ empresas, tiposCosteo }: WizardCosteoProps) {
   const [searched, setSearched] = useState(false)
   
   const [selectedCliente, setSelectedCliente] = useState<ErpCliente | null>(null)
+  
+  // Guardamos el código del tipo de costeo en lugar del ID
+  const [tipoCosteoCodigo, setTipoCosteoCodigo] = useState<string>('')
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!empresaId) return alert('Por favor, selecciona una empresa primero.')
+    if (!searchQuery.trim() || !empresaId) return alert('Por favor, selecciona una empresa y escribe algo para buscar.')
+    if (searchQuery.trim().length < 3) {
+      return alert('Por favor, ingresa al menos 3 letras para la búsqueda.')
+    }
+
+    const busquedaNormalizada = normalizeText(searchQuery)
 
     setIsLoading(true)
     setSearched(true)
-    const res = await getClientesAction(Number(empresaId), searchQuery)
+    const res = await getClientesAction(Number(empresaId), busquedaNormalizada)
     if (res.data) {
       setClientes(res.data)
     } else {
-      alert(res.error)
+      setClientes([])
     }
     setIsLoading(false)
   }
@@ -63,8 +78,54 @@ export function WizardCosteo({ empresas, tiposCosteo }: WizardCosteoProps) {
 
 // Paso 3 (o 2 expandido): Formulario de Detalles del Proyecto
   const [showForm, setShowForm] = useState(false)
-  const [tipoCosteoId, setTipoCosteoId] = useState<string>('')
   const [moneda, setMoneda] = useState<string>('GTQ')
+  const [nombreProyecto, setNombreProyecto] = useState('')
+  const [plazoMeses, setPlazoMeses] = useState<number>(12)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Filtrar tipos de costeo por empresa seleccionada
+  const filteredTiposCosteo = useMemo(() => {
+    if (!tiposCosteo || !empresaId) return []
+    return tiposCosteo.filter((tc: any) => tc.empresaId === Number(empresaId))
+  }, [tiposCosteo, empresaId])
+
+  // Pre-seleccionar el primer tipo de costeo de la empresa
+  useEffect(() => {
+    if (filteredTiposCosteo.length > 0) {
+      setTipoCosteoCodigo(String(filteredTiposCosteo[0].codigo))
+    } else {
+      setTipoCosteoCodigo('')
+    }
+  }, [filteredTiposCosteo])
+
+  const selectedTipoCosteo = useMemo(() => {
+    return filteredTiposCosteo.find((tc: any) => tc.codigo === tipoCosteoCodigo)
+  }, [filteredTiposCosteo, tipoCosteoCodigo])
+
+  useEffect(() => {
+    if (selectedTipoCosteo) {
+      if (selectedTipoCosteo.manejoPlazo === 'FIJO' && selectedTipoCosteo.fijarPlazo > 0) {
+        setPlazoMeses(selectedTipoCosteo.fijarPlazo)
+      } else if (selectedTipoCosteo.manejoPlazo === 'NO_APLICA') {
+        setPlazoMeses(0)
+      }
+    }
+  }, [selectedTipoCosteo])
+
+  // Cargar empresas al inicio
+  useEffect(() => {
+    setCargandoEmpresas(true)
+    getEmpresasForUser()
+      .then(data => {
+        setEmpresas(data.map(e => ({ value: e.id.toString(), label: e.nombre })))
+        if (data.length > 0 && !empresaId) {
+          setEmpresaId(data[0].id.toString())
+        }
+      })
+      .catch(err => toast.error('Error al cargar empresas: ' + err.message))
+      .finally(() => setCargandoEmpresas(false))
+  }, [])
 
   const handleSelectCliente = (cliente: ErpCliente) => {
     setSelectedCliente(cliente)
@@ -74,50 +135,83 @@ export function WizardCosteo({ empresas, tiposCosteo }: WizardCosteoProps) {
   const handleBackToSearch = () => {
     setShowForm(false)
     setSelectedCliente(null)
+    setFormError(null)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setFormError(null)
+    setIsSubmitting(true)
+
+    try {
+      const formData = new FormData()
+      formData.append('empresa', empresaId)
+      formData.append('erpClienteData', JSON.stringify(selectedCliente))
+      formData.append('isNewClient', 'false')
+      formData.append('tipoCosteoId', filteredTiposCosteo.find((tc: any) => tc.codigo === tipoCosteoCodigo)?.id?.toString() || '')
+      formData.append('tipoCosteoCodigo', tipoCosteoCodigo)
+      formData.append('moneda', moneda)
+      formData.append('nombreProyecto', nombreProyecto)
+      formData.append('plazoMeses', plazoMeses.toString())
+
+      await createCosteo(formData)
+    } catch (err: any) {
+      if (err?.message === 'NEXT_REDIRECT') throw err
+      setFormError(err.message || 'Ocurrió un error inesperado al crear el proyecto.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
     <div className="space-y-6">
       {/* Paso 1: Filtros de Búsqueda */}
       {!showForm && (
-        <Card>
+        <Card className="max-w-xl">
           <CardHeader>
             <CardTitle className="text-lg text-indigo-900">1. Datos Iniciales</CardTitle>
             <CardDescription>Selecciona la empresa y busca al cliente para el costeo.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSearch} className="flex gap-4 items-end">
-              <div className="w-1/3 space-y-2">
+            <form onSubmit={handleSearch} className="flex flex-col gap-6">
+              <div className="space-y-2">
                 <Label htmlFor="empresa">Empresa</Label>
-                <Select value={empresaId} onValueChange={handleEmpresaChange}>
-                  <SelectTrigger id="empresa">
-                    <SelectValue placeholder="Selecciona una empresa" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {empresas.map((emp) => (
-                      <SelectItem key={emp.id} value={String(emp.id)}>
-                        {emp.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  options={empresas}
+                  value={empresaId}
+                  onChange={handleEmpresaChange}
+                  placeholder={cargandoEmpresas ? "Cargando..." : "Seleccionar empresa"}
+                  disabled={cargandoEmpresas}
+                />
               </div>
               
-              <div className="w-1/2 space-y-2">
-                <Label htmlFor="search">Buscar Cliente (NIT, Código, Nombre)</Label>
-                <Input 
-                  id="search" 
-                  placeholder="Ej. Constructora..." 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  disabled={!empresaId}
+              <div className="space-y-2">
+                <Label htmlFor="tipoCosteoSelect">Tipo Costeo</Label>
+                <SearchableSelect
+                  options={filteredTiposCosteo.map((tc: any) => ({ value: String(tc.codigo), label: tc.nombre }))}
+                  value={tipoCosteoCodigo}
+                  onChange={setTipoCosteoCodigo}
+                  placeholder="Selecciona un tipo"
+                  disabled={!empresaId || filteredTiposCosteo.length === 0}
                 />
               </div>
 
-              <Button type="submit" disabled={!empresaId || isLoading} className="bg-indigo-600 hover:bg-indigo-700">
-                <Search className="mr-2 h-4 w-4" />
-                {isLoading ? 'Buscando...' : 'Buscar'}
-              </Button>
+              <div className="space-y-2">
+                <Label htmlFor="search">Buscar Cliente (NIT, Nombre, Código)</Label>
+                <div className="flex gap-2">
+                  <Input 
+                    id="search" 
+                    placeholder="Ej. CONSTRUCTORA..." 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(normalizeText(e.target.value))}
+                    disabled={!empresaId}
+                    className="flex-1"
+                  />
+                  <Button type="submit" disabled={!empresaId || isLoading} className="bg-indigo-600 hover:bg-indigo-700 whitespace-nowrap">
+                    <Search className="mr-2 h-4 w-4" /> Buscar
+                  </Button>
+                </div>
+              </div>
             </form>
           </CardContent>
         </Card>
@@ -157,7 +251,7 @@ export function WizardCosteo({ empresas, tiposCosteo }: WizardCosteoProps) {
                         className="cursor-pointer hover:bg-indigo-50/50"
                         onClick={() => handleSelectCliente(c)}
                       >
-                        <TableCell className="font-medium">{c.codigo || '-'}</TableCell>
+                        <TableCell className="font-medium">{c.codigo || c.id || '-'}</TableCell>
                         <TableCell>{c.nit}</TableCell>
                         <TableCell>{c.nombreComercial}</TableCell>
                         <TableCell>{c.razonSocial}</TableCell>
@@ -185,38 +279,40 @@ export function WizardCosteo({ empresas, tiposCosteo }: WizardCosteoProps) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form action="/api/costeos/create" method="POST" className="space-y-6">
-              <input type="hidden" name="empresa" value={empresaId} />
-              <input type="hidden" name="erpClienteData" value={JSON.stringify(selectedCliente)} />
-              <input type="hidden" name="isNewClient" value="false" />
-              <input type="hidden" name="tipoCosteoId" value={tipoCosteoId} />
-              <input type="hidden" name="moneda" value={moneda} />
-
+            {formError && (
+              <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-500">
+                {formError}
+              </div>
+            )}
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="nombreProyecto">Nombre del Proyecto</Label>
-                  <Input id="nombreProyecto" name="nombreProyecto" required placeholder="Ej. Seguridad Oficinas Centrales" className="uppercase" />
+                  <Label htmlFor="nombreProyecto">Nombre Proyecto</Label>
+                  <Input 
+                    id="nombreProyecto" 
+                    required 
+                    placeholder="Ej. Seguridad Oficinas Centrales" 
+                    className="uppercase focus:ring-2 focus:ring-indigo-500" 
+                    value={nombreProyecto}
+                    onChange={(e) => setNombreProyecto(normalizeText(e.target.value))}
+                  />
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="tipoCosteoIdSelect">Tipo de Costeo</Label>
-                  <Select value={tipoCosteoId} onValueChange={setTipoCosteoId} required>
-                    <SelectTrigger id="tipoCosteoIdSelect">
-                      <SelectValue placeholder="Selecciona un tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {tiposCosteo?.map((tc: any) => (
-                        <SelectItem key={tc.id} value={String(tc.id)}>
-                          {tc.nombre}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="plazoMeses">Plazo en Meses</Label>
-                  <Input id="plazoMeses" name="plazoMeses" type="number" required defaultValue="12" min="1" />
+                  <Label htmlFor="plazoMeses">Plazo Meses</Label>
+                  <NumericInput 
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-slate-100"
+                    value={plazoMeses}
+                    isInteger={true}
+                    disabled={selectedTipoCosteo && (selectedTipoCosteo.manejoPlazo === 'FIJO' || selectedTipoCosteo.manejoPlazo === 'NO_APLICA')}
+                    onChange={(val) => setPlazoMeses(val || 0)}
+                  />
+                  {selectedTipoCosteo && selectedTipoCosteo.manejoPlazo === 'FIJO' && (
+                    <p className="text-xs text-muted-foreground">Plazo fijado por el Tipo de Costeo.</p>
+                  )}
+                  {selectedTipoCosteo && selectedTipoCosteo.manejoPlazo === 'NO_APLICA' && (
+                    <p className="text-xs text-muted-foreground">Este tipo de proyecto no lleva plazo.</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -234,14 +330,11 @@ export function WizardCosteo({ empresas, tiposCosteo }: WizardCosteoProps) {
               </div>
 
               <div className="flex justify-between pt-4">
-                <Button type="button" variant="outline" onClick={handleBackToSearch}>
-                  Cambiar Cliente
+                <Button type="button" variant="outline" onClick={handleBackToSearch} disabled={isSubmitting}>
+                  Volver
                 </Button>
-                <Button type="submit" disabled={!tipoCosteoId} formAction={async (formData) => {
-                  const { createCosteo } = await import('@/app/actions/costeos')
-                  await createCosteo(formData)
-                }} className="bg-indigo-600 hover:bg-indigo-700">
-                  Crear Proyecto
+                <Button type="submit" disabled={!tipoCosteoCodigo || isSubmitting} className="bg-indigo-600 hover:bg-indigo-700">
+                  {isSubmitting ? 'Creando...' : 'Crear Proyecto'}
                 </Button>
               </div>
             </form>

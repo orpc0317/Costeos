@@ -17,7 +17,9 @@ export async function getEmpresasAction(usuarioErp: string): Promise<{ data?: Er
 
 export async function getClientesAction(empresaId: number, busqueda: string): Promise<{ data?: ErpCliente[], error?: string }> {
   try {
+    console.log('[getClientesAction] Buscando:', { empresaId, busqueda })
     const clientes = await erp.getClientes(empresaId, busqueda)
+    console.log('[getClientesAction] Resultados:', clientes.length)
     return { data: clientes }
   } catch (err) {
     console.error('[getClientesAction]', err)

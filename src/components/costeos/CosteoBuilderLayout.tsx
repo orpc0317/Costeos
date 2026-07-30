@@ -1,17 +1,79 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useCosteo } from '@/lib/context/CosteoContext';
 import TreeViewSidebar from './TreeViewSidebar';
 import FinancialSummaryPanel from './FinancialSummaryPanel';
 import EditorPanel from './EditorPanel';
-import { Layers, Save } from 'lucide-react';
+import { Layers, Cloud, CloudUpload, CloudOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { saveCosteoTree } from '@/app/actions/save-costeo';
+import HistorialSheet from './modals/HistorialSheet';
+
+type SaveState = 'saved' | 'saving' | 'error' | 'idle';
 
 export default function CosteoBuilderLayout() {
-  const { proyecto } = useCosteo();
-  const [isSaving, setIsSaving] = React.useState(false);
+  const { proyecto, dispatch } = useCosteo();
+  const [saveState, setSaveState] = useState<SaveState>('idle');
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+  const suppressNextSave = useRef(false);
+  
+  // Track previous tree string to detect real mutations
+  const lastSavedState = useRef<string>('');
+
+  useEffect(() => {
+    if (!proyecto) return;
+
+    if (suppressNextSave.current) {
+      suppressNextSave.current = false;
+      lastSavedState.current = JSON.stringify(proyecto);
+      return;
+    }
+
+    const currentString = JSON.stringify(proyecto);
+    
+    // Si es la primera vez que carga, inicializamos el state
+    if (!lastSavedState.current) {
+      lastSavedState.current = currentString;
+      setSaveState('saved');
+      return;
+    }
+
+    // Si no ha cambiado nada sustancial, no hacemos nada
+    if (currentString === lastSavedState.current) {
+      return;
+    }
+
+    // Detectamos cambios
+    setSaveState('saving'); // O 'modificado' si queremos mostrar algo antes
+
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+
+    debounceTimer.current = setTimeout(async () => {
+      try {
+        setSaveState('saving');
+        const res = await saveCosteoTree(proyecto);
+        
+        if (res.success && res.idMap) {
+          suppressNextSave.current = true; // El proximo cambio de 'proyecto' es por REPLACE_IDS
+          dispatch({ type: 'REPLACE_IDS', payload: res.idMap });
+          setSaveState('saved');
+        } else {
+          setSaveState('error');
+        }
+      } catch (error) {
+        console.error("Error al auto-guardar:", error);
+        setSaveState('error');
+      }
+    }, 2000); // 2 segundos de debounce
+
+    // Cleanup
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, [proyecto, dispatch]);
 
   if (!proyecto) {
     return (
@@ -21,18 +83,7 @@ export default function CosteoBuilderLayout() {
     );
   }
 
-  const handleSave = async () => {
-    if (!proyecto) return;
-    setIsSaving(true);
-    try {
-      await saveCosteoTree(proyecto);
-      // Opcional: Mostrar un toast de éxito aquí
-    } catch (error) {
-      console.error("Error al guardar:", error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+
 
   return (
     <div className="flex flex-col h-full w-full">
@@ -62,16 +113,28 @@ export default function CosteoBuilderLayout() {
             <span className="text-slate-500 mr-1">Plazo:</span>
             <span className="font-medium">{proyecto.plazoMeses} meses</span>
           </div>
-          <div className="pl-4 border-l">
-            <Button 
-              size="sm" 
-              onClick={handleSave} 
-              disabled={isSaving}
-              className="h-8 gap-2"
-            >
-              <Save className="h-4 w-4" />
-              {isSaving ? "Guardando..." : "Guardar Progreso"}
-            </Button>
+          <div className="pl-4 border-l flex items-center min-w-[120px] justify-end">
+            {saveState === 'saved' && (
+              <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
+                <Cloud className="w-3.5 h-3.5" /> Guardado
+              </span>
+            )}
+            {saveState === 'saving' && (
+              <span className="flex items-center gap-1.5 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded-full">
+                <CloudUpload className="w-3.5 h-3.5 animate-pulse" /> Guardando...
+              </span>
+            )}
+            {saveState === 'error' && (
+              <span className="flex items-center gap-1.5 text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded-full">
+                <CloudOff className="w-3.5 h-3.5" /> Error
+              </span>
+            )}
+            {saveState === 'idle' && (
+              <span className="text-xs text-slate-400">...</span>
+            )}
+            <div className="ml-2 pl-2 border-l border-slate-200">
+              <HistorialSheet costeoId={proyecto.id} />
+            </div>
           </div>
         </div>
       </header>

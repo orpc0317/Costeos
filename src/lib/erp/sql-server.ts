@@ -43,10 +43,10 @@ export class SqlServerErpRepository implements ErpRepository {
     const pool = await getPool()
     const result = await pool
       .request()
-      .input('busqueda',    sql.NVarChar(200), filtros?.busqueda    ?? '')
-      .input('tipo',        sql.NVarChar(30),  filtros?.tipo         ?? null)
-      .input('categoriaId', sql.Int,           filtros?.categoriaId  ?? null)
-      .input('tieneReceta', sql.Bit,           filtros?.tieneReceta  ?? null)
+      .input('busqueda',    filtros?.busqueda    ?? '')
+      .input('tipo',        filtros?.tipo         ?? null)
+      .input('categoriaId', filtros?.categoriaId  ?? null)
+      .input('tieneReceta', filtros?.tieneReceta  ?? null)
       .query(`
         SELECT
           i.id,
@@ -148,7 +148,7 @@ export class SqlServerErpRepository implements ErpRepository {
     const pool = await getPool()
     const result = await pool
       .request()
-      .input('itemId', sql.Int, itemId)
+      .input('itemId', itemId)
       .query(`
         SELECT
           r.item_componente_id  AS itemId,
@@ -192,7 +192,7 @@ export class SqlServerErpRepository implements ErpRepository {
     const pool = await getPool()
     const result = await pool
       .request()
-      .input('PrmUsuario', sql.VarChar(5), usuarioId)
+      .input('PrmUsuario', usuarioId)
       .execute('sp_validar_usuario')
 
     if (result.recordset.length > 0) {
@@ -218,8 +218,8 @@ export class SqlServerErpRepository implements ErpRepository {
     const pool = await getPool()
     const result = await pool
       .request()
-      .input('PrmEmpresa', sql.Int, empresaId)
-      .input('PrmSearchText', sql.VarChar(150), busqueda)
+      .input('PrmEmpresa', empresaId)
+      .input('PrmSearchText', busqueda)
       .execute('sp_buscar_cliente')
 
     return result.recordset.map((r) => ({
@@ -230,7 +230,7 @@ export class SqlServerErpRepository implements ErpRepository {
       razonSocial: r.razon_social || r.razona_social,
       direccion: r.direccion,
       pais: r.pais,
-      departamentoId: r.department_codigo,
+      departamentoId: r.departamento,
       departamentoNombre: r.departamento_nombre,
       municipioId: r.municipio,
       municipioNombre: r.municipio_nombre,
@@ -242,7 +242,7 @@ export class SqlServerErpRepository implements ErpRepository {
     const pool = await getPool()
     const result = await pool
       .request()
-      .input('PrmPais', sql.VarChar(3), pais)
+      .input('PrmPais', pais)
       .execute('sp_departamentos_pais')
 
     return result.recordset.map((r) => ({
@@ -255,8 +255,8 @@ export class SqlServerErpRepository implements ErpRepository {
     const pool = await getPool()
     const result = await pool
       .request()
-      .input('PrmPais', sql.VarChar(3), pais)
-      .input('PrmDepartamento', sql.Int, deptoId)
+      .input('PrmPais', pais)
+      .input('PrmDepartamento', deptoId)
       .execute('sp_municpios_departamento')
 
     return result.recordset.map((r) => ({
@@ -268,7 +268,7 @@ export class SqlServerErpRepository implements ErpRepository {
   async validarVendedor(usuarioErp: string): Promise<string | null> {
     const pool = await getPool()
     const result = await pool.request()
-      .input('PrmUsuario', sql.VarChar(5), usuarioErp.substring(0, 5))
+      .input('PrmUsuario', usuarioErp.substring(0, 5))
       .execute('sp_validar_vendedor')
 
     if (result.recordset.length === 0) {
@@ -295,7 +295,7 @@ export class SqlServerErpRepository implements ErpRepository {
        */
       const result = await pool
         .request()
-        .input('payload_json', sql.NVarChar(sql.MAX), JSON.stringify(payload))
+        .input('payload_json', JSON.stringify(payload))
         .execute('erp.sp_crear_contrato_desde_costeos')
 
       const row = result.recordset?.[0]

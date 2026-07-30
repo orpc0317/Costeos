@@ -34,10 +34,24 @@ Este documento contiene las reglas y componentes estandarizados que han nacido o
   ```
 
 ### Selects (Comboboxes) y Cascada
-- **Regla 1 (Filtro):** Para listados con múltiples opciones, se debe utilizar un componente que permita buscar/filtrar (como `Command` + `Popover` de `shadcn/ui`, equivalente a un Combobox) para que el usuario pueda escribir parte del nombre.
-- **Regla 2 (Código vs Nombre):** Los selects deben desplegar el nombre/descripción al usuario, pero **siempre** deben guardar el código correspondiente en la base de datos o estado.
-- **Regla 3 (Auto-selección):** Siempre se debe auto-seleccionar el primer registro disponible al cargar los datos, de manera global. **Excepciones:** Las búsquedas de "Clientes" o "Ítems", o a menos que se indique explícitamente lo contrario, NO se autoseleccionan.
-- **Regla 4 (Cascadas Automáticas):** Si un Select depende de otro (ej. Municipio depende de Departamento), al cambiar el padre, se debe limpiar la selección del hijo, cargar la nueva lista y aplicar la *Regla 3* (auto-seleccionar el primero) de forma encadenada.
+- **Regla 1 (Componente y Mapeo):** En lugar del Select nativo de Shadcn, SIEMPRE se debe utilizar el componente `<SearchableSelect>` ubicado en `src/components/ui/searchable-select.tsx`. Este requiere que las opciones se mapeen estrictamente al formato `{ value: string, label: string }`.
+- **Regla 2 (Búsqueda):** Este componente ya incluye un buscador interno (Combobox) para que el usuario pueda escribir parte del nombre de la opción.
+- **Regla 3 (Código vs Nombre):** El componente mostrará el `label` (nombre/descripción) al usuario, pero su estado interno guardará el `value` (código/id). Si se guarda como código, pero la API/BD requiere un ID numérico, interceptarlo mediante un `<input type="hidden">` antes del submit.
+- **Regla 4 (Auto-selección):** Siempre se debe auto-seleccionar el primer registro disponible al cargar los datos, de manera global. **Excepciones:** Las búsquedas de "Clientes" o "Ítems", o a menos que se indique explícitamente lo contrario, NO se autoseleccionan.
+- **Regla 5 (Cascadas Automáticas):** Si un Select depende de otro (ej. Tipo Costeo depende de Empresa), al cambiar el padre, se debe limpiar la selección del hijo, cargar la nueva lista y aplicar la *Regla 4* (auto-seleccionar el primero) de forma encadenada.
+- **Uso:**
+  ```tsx
+  import { SearchableSelect } from '@/components/ui/searchable-select';
+  
+  const opciones = datos.map(d => ({ value: String(d.codigo), label: d.nombre }));
+
+  <SearchableSelect
+    options={opciones}
+    value={codigoSeleccionado}
+    onChange={setCodigoSeleccionado}
+    placeholder="Seleccione..."
+  />
+  ```
 
 ### Labels y Títulos (Naming Conventions)
 - **Regla:** Todos los labels, botones y títulos de pantallas deben evitar el uso de preposiciones como "de", "y", "del", "el", "la". Tratar que se lean con 1 a 3 palabras.

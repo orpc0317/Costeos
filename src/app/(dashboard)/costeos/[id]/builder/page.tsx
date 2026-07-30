@@ -70,6 +70,8 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
       nivel2Activo: costeo.tipoCosteo.nivel2Activo,
       nivel2Etiqueta: costeo.tipoCosteo.nivel2Etiqueta,
       lineaEtiqueta: costeo.tipoCosteo.lineaEtiqueta,
+      manejoPlazo: costeo.tipoCosteo.manejoPlazo as 'LIBRE' | 'FIJO' | 'NO_APLICA',
+      fijarPlazo: costeo.tipoCosteo.fijarPlazo,
     } : undefined,
     sitios: costeo.contrato.sitios.map(s => ({
       id: s.id.toString(),
@@ -100,6 +102,11 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
           costoUnitario: Number(r.costoUnitarioErp || 0),
           precioVentaUnitario: r.precioVenta ? Number(r.precioVenta) : undefined,
           precioVentaOrigen: r.precioVentaOrigen as 'LISTA' | 'MANUAL',
+          turnoCodigo: p.turnoCodigo ?? (p.codigo ? parseInt(p.codigo, 10) : undefined),
+          uniformeCodigo: p.uniformeCodigo ?? undefined,
+          cubreDescanso: p.cubreDescanso,
+          horasSemana: p.horasSemana,
+          personas: p.personas,
           recetas: [], // TODO: cargar recetas si se guardan en la bd o recalcularlas
         }))
       }))
@@ -108,7 +115,8 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
 
   return (
     <CosteoProvider initialProyecto={dbProyecto}>
-      <div className="flex h-screen w-full bg-slate-50 overflow-hidden text-slate-900">
+      {/* Negamos el padding del layout (p-6) y restamos el alto del header (h-14 = 56px) para evitar el scroll global */}
+      <div className="flex h-[calc(100vh-56px)] w-[calc(100%+3rem)] -m-6 bg-slate-50 overflow-hidden text-slate-900">
         <CosteoBuilderLayout />
       </div>
     </CosteoProvider>

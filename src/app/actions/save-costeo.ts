@@ -6,6 +6,12 @@ import { ProyectoCosteo, SitioCosteo, PuestoCosteo, RecursoCosteo } from '@/lib/
 import { revalidatePath } from 'next/cache'
 
 export async function saveCosteoTree(proyecto: ProyectoCosteo) {
+  // Mapa para devolver los IDs numéricos generados a la UI
+  const idMap: {
+    sitios: Record<string, string>;
+    puestos: Record<string, string>;
+    recursos: Record<string, string>;
+  } = { sitios: {}, puestos: {}, recursos: {} };
   const session = await auth()
   if (!session?.user?.id) {
     throw new Error('No autorizado')
@@ -80,6 +86,7 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
           }
         })
         sitioIdDb = nuevoSitio.id
+        idMap.sitios[sitioFront.id] = nuevoSitio.id.toString()
       } else {
         // ACTUALIZAR
         await tx.sitio.update({
@@ -126,14 +133,15 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
               diasCobertura: 'LUN-DOM',
               horaInicio: '06:00',
               horaFin: '18:00',
-              personas: 1,
-              horasSemana: 0,
-              turnoCodigo: null,
-              uniformeCodigo: null,
-              cubreDescanso: 0,
+              personas: puestoFront.personas || 1,
+              horasSemana: puestoFront.horasSemana || 0,
+              turnoCodigo: puestoFront.turnoCodigo || null,
+              uniformeCodigo: puestoFront.uniformeCodigo || null,
+              cubreDescanso: puestoFront.cubreDescanso || 0,
             }
           })
           puestoIdDb = nuevoPuesto.id
+          idMap.puestos[puestoFront.id] = nuevoPuesto.id.toString()
         } else {
           // ACTUALIZAR
           await tx.puesto.update({
@@ -144,11 +152,11 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
               diasCobertura: 'LUN-DOM',
               horaInicio: '06:00',
               horaFin: '18:00',
-              personas: 1,
-              horasSemana: 0,
-              turnoCodigo: null,
-              uniformeCodigo: null,
-              cubreDescanso: 0,
+              personas: puestoFront.personas || 1,
+              horasSemana: puestoFront.horasSemana || 0,
+              turnoCodigo: puestoFront.turnoCodigo || null,
+              uniformeCodigo: puestoFront.uniformeCodigo || null,
+              cubreDescanso: puestoFront.cubreDescanso || 0,
             }
           })
           puestoIdDb = pId
@@ -176,7 +184,7 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
           
           if (isNaN(rId)) {
             // CREAR NUEVO
-            await tx.puestoRecurso.create({
+            const nuevoRecurso = await tx.puestoRecurso.create({
               data: {
                 puestoId: puestoIdDb,
                 erpItemId: recursoFront.erpItemId,
@@ -190,6 +198,7 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
                 precioVentaOrigen: recursoFront.precioVentaOrigen || 'MANUAL',
               }
             })
+            idMap.recursos[recursoFront.id] = nuevoRecurso.id.toString()
           } else {
             // ACTUALIZAR
             await tx.puestoRecurso.update({
@@ -205,9 +214,51 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
         }
       }
     }
+
+    // 5. Historial Auto-Guardado (Snapshot espaciado)
+    // Verificamos si debemos crear un nuevo snapshot
+    const ultimoHistorial = await tx.historialAutoGuardado.findFirst({
+      where: { costeoId },
+      orderBy: { creadoEn: 'desc' },
+      select: { creadoEn: true }
+    })
+
+    const ahora = new Date()
+    let debeGuardarSnapshot = true
+
+    if (ultimoHistorial) {
+      const diffMinutos = (ahora.getTime() - ultimoHistorial.creadoEn.getTime()) / 1000 / 60
+      if (diffMinutos < 5) {
+        debeGuardarSnapshot = false
+      }
+    }
+
+    if (debeGuardarSnapshot) {
+      await tx.historialAutoGuardado.create({
+        data: {
+          costeoId,
+          usuarioId: parseInt(session.user.id, 10),
+          datos: JSON.stringify(proyecto),
+          creadoEn: ahora
+        }
+      })
+    }
   })
 
-  // Revalidar para que el builder recargue con IDs limpios
-  revalidatePath(`/costeos/${costeoId}/builder`)
-  return { success: true }
+  // Limpieza asíncrona (fuera de la transacción para no bloquear)
+  // Borrar snapshots más antiguos de 7 días para este costeo
+  const hace7Dias = new Date()
+  hace7Dias.setDate(hace7Dias.getDate() - 7)
+  
+  prisma.historialAutoGuardado.deleteMany({
+    where: {
+      costeoId,
+      creadoEn: { lt: hace7Dias }
+    }
+  }).catch(console.error)
+
+
+  // NOTA: Eliminamos revalidatePath para no interrumpir el flujo del usuario.
+  // El frontend se encargará de actualizar su estado (dispatch REPLACE_IDS).
+  return { success: true, idMap }
 }

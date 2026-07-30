@@ -77,6 +77,8 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [activeTab, setActiveTab] = useState('general')
   const [nombre, setNombre] = useState(initialUsuario?.nombre ?? '')
   const [email, setEmail] = useState(initialUsuario?.email ?? '')
   const [usuarioErp, setUsuarioErp] = useState(initialUsuario?.usuarioErp ?? '')
@@ -91,12 +93,15 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
       setUsuarioErp(usuario?.usuarioErp ?? '')
       setRol(usuario?.rol ?? ROLES.ANALISTA)
       setError(null)
+      setFieldErrors({})
+      setActiveTab('general')
     }
   }, [open, usuario])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    setFieldErrors({})
     setLoading(true)
 
     const formData = new FormData()
@@ -118,22 +123,21 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
       }
 
       if (result && !result.ok) {
-        // Mostrar error en el campo específico usando el tooltip nativo HTML5
-        if (result.field === 'email') {
-          const el = document.getElementById('u-email') as HTMLInputElement
-          if (el) {
-            el.setCustomValidity(result.error)
-            el.reportValidity()
-            return
-          }
-        }
-        if (result.field === 'usuarioErp') {
-          const el = document.getElementById('u-erp') as HTMLInputElement
-          if (el) {
-            el.setCustomValidity(result.error)
-            el.reportValidity()
-            return
-          }
+        if (result.field) {
+          setActiveTab('general')
+          setTimeout(() => {
+            let elementId = `u-${result.field}`
+            if (result.field === 'usuarioErp') elementId = 'u-erp'
+
+            const el = document.getElementById(elementId) as HTMLInputElement | HTMLButtonElement
+            if (el) {
+              el.focus()
+            }
+          }, 100)
+
+          setFieldErrors({ [result.field]: result.error })
+          setLoading(false)
+          return
         }
         
         throw new Error(result.error)
@@ -166,14 +170,11 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="pt-2">
+        <form onSubmit={handleSubmit} className="pt-2" noValidate>
           {error && <div className="text-red-500 text-sm font-medium mb-4">{error}</div>}
-          <Tabs defaultValue="general" className="w-full">
-            <TabsList className="mb-4 bg-transparent border-b w-full justify-start rounded-none p-0 h-auto">
-              <TabsTrigger 
-                value="general" 
-                className="flex-none rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2"
-              >
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList variant="line" className="mb-4">
+              <TabsTrigger value="general">
                 <Settings2 className="w-4 h-4 mr-2" />
                 General
               </TabsTrigger>
@@ -195,10 +196,12 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
                     autoComplete="off"
                     className="uppercase"
                     disabled={mode === 'view'}
+                    aria-invalid={!!fieldErrors.nombre}
                     data-view-mode={mode === 'view'}
                     onChange={(e) => {
                       setNombre(normalizeText(e.target.value))
                       e.target.setCustomValidity('')
+                      setFieldErrors(prev => ({ ...prev, nombre: '' }))
                     }}
                     onInvalid={(e) => {
                       if ((e.target as HTMLInputElement).validity.valueMissing) {
@@ -206,6 +209,7 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
                       }
                     }}
                   />
+                  {fieldErrors.nombre && <p className="text-xs text-red-500 mt-1">{fieldErrors.nombre}</p>}
                 </div>
 
                 {/* Email */}
@@ -224,10 +228,12 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
                     autoComplete="off"
                     className="lowercase"
                     disabled={mode === 'view'}
+                    aria-invalid={!!fieldErrors.email}
                     data-view-mode={mode === 'view'}
                     onChange={(e) => {
                       setEmail(e.target.value.toLowerCase())
                       e.target.setCustomValidity('')
+                      setFieldErrors(prev => ({ ...prev, email: '' }))
                     }}
                     onInvalid={(e) => {
                       const target = e.target as HTMLInputElement
@@ -238,6 +244,7 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
                       }
                     }}
                   />
+                  {fieldErrors.email && <p className="text-xs text-red-500 mt-1">{fieldErrors.email}</p>}
                 </div>
 
                 {/* Usuario ERP */}
@@ -255,10 +262,12 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
                     className="uppercase"
                     maxLength={5}
                     disabled={mode === 'view'}
+                    aria-invalid={!!fieldErrors.usuarioErp}
                     data-view-mode={mode === 'view'}
                     onChange={(e) => {
                       setUsuarioErp(normalizeText(e.target.value))
                       e.target.setCustomValidity('')
+                      setFieldErrors(prev => ({ ...prev, usuarioErp: '' }))
                     }}
                     onInvalid={(e) => {
                       if ((e.target as HTMLInputElement).validity.valueMissing) {
@@ -266,6 +275,7 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
                       }
                     }}
                   />
+                  {fieldErrors.usuarioErp && <p className="text-xs text-red-500 mt-1">{fieldErrors.usuarioErp}</p>}
                 </div>
 
                 {/* Rol */}
@@ -276,11 +286,14 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
                   <Select 
                     name="rol" 
                     value={rol}
-                    onValueChange={setRol}
+                    onValueChange={(val) => {
+                      setRol(val)
+                      setFieldErrors(prev => ({ ...prev, rol: '' }))
+                    }}
                     required
                     disabled={mode === 'view'}
                   >
-                    <SelectTrigger id="u-rol" data-view-mode={mode === 'view'}>
+                    <SelectTrigger id="u-rol" data-view-mode={mode === 'view'} aria-invalid={!!fieldErrors.rol}>
                       <span className="flex flex-1 text-left">
                         {ROLES_OPCIONES.find(r => r.value === rol)?.label || "Seleccionar rol"}
                       </span>
@@ -293,6 +306,7 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
                       ))}
                     </SelectContent>
                   </Select>
+                  {fieldErrors.rol && <p className="text-xs text-red-500 mt-1">{fieldErrors.rol}</p>}
                 </div>
               </div>
             </TabsContent>

@@ -5,10 +5,12 @@ import { useCosteo } from '@/lib/context/CosteoContext';
 import { NumericInput } from '@/components/ui/numeric-input';
 import { normalizeText } from '@/lib/utils/text';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getDepartamentos, getMunicipios, UbicacionItem } from '@/app/actions/ubicaciones';
 import { getTurnos, getUniformes, TurnoItem, UniformeItem } from '@/app/actions/puestos';
-import { MapPin, Briefcase, Settings, Trash2 } from 'lucide-react';
+import { MapPin, Briefcase, Settings, Trash2, Settings2, Calculator } from 'lucide-react';
 import { TurnoCard } from './TurnoCard';
 import { RecursosSummaryTable } from './RecursosSummaryTable';
 import { ConfirmDeleteDialog } from './modals/ConfirmDeleteDialog';
@@ -39,11 +41,11 @@ export default function EditorPanel() {
 
   if (selectedNode.type === 'PROYECTO') {
     nodeData = proyecto;
-    title = 'Configuración del Proyecto';
+    title = 'Configuración Proyecto';
   } else if (selectedNode.type === 'SITIO') {
     nodeData = proyecto.sitios.find(s => s.id === selectedNode.id);
     parentSitioId = selectedNode.id;
-    title = `Detalles del ${lblN1}`;
+    title = `Detalles ${lblN1}`;
   } else if (selectedNode.type === 'PUESTO') {
     for (const sitio of proyecto.sitios) {
       const puesto = sitio.puestos.find(p => p.id === selectedNode.id);
@@ -51,7 +53,7 @@ export default function EditorPanel() {
         nodeData = puesto;
         parentSitioId = sitio.id;
         parentPuestoId = puesto.id;
-        title = `Detalles del ${lblN2}`;
+        title = `Detalles ${lblN2}`;
         break;
       }
     }
@@ -155,30 +157,43 @@ export default function EditorPanel() {
         {selectedNode.type === 'PROYECTO' && (
           <div className="max-w-4xl">
             <Tabs defaultValue="general" className="w-full">
-              <TabsList className="mb-4">
-                <TabsTrigger value="general">General</TabsTrigger>
-                <TabsTrigger value="resumen">Resumen</TabsTrigger>
+              <TabsList variant="line" className="mb-4">
+                <TabsTrigger value="general">
+                  <Settings2 className="w-4 h-4 mr-2" />
+                  General
+                </TabsTrigger>
+                <TabsTrigger value="resumen">
+                  <Calculator className="w-4 h-4 mr-2" />
+                  Resumen
+                </TabsTrigger>
               </TabsList>
               
-              <TabsContent value="general" className="space-y-4 outline-none">
+              <TabsContent value="general" className="space-y-4 outline-none min-h-[250px]">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Nombre del Proyecto</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nombre Proyecto</label>
                     <input 
                       type="text" 
                       className={`w-full border rounded-md p-2 outline-none transition-all ${!nodeData.nombreProyecto?.trim() ? 'border-red-400 focus:ring-2 focus:ring-red-400' : 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}`} 
                       value={nodeData.nombreProyecto} 
-                      onChange={(e) => handleChange('nombreProyecto', e.target.value)} 
+                      onChange={(e) => handleChange('nombreProyecto', normalizeText(e.target.value))} 
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Plazo (meses)</label>
                     <NumericInput 
-                      className="w-full border rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
+                      className="w-full border rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-white disabled:bg-slate-50" 
                       value={nodeData.plazoMeses}
                       isInteger={true}
+                      disabled={nodeData.tipoCosteo?.manejoPlazo === 'FIJO' || nodeData.tipoCosteo?.manejoPlazo === 'NO_APLICA'}
                       onChange={(val) => handleChange('plazoMeses', val)} 
                     />
+                    {nodeData.tipoCosteo?.manejoPlazo === 'FIJO' && (
+                      <p className="text-xs text-muted-foreground mt-1">Plazo fijado por el Tipo de Costeo.</p>
+                    )}
+                    {nodeData.tipoCosteo?.manejoPlazo === 'NO_APLICA' && (
+                      <p className="text-xs text-muted-foreground mt-1">Este proyecto no lleva plazo.</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Overhead (%)</label>
@@ -202,9 +217,17 @@ export default function EditorPanel() {
               <TabsContent value="resumen" className="outline-none">
                 {(() => {
                   const allRecursos = nodeData.sitios.flatMap((s: any) => 
-                    s.puestos.flatMap((p: any) => p.recursos).concat(s.recursosSinPuesto || [])
+                    s.puestos.flatMap((p: any) => 
+                      p.recursos.map((r: any) => ({ ...r, _sitioNombre: s.nombre, _puestoNombre: p.nombre }))
+                    ).concat((s.recursosSinPuesto || []).map((r: any) => ({ ...r, _sitioNombre: s.nombre, _puestoNombre: 'Sin Puesto' })))
                   );
-                  return <RecursosSummaryTable recursos={allRecursos} />;
+                  return <RecursosSummaryTable 
+                    recursos={allRecursos} 
+                    lblN1={lblN1} 
+                    lblN2={lblN2} 
+                    showN1={tc?.nivel1Activo ?? true} 
+                    showN2={tc?.nivel2Activo ?? true} 
+                  />;
                 })()}
               </TabsContent>
             </Tabs>
@@ -422,21 +445,26 @@ function SitioEditor({ nodeData, handleChange, handleDelete, lblN1, lblN2, tc }:
   }, [nodeData.departamento]);
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-4xl">
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="resumen">Resumen</TabsTrigger>
+        <TabsList variant="line" className="mb-4">
+          <TabsTrigger value="general">
+            <Settings2 className="w-4 h-4 mr-2" />
+            General
+          </TabsTrigger>
+          <TabsTrigger value="resumen">
+            <Calculator className="w-4 h-4 mr-2" />
+            Resumen
+          </TabsTrigger>
         </TabsList>
-        <TabsContent value="general" className="space-y-4 outline-none">
-          <div className="grid grid-cols-2 gap-4">
-        <div className="col-span-2">
-          <label className="block text-sm font-medium text-slate-700 mb-1">Nombre</label>
-          <input 
-            type="text" 
-            className={`w-full border rounded-md p-2 outline-none transition-all uppercase ${!nodeData.nombre?.trim() ? 'border-red-400 focus:ring-2 focus:ring-red-400' : 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}`}
+        <TabsContent value="general" className="space-y-4 outline-none min-h-[250px]">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+        <div className="space-y-1.5 col-span-2">
+          <Label>Nombre</Label>
+          <Input 
+            className="uppercase"
             value={nodeData.nombre || ''} 
-            onChange={(e) => handleChange('nombre', e.target.value)} 
+            onChange={(e) => handleChange('nombre', normalizeText(e.target.value))} 
           />
         </div>
         
@@ -447,17 +475,16 @@ function SitioEditor({ nodeData, handleChange, handleDelete, lblN1, lblN2, tc }:
               <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">UBICACION</h3>
             </div>
 
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Dirección</label>
-              <input 
-                type="text" 
-                className={`w-full border rounded-md p-2 outline-none transition-all uppercase ${!nodeData.direccion?.trim() ? 'border-red-400 focus:ring-2 focus:ring-red-400' : 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}`}
+            <div className="space-y-1.5 col-span-2">
+              <Label>Dirección</Label>
+              <Input 
+                className="uppercase"
                 value={nodeData.direccion || ''} 
-                onChange={(e) => handleChange('direccion', e.target.value)} 
+                onChange={(e) => handleChange('direccion', normalizeText(e.target.value))} 
               />
             </div>
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">País</label>
+            <div className="space-y-1.5 col-span-2">
+              <Label>País</Label>
               <SearchableSelect
                 options={[{ value: 'GT', label: 'GUATEMALA' }]}
                 value={nodeData.pais}
@@ -465,10 +492,10 @@ function SitioEditor({ nodeData, handleChange, handleDelete, lblN1, lblN2, tc }:
                 disabled={true}
               />
             </div>
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">
+            <div className="space-y-1.5 col-span-2">
+              <Label>
                 Departamento {loadingDeptos && <span className="text-xs text-slate-400">(cargando...)</span>}
-              </label>
+              </Label>
               <SearchableSelect
                 options={departamentos.map(d => ({ value: d.codigo, label: d.nombre }))}
                 value={nodeData.departamento}
@@ -478,10 +505,10 @@ function SitioEditor({ nodeData, handleChange, handleDelete, lblN1, lblN2, tc }:
                 error={!nodeData.departamento}
               />
             </div>
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">
+            <div className="space-y-1.5 col-span-2">
+              <Label>
                 Municipio {loadingMunis && <span className="text-xs text-slate-400">(cargando...)</span>}
-              </label>
+              </Label>
               <SearchableSelect
                 options={municipios.map(m => ({ value: m.codigo, label: m.nombre }))}
                 value={nodeData.municipio}
@@ -491,8 +518,8 @@ function SitioEditor({ nodeData, handleChange, handleDelete, lblN1, lblN2, tc }:
                 error={!nodeData.municipio}
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Latitud</label>
+            <div className="space-y-1.5">
+              <Label>Latitud</Label>
               <NumericInput 
                 className="w-full border rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
                 value={nodeData.latitud} 
@@ -500,8 +527,8 @@ function SitioEditor({ nodeData, handleChange, handleDelete, lblN1, lblN2, tc }:
                 placeholder="Ej: 14.6349"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Longitud</label>
+            <div className="space-y-1.5">
+              <Label>Longitud</Label>
               <NumericInput 
                 className="w-full border rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
                 value={nodeData.longitud} 
@@ -526,8 +553,16 @@ function SitioEditor({ nodeData, handleChange, handleDelete, lblN1, lblN2, tc }:
         
         <TabsContent value="resumen" className="outline-none">
           {(() => {
-            const allRecursos = nodeData.puestos.flatMap((p: any) => p.recursos).concat(nodeData.recursosSinPuesto || []);
-            return <RecursosSummaryTable recursos={allRecursos} />;
+            const allRecursos = nodeData.puestos.flatMap((p: any) => 
+              p.recursos.map((r: any) => ({ ...r, _puestoNombre: p.nombre }))
+            ).concat(
+              (nodeData.recursosSinPuesto || []).map((r: any) => ({ ...r, _puestoNombre: 'Sin Puesto' }))
+            );
+            return <RecursosSummaryTable 
+              recursos={allRecursos} 
+              lblN2={lblN2} 
+              showN2={tc?.nivel2Activo ?? true} 
+            />;
           })()}
         </TabsContent>
       </Tabs>
@@ -539,19 +574,24 @@ function PuestoEditor({ nodeData, handleChange, handleDelete, lblN2 }: { nodeDat
   return (
     <div className="max-w-4xl">
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="resumen">Resumen</TabsTrigger>
+        <TabsList variant="line" className="mb-4">
+          <TabsTrigger value="general">
+            <Settings2 className="w-4 h-4 mr-2" />
+            General
+          </TabsTrigger>
+          <TabsTrigger value="resumen">
+            <Calculator className="w-4 h-4 mr-2" />
+            Resumen
+          </TabsTrigger>
         </TabsList>
-        <TabsContent value="general" className="space-y-6 outline-none">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Nombre del {lblN2}</label>
-              <input 
-                type="text" 
-                className={`w-full border rounded-md p-2 outline-none transition-all uppercase ${!nodeData.nombre?.trim() ? 'border-red-400 focus:ring-2 focus:ring-red-400' : 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}`}
+        <TabsContent value="general" className="space-y-6 outline-none min-h-[250px]">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+            <div className="space-y-1.5 col-span-2">
+              <Label>Nombre {lblN2}</Label>
+              <Input 
+                className="uppercase"
                 value={nodeData.nombre || ''} 
-                onChange={(e) => handleChange('nombre', e.target.value)} 
+                onChange={(e) => handleChange('nombre', normalizeText(e.target.value))} 
               />
             </div>
           </div>

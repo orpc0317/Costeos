@@ -9,7 +9,7 @@ const OPCIONES_CUBRE_DESCANSO = [
   { value: 3, label: '3 - Bono Descanso' }
 ];
 
-export function RecursosSummaryTable({ recursos }: { recursos: any[] }) {
+export function RecursosSummaryTable({ recursos, lblN1, lblN2, showN1, showN2 }: { recursos: any[], lblN1?: string, lblN2?: string, showN1?: boolean, showN2?: boolean }) {
   const { proyecto } = useCosteo();
   const [turnos, setTurnos] = useState<TurnoItem[]>([]);
   const [uniformes, setUniformes] = useState<UniformeItem[]>([]);
@@ -39,7 +39,7 @@ export function RecursosSummaryTable({ recursos }: { recursos: any[] }) {
   const recursosAgrupados = useMemo(() => {
     const grupos: Record<string, any> = {};
     (recursos || []).forEach((r: any) => {
-      const key = `${r.erpItemId}-${r.turnoCodigo || 'NA'}-${r.uniformeCodigo || 'NA'}-${r.cubreDescanso || 0}-${r.precioVentaUnitario || 0}`;
+      const key = `${r._sitioNombre || ''}-${r._puestoNombre || ''}-${r.erpItemId}-${r.turnoCodigo || 'NA'}-${r.uniformeCodigo || 'NA'}-${r.cubreDescanso || 0}-${r.precioVentaUnitario || 0}`;
       if (!grupos[key]) {
         grupos[key] = {
           ...r,
@@ -59,6 +59,9 @@ export function RecursosSummaryTable({ recursos }: { recursos: any[] }) {
     }
   };
 
+  const renderN1 = showN1 && (recursos || []).some(r => !!r._sitioNombre);
+  const renderN2 = showN2 && (recursos || []).some(r => !!r._puestoNombre);
+
   return (
     <div className="mt-8 border rounded-md overflow-hidden bg-white shadow-sm">
       <div className="bg-slate-100 p-3 font-semibold text-slate-700 border-b flex justify-between items-center">
@@ -74,6 +77,8 @@ export function RecursosSummaryTable({ recursos }: { recursos: any[] }) {
           <table className="w-full text-sm text-left">
             <thead className="bg-slate-50 text-slate-500 border-b">
               <tr>
+                {renderN1 && <th className="py-2 px-3 font-medium">{lblN1 || 'Sitio'}</th>}
+                {renderN2 && <th className="py-2 px-3 font-medium">{lblN2 || 'Puesto'}</th>}
                 <th className="py-2 px-3 font-medium">Item / Descripción</th>
                 <th className="py-2 px-3 font-medium text-center">Cant.</th>
                 <th className="py-2 px-3 font-medium">Turno</th>
@@ -92,6 +97,8 @@ export function RecursosSummaryTable({ recursos }: { recursos: any[] }) {
 
                 return (
                   <tr key={i} className="border-b last:border-0 hover:bg-slate-50">
+                    {renderN1 && <td className="py-2 px-3 font-medium text-slate-700">{g._sitioNombre || '-'}</td>}
+                    {renderN2 && <td className="py-2 px-3 font-medium text-slate-700">{g._puestoNombre || '-'}</td>}
                     <td className="py-2 px-3 font-medium text-slate-700">{g.nombre}</td>
                     <td className="py-2 px-3 text-center">{g.cantidadTotal}</td>
                     <td className="py-2 px-3 text-slate-600 text-xs">{turnoDesc}</td>

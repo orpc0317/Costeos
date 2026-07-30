@@ -19,6 +19,7 @@ interface SearchableSelectProps {
   disabled?: boolean
   error?: boolean
   autoFocus?: boolean
+  id?: string
 }
 
 export function SearchableSelect({
@@ -29,7 +30,8 @@ export function SearchableSelect({
   className,
   disabled = false,
   error = false,
-  autoFocus = false
+  autoFocus = false,
+  id
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -69,6 +71,7 @@ export function SearchableSelect({
   return (
     <div className={cn("relative w-full", className)} ref={containerRef}>
       <button
+        id={id}
         type="button"
         aria-disabled={disabled}
         autoFocus={autoFocus}
