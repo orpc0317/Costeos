@@ -26,7 +26,7 @@ export function TurnoCard({ turno, cantidadTurnos = 1 }: TurnoCardProps) {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2 text-slate-700">
           <Clock className="w-4 h-4 text-blue-500" />
-          <span className="font-semibold text-sm">Detalles del Turno</span>
+          <span className="font-semibold text-sm">Detalles Turno</span>
         </div>
         <div className="flex items-center gap-1.5 bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full text-xs font-medium">
           <Users className="w-3.5 h-3.5" />
@@ -40,14 +40,14 @@ export function TurnoCard({ turno, cantidadTurnos = 1 }: TurnoCardProps) {
           return (
             <div 
               key={dia.name} 
-              className={`flex flex-col items-center justify-center w-12 h-14 rounded-md border ${
+              className={`flex flex-col items-center justify-center w-12 h-10 rounded-md border ${
                 isActivo 
                   ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm' 
                   : 'bg-red-50 border-red-200 text-red-400'
               }`}
             >
-              <span className="text-xs font-bold">{dia.label}</span>
-              <span className={`text-[10px] font-medium ${isActivo ? 'text-emerald-600' : 'text-red-400'}`}>
+              <span className="text-[11px] font-bold leading-none mb-1">{dia.label}</span>
+              <span className={`text-[9px] font-medium leading-none ${isActivo ? 'text-emerald-600' : 'text-red-400'}`}>
                 {isActivo ? `${dia.hrs}h` : '0h'}
               </span>
             </div>

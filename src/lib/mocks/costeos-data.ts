@@ -76,9 +76,9 @@ export const mockProyectoInicial: ProyectoCosteo = {
                   recetaCatalogoId: 'REC_UNIFORME',
                   nombre: 'Uniforme Estándar',
                   items: [
-                    { id: 'ITR-001', erpItemId: 1, nombre: 'Camisa Uniforme', categoria: 'ARTICULO', tipoCosto: 'UNICO', cantidad: 2, costoUnitario: 150 },
-                    { id: 'ITR-002', erpItemId: 2, nombre: 'Pantalón Uniforme', categoria: 'ARTICULO', tipoCosto: 'UNICO', cantidad: 2, costoUnitario: 200 },
-                    { id: 'ITR-003', erpItemId: 3, nombre: 'Zapatos de Seguridad', categoria: 'ARTICULO', tipoCosto: 'UNICO', cantidad: 1, costoUnitario: 400 },
+                    { id: 'rec-1', erpItemId: '100', nombre: 'Guardia de Seguridad', categoria: 'RECURSO_HUMANO', tipoCosto: 'MENSUAL', cantidad: 2, costoUnitario: 12000 },
+                    { id: 'rec-2', erpItemId: '101', nombre: 'Supervisor', categoria: 'RECURSO_HUMANO', tipoCosto: 'MENSUAL', cantidad: 1, costoUnitario: 18000 },
+                    { id: 'rec-3', erpItemId: '102', nombre: 'Radios de Comunicación', categoria: 'EQUIPO', tipoCosto: 'MENSUAL', cantidad: 3, costoUnitario: 500 }
                   ]
                 }
               ]

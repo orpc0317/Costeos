@@ -68,39 +68,35 @@ export class ApiRestErpRepository implements ErpRepository {
     // return res.json()
   }
 
-  async getItemsCostos(ids: number[]): Promise<Record<number, number>> {
-    // TODO — implementar cuando el ERP tenga el endpoint
-    throw new Error('[ApiRestErpRepository] getItemsCostos: NOT IMPLEMENTED.')
+  async getItemsCostos(ids: string[]): Promise<Record<string, number>> {
+    if (ids.length === 0) return {}
+    const query = new URLSearchParams()
+    ids.forEach((id) => query.append('id', id.toString()))
 
-    // Implementación futura:
-    // const res = await fetch(`${this.baseUrl}/api/costeos/items/costos`, {
-    //   method:  'POST',
-    //   headers: this.headers(),
-    //   body:    JSON.stringify({ ids }),
-    //   cache:   'no-store', // costos siempre en tiempo real
-    // })
-    // if (!res.ok) throw new Error(`ERP API error: ${res.status}`)
-    // return res.json() // { [id]: costoUnitario }
+    const response = await fetch(`${this.baseUrl}/items/costos?${query.toString()}`, {
+      headers: { Authorization: `Bearer ${this.apiKey}` },
+      cache: 'no-store'
+    })
+    if (!response.ok) throw new Error('Error al obtener costos')
+    return response.json()
   }
 
-  async getListaPrecios(ids: number[]): Promise<Record<number, number | null>> {
-    // TODO — implementar cuando el ERP tenga el endpoint
-    throw new Error('[ApiRestErpRepository] getListaPrecios: NOT IMPLEMENTED.')
+  async getListaPrecios(ids: string[]): Promise<Record<string, number | null>> {
+    if (ids.length === 0) return {}
+    const query = new URLSearchParams()
+    ids.forEach((id) => query.append('id', id.toString()))
 
-    // Implementación futura:
-    // const res = await fetch(`${this.baseUrl}/api/costeos/items/precios`, {
-    //   method:  'POST',
-    //   headers: this.headers(),
-    //   body:    JSON.stringify({ ids }),
-    //   next:    { revalidate: 300 },
-    // })
-    // if (!res.ok) throw new Error(`ERP API error: ${res.status}`)
-    // return res.json() // { [id]: precioVenta | null }
+    const response = await fetch(`${this.baseUrl}/items/precios?${query.toString()}`, {
+      headers: { Authorization: `Bearer ${this.apiKey}` },
+      cache: 'no-store'
+    })
+    if (!response.ok) throw new Error('Error al obtener precios')
+    return response.json()
   }
 
   // ── Recetas ────────────────────────────────────────────────────────────────
 
-  async getRecetaItem(itemId: number): Promise<ErpRecetaItem[]> {
+  async getRecetaItem(itemId: string): Promise<ErpRecetaItem[]> {
     // TODO — implementar cuando el ERP tenga el endpoint
     throw new Error('[ApiRestErpRepository] getRecetaItem: NOT IMPLEMENTED.')
 

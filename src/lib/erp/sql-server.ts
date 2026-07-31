@@ -40,111 +40,51 @@ export class SqlServerErpRepository implements ErpRepository {
   // ── Catálogo de items ──────────────────────────────────────────────────────
 
   async getItems(filtros?: ItemFiltros): Promise<ErpItem[]> {
+    if (!filtros?.empresaId) {
+      console.warn('getItems llamado sin empresaId');
+      return [];
+    }
+
     const pool = await getPool()
     const result = await pool
       .request()
-      .input('busqueda',    filtros?.busqueda    ?? '')
-      .input('tipo',        filtros?.tipo         ?? null)
-      .input('categoriaId', filtros?.categoriaId  ?? null)
-      .input('tieneReceta', filtros?.tieneReceta  ?? null)
-      .query(`
-        SELECT
-          i.id,
-          i.codigo,
-          i.nombre,
-          i.descripcion,
-          i.tipo,                       -- RECURSO_HUMANO | EQUIPO | ARTICULO | SERVICIO
-          i.tipo_costo      AS tipoCosto, -- MENSUAL | UNICO
-          i.unidad,
-          i.costo_unitario  AS costoUnitario,
-          i.tiene_receta    AS tieneReceta,
-          c.id              AS categoriaId,
-          c.nombre          AS categoriaNombre,
-          lp.precio_venta   AS precioVenta  -- null si no está en lista de precios
-        FROM erp.items i
-        LEFT JOIN erp.categorias_item c  ON c.id = i.categoria_id
-        LEFT JOIN erp.lista_precios   lp ON lp.item_id = i.id AND lp.activo = 1
-        WHERE i.activo = 1
-          AND (@busqueda    = '' OR i.nombre LIKE '%' + @busqueda + '%'
-                                 OR i.codigo LIKE '%' + @busqueda + '%')
-          AND (@tipo        IS NULL OR i.tipo = @tipo)
-          AND (@categoriaId IS NULL OR i.categoria_id = @categoriaId)
-          AND (@tieneReceta IS NULL OR i.tiene_receta = @tieneReceta)
-        ORDER BY c.nombre, i.nombre
-      `)
+      .input('PrmEmpresa', filtros.empresaId)
+      .input('PrmSearchText', filtros.busqueda ?? '')
+      .execute('sp_buscar_servicios_venta')
 
     return result.recordset.map((r) => ({
-      id:              r.id,
-      codigo:          r.codigo,
-      nombre:          r.nombre,
+      id:              String(r.codigo),
+      codigo:          String(r.codigo),
+      nombre:          r.descripcion ?? '',
       descripcion:     r.descripcion ?? undefined,
-      tipo:            r.tipo,
-      tipoCosto:       r.tipoCosto,
-      unidad:          r.unidad,
-      costoUnitario:   Number(r.costoUnitario),
-      tieneReceta:     Boolean(r.tieneReceta),
-      categoriaId:     r.categoriaId,
-      categoriaNombre: r.categoriaNombre ?? '',
-      precioVenta:     r.precioVenta != null ? Number(r.precioVenta) : null,
+      tipo:            'SERVICIO',
+      tipoCosto:       'MENSUAL',
+      unidad:          r.unidad_medida ?? 'Unidad',
+      costoUnitario:   0, // Se obtiene en tiempo real después
+      tieneReceta:     false,
+      categoriaId:     0,
+      categoriaNombre: '',
+      precioVenta:     r.precio_venta_cero === 1 ? 0 : null,
     }))
   }
 
-  async getItemsCostos(ids: number[]): Promise<Record<number, number>> {
+
+
+  async getItemsCostos(ids: string[]): Promise<Record<string, number>> {
     if (ids.length === 0) return {}
-
-    const pool = await getPool()
-    const tvp  = new sql.Table()
-    tvp.columns.add('id', sql.Int)
-    ids.forEach((id) => tvp.rows.add(id))
-
-    const result = await pool
-      .request()
-      .input('ids', tvp)
-      .query(`
-        SELECT i.id, i.costo_unitario AS costoUnitario
-        FROM erp.items i
-        INNER JOIN @ids t ON t.id = i.id
-        WHERE i.activo = 1
-      `)
-
-    const map: Record<number, number> = {}
-    result.recordset.forEach((r) => {
-      map[r.id] = Number(r.costoUnitario)
-    })
-    return map
+    // Implementar si existe un SP para esto, por ahora mock
+    return {}
   }
 
-  async getListaPrecios(ids: number[]): Promise<Record<number, number | null>> {
+  async getListaPrecios(ids: string[]): Promise<Record<string, number | null>> {
     if (ids.length === 0) return {}
-
-    const pool = await getPool()
-    const tvp  = new sql.Table()
-    tvp.columns.add('id', sql.Int)
-    ids.forEach((id) => tvp.rows.add(id))
-
-    // Primero inicializar todos los ids como null
-    const map: Record<number, number | null> = {}
-    ids.forEach((id) => { map[id] = null })
-
-    const result = await pool
-      .request()
-      .input('ids', tvp)
-      .query(`
-        SELECT lp.item_id AS id, lp.precio_venta AS precioVenta
-        FROM erp.lista_precios lp
-        INNER JOIN @ids t ON t.id = lp.item_id
-        WHERE lp.activo = 1
-      `)
-
-    result.recordset.forEach((r) => {
-      map[r.id] = Number(r.precioVenta)
-    })
-    return map
+    // Implementar si existe un SP, por ahora mock
+    return {}
   }
 
   // ── Recetas ────────────────────────────────────────────────────────────────
 
-  async getRecetaItem(itemId: number): Promise<ErpRecetaItem[]> {
+  async getRecetaItem(itemId: string): Promise<ErpRecetaItem[]> {
     const pool = await getPool()
     const result = await pool
       .request()

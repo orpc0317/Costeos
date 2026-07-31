@@ -4,9 +4,7 @@ import React from 'react';
 import { useCosteo } from '@/lib/context/CosteoContext';
 import { MapPin, Briefcase, User, Box, Shield, Monitor, FileText, ChevronRight, ChevronDown, AlertTriangle } from 'lucide-react';
 import { CategoriaItem } from '@/lib/types/costeos';
-import { AddSitioDialog } from './modals/AddSitioDialog';
-import { AddPuestoDialog } from './modals/AddPuestoDialog';
-import { AddRecursoDialog } from './modals/AddRecursoDialog';
+import { AddNodeDialog } from './modals/AddNodeDialog';
 import { isNodeValid } from '@/lib/utils/validation';
 
 export default function TreeViewSidebar() {
@@ -65,26 +63,26 @@ export default function TreeViewSidebar() {
     );
   };
 
-  // Helper para renderizar los puestos (Nivel 2)
+  // Helper para renderizar los puestos (Nivel 2) y Líneas directas de Nivel 1
   const renderPuestos = (sitio: any) => {
-    if (!hasN2) {
-      // Si no hay Nivel 2, los recursos cuelgan directamente del Sitio (internamente están en un puesto por defecto)
-      const defaultPuesto = sitio.puestos[0];
-      if (!defaultPuesto) return null;
-      return (
-        <div className="ml-3 border-l border-slate-200 pl-2 space-y-1">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{lblR}</span>
-            <AddRecursoDialog sitioId={sitio.id} puestoId={defaultPuesto.id} />
-          </div>
-          {renderRecursos(defaultPuesto.recursos)}
-        </div>
-      );
-    }
+    const n1DefaultPuesto = sitio.puestos.find((p: any) => p.nombre === 'DEFAULT');
+    const n1Lines = n1DefaultPuesto?.recursos || [];
+    const realPuestos = sitio.puestos.filter((p: any) => p.nombre !== 'DEFAULT');
 
     return (
       <div className="ml-3 border-l border-slate-200 pl-2 space-y-1">
-        {sitio.puestos.map((puesto: any) => (
+        {/* Líneas directas del Nivel 1 */}
+        {n1Lines.length > 0 && (
+          <div className="mb-2 space-y-1">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{lblR} (Directas)</span>
+            </div>
+            {renderRecursos(n1Lines)}
+          </div>
+        )}
+
+        {/* Nivel 2 (Puestos) */}
+        {hasN2 && realPuestos.map((puesto: any) => (
           <div key={puesto.id} className="space-y-1">
             <div 
               className={`flex items-center justify-between px-2 py-1 rounded-md cursor-pointer group ${selectedNode?.id === puesto.id ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-slate-100 text-slate-600'}`}
@@ -100,7 +98,7 @@ export default function TreeViewSidebar() {
                     <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
                   </div>
                 )}
-                <AddRecursoDialog sitioId={sitio.id} puestoId={puesto.id} />
+                <AddNodeDialog level={3} sitioId={sitio.id} puestoId={puesto.id} parentName={puesto.nombre} />
               </div>
             </div>
             {renderRecursos(puesto.recursos)}
@@ -109,6 +107,10 @@ export default function TreeViewSidebar() {
       </div>
     );
   };
+
+  const rootDefaultSitio = proyecto.sitios.find(s => s.nombre === 'DEFAULT');
+  const rootLines = rootDefaultSitio?.puestos.find(p => p.nombre === 'DEFAULT')?.recursos || [];
+  const realSitios = proyecto.sitios.filter(s => s.nombre !== 'DEFAULT');
 
   return (
     <div className="flex flex-col h-full">
@@ -132,55 +134,47 @@ export default function TreeViewSidebar() {
                 <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
               </div>
             )}
-            {hasN1 ? <AddSitioDialog /> : null}
+            {/* El modal de Raíz se encarga de saber si agrega Nivel 1 o Línea */}
+            <AddNodeDialog level={hasN1 ? 1 : 3} />
           </div>
         </div>
 
         {/* Nodos del Proyecto */}
         <div className="ml-2 border-l border-slate-200 pl-2 mt-1 space-y-1">
-          {!hasN1 ? (
-            // Si no hay Nivel 1, los recursos cuelgan directamente del Proyecto (internamente en un Sitio y Puesto por defecto)
-            <>
-              {(() => {
-                const defaultSitio = proyecto.sitios[0];
-                const defaultPuesto = defaultSitio?.puestos[0];
-                if (!defaultSitio || !defaultPuesto) return null;
-                return (
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between px-2 py-1 mb-1">
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{lblR}</span>
-                      <AddRecursoDialog sitioId={defaultSitio.id} puestoId={defaultPuesto.id} />
-                    </div>
-                    {renderRecursos(defaultPuesto.recursos)}
-                  </div>
-                );
-              })()}
-            </>
-          ) : (
-            // Si hay Nivel 1, mapeamos Sitios
-            proyecto.sitios.map(sitio => (
-              <div key={sitio.id} className="space-y-1">
-                <div 
-                  className={`flex items-center justify-between px-2 py-1.5 rounded-md cursor-pointer group ${selectedNode?.id === sitio.id ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-slate-100 text-slate-700'}`}
-                  onClick={() => handleSelectNode('SITIO', sitio.id)}
-                >
-                  <div className="flex items-center gap-1.5 overflow-hidden">
-                    <MapPin className={`w-4 h-4 shrink-0 ${selectedNode?.id === sitio.id ? 'text-blue-600' : 'text-slate-400'}`} />
-                    <span className="truncate">{sitio.nombre || `Nuevo ${lblN1}`}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {!isNodeValid(sitio, 'SITIO', { hasDireccion: tc?.nivel1ConDireccion ?? true }) && (
-                      <div title="Falta información requerida">
-                        <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0 mr-1" />
-                      </div>
-                    )}
-                    {hasN2 && <AddPuestoDialog sitioId={sitio.id} />}
-                  </div>
-                </div>
-                {renderPuestos(sitio)}
+          {/* 1. Líneas directas de la raíz */}
+          {rootLines.length > 0 && (
+            <div className="space-y-1 mb-2">
+              <div className="flex items-center justify-between px-2 py-1 mb-1">
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{lblR} (Directas)</span>
               </div>
-            ))
+              {renderRecursos(rootLines)}
+            </div>
           )}
+
+          {/* 2. Nivel 1 (Sitios) */}
+          {hasN1 && realSitios.map(sitio => (
+            <div key={sitio.id} className="space-y-1">
+              <div 
+                className={`flex items-center justify-between px-2 py-1.5 rounded-md cursor-pointer group ${selectedNode?.id === sitio.id ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-slate-100 text-slate-700'}`}
+                onClick={() => handleSelectNode('SITIO', sitio.id)}
+              >
+                <div className="flex items-center gap-1.5 overflow-hidden">
+                  <MapPin className={`w-4 h-4 shrink-0 ${selectedNode?.id === sitio.id ? 'text-blue-600' : 'text-slate-400'}`} />
+                  <span className="truncate">{sitio.nombre || `Nuevo ${lblN1}`}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {!isNodeValid(sitio, 'SITIO', { hasDireccion: tc?.nivel1ConDireccion ?? true }) && (
+                    <div title="Falta información requerida">
+                      <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0 mr-1" />
+                    </div>
+                  )}
+                  {/* El modal de Puesto se encarga de agregar Nivel 2 o Línea */}
+                  <AddNodeDialog level={hasN2 ? 2 : 3} sitioId={sitio.id} parentName={sitio.nombre} />
+                </div>
+              </div>
+              {renderPuestos(sitio)}
+            </div>
+          ))}
         </div>
       </div>
     </div>

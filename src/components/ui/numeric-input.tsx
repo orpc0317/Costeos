@@ -20,7 +20,7 @@ interface NumericInputProps {
  * números decimales de forma fluida, y manteniendo un valor string intermedio 
  * mientras se despacha el número limpio al estado global.
  */
-export const NumericInput = ({ value, onChange, className, min, max, placeholder, isInteger = false, 'aria-invalid': ariaInvalid }: NumericInputProps & React.ComponentProps<"input">) => {
+export const NumericInput = ({ value, onChange, className, min, max, placeholder, isInteger = false, 'aria-invalid': ariaInvalid }: NumericInputProps & Omit<React.ComponentProps<"input">, "onChange" | "value">) => {
   const [localValue, setLocalValue] = React.useState(value === undefined ? '' : value.toString());
   const [isFocused, setIsFocused] = React.useState(false);
 

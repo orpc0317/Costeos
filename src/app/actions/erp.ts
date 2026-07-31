@@ -48,18 +48,25 @@ export async function searchClientes(empresaId: number, busqueda: string) {
 /**
  * Obtiene el catálogo de items del ERP.
  */
-export async function getCatalogoItems(busqueda?: string, categoriaId?: number) {
+export async function getCatalogoItems(empresaId: number, busqueda?: string, categoriaId?: number) {
+  console.log('>>> Server Action getCatalogoItems llamado con empresaId:', empresaId);
   const session = await auth()
   if (!session?.user?.id) throw new Error('No autorizado')
 
-  const items = await erp.getItems({ busqueda, categoriaId })
-  return items
+  try {
+    const items = await erp.getItems({ empresaId, busqueda, categoriaId })
+    console.log(`>>> getCatalogoItems retornó ${items.length} items`);
+    return items
+  } catch (err) {
+    console.error('>>> Error en getCatalogoItems:', err);
+    return [];
+  }
 }
 
 /**
  * Obtiene los componentes (receta) de un item del ERP.
  */
-export async function getRecetaDeItem(itemId: number) {
+export async function getRecetaDeItem(itemId: string) {
   const session = await auth()
   if (!session?.user?.id) throw new Error('No autorizado')
 

@@ -14,6 +14,7 @@
 // ─── Filtros ────────────────────────────────────────────────────────────────
 
 export type ItemFiltros = {
+  empresaId: number
   busqueda?: string
   tipo?: TipoRecurso
   categoriaId?: number
@@ -56,7 +57,7 @@ export type TipoCosto = 'MENSUAL' | 'UNICO'
  * Unifica productos, equipos, artículos y servicios bajo una sola estructura.
  */
 export type ErpItem = {
-  id: number
+  id: string
   codigo: string
   nombre: string
   descripcion?: string
@@ -76,7 +77,7 @@ export type ErpItem = {
  * Se usa tieneReceta = true para saber si hay que hacer recursión.
  */
 export type ErpRecetaItem = {
-  itemId: number
+  itemId: string
   itemNombre: string
   itemTipo: TipoRecurso
   itemCategoria: string
@@ -170,7 +171,7 @@ export type ContratoPuestoPayload = {
 }
 
 export type ContratoRecursoPayload = {
-  erpItemId: number
+  erpItemId: string
   itemNombre: string
   cantidad: number
   costoUnitario: number
@@ -200,14 +201,14 @@ export interface ErpRepository {
    * en una sola llamada (en vez de N llamadas individuales).
    * @returns Record<erp_item_id, costo_unitario_actual>
    */
-  getItemsCostos(ids: number[]): Promise<Record<number, number>>
+  getItemsCostos(ids: string[]): Promise<Record<string, number>>
 
   /**
    * Obtiene precios de venta (lista de precios) para un batch de item IDs.
    * El valor es null si el item no tiene precio en la lista.
    * @returns Record<erp_item_id, precio_venta | null>
    */
-  getListaPrecios(ids: number[]): Promise<Record<number, number | null>>
+  getListaPrecios(ids: string[]): Promise<Record<string, number | null>>
 
   /**
    * Retorna los items de la receta de un item del ERP (nivel 1).
@@ -215,7 +216,7 @@ export interface ErpRepository {
    * del item de receta que tiene tieneReceta = true.
    * Máximo 4 niveles de profundidad.
    */
-  getRecetaItem(itemId: number): Promise<ErpRecetaItem[]>
+  getRecetaItem(itemId: string): Promise<ErpRecetaItem[]>
 
   /**
    * Valida si el usuario ERP existe en SQL Server.

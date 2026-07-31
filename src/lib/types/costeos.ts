@@ -43,7 +43,7 @@ export interface RecetaCatalogo {
 // Nivel 4 y 5: Items dentro de Recetas en un Puesto
 export interface ItemRecetaCosteo {
   id: string; // ID único en el árbol
-  erpItemId: number; // Referencia al catálogo ERP
+  erpItemId: string; // Referencia al catálogo ERP
   nombre: string; // Copia para no depender del catálogo todo el tiempo
   categoria: CategoriaItem;
   tipoCosto: TipoCosto;
@@ -63,7 +63,7 @@ export interface RecetaCosteo {
 // Nivel 3: Recurso asignado a un Puesto
 export interface RecursoCosteo {
   id: string;
-  erpItemId: number;
+  erpItemId: string;
   nombre: string;
   categoria: CategoriaItem;
   tipoCosto: TipoCosto;

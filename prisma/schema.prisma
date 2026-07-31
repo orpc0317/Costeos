@@ -160,7 +160,7 @@ model Puesto {
 model PuestoRecurso {
   id                Int       @id @default(autoincrement())
   puestoId          Int       @map("puesto_id")
-  erpItemId         Int       @map("erp_item_id") // ID del item en ERP
+  erpItemId         String    @map("erp_item_id") @db.VarChar(50) // ID o Código del item en ERP
   itemNombre        String    @map("item_nombre") @db.VarChar(200) // snapshot
   itemTipo          String    @map("item_tipo") @db.VarChar(30)
   // RECURSO_HUMANO | EQUIPO | ARTICULO | SERVICIO
@@ -192,7 +192,7 @@ model RecetaSnap {
   id              Int     @id @default(autoincrement())
   puestoRecursoId Int     @map("puesto_recurso_id")
   nivel           Int // 1, 2, 3, 4 (profundidad dentro de la receta)
-  erpItemId       Int     @map("erp_item_id")
+  erpItemId       String  @map("erp_item_id") @db.VarChar(50)
   itemNombre      String  @map("item_nombre") @db.VarChar(200)
   itemCategoria   String  @map("item_categoria") @db.VarChar(100)
   itemTipoCosto   String  @map("item_tipo_costo") @db.VarChar(10) // MENSUAL | UNICO
