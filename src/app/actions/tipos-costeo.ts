@@ -10,13 +10,9 @@ import {
   type TipoCosteoRow,
 } from '@/lib/types/tipos-costeo'
 
-// â”€â”€â”€ Tipo de respuesta estÃ¡ndar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
 type ActionResult<T = void> =
   | { ok: true; data: T }
   | { ok: false; error: string; field?: string }
-
-// â”€â”€â”€ Guard: solo ADMIN puede gestionar configuraciones â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function soloAdmin(): Promise<{ ok: true; userId: number } | { ok: false; error: string }> {
   const session = await auth()
@@ -27,8 +23,6 @@ async function soloAdmin(): Promise<{ ok: true; userId: number } | { ok: false; 
   }
   return { ok: true, userId: Number(session.user.id) }
 }
-
-// â”€â”€â”€ Listar tipos de costeo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function listarTiposCosteo(busqueda?: string): Promise<TipoCosteoRow[]> {
   const session = await auth()
@@ -48,11 +42,11 @@ export async function listarTiposCosteo(busqueda?: string): Promise<TipoCosteoRo
       empresaId: true,
       codigo: true,
       nombre: true,
-      nivel1Activo: true,
-      nivel1Etiqueta: true,
-      nivel1ConDireccion: true,
-      nivel2Activo: true,
-      nivel2Etiqueta: true,
+      cantidadNiveles: true,
+      etiquetasNiveles: true,
+      coloresNiveles: true,
+      iconosNiveles: true,
+      nivelConDireccion: true,
       lineaEtiqueta: true,
       baseEvaluacion: true,
       manejoPlazo: true,
@@ -66,7 +60,7 @@ export async function listarTiposCosteo(busqueda?: string): Promise<TipoCosteoRo
     },
     orderBy: [{ activo: 'desc' }, { nombre: 'asc' }],
   })
-  // Obtener empresas del usuario
+  
   let empresasMap: Record<number, string> = {}
   try {
     const { getEmpresasForUser } = await import('@/app/actions/erp')
@@ -80,12 +74,11 @@ export async function listarTiposCosteo(busqueda?: string): Promise<TipoCosteoRo
 
   return tipos.map(t => ({
     ...t,
+    manejoPlazo: t.manejoPlazo as 'LIBRE' | 'FIJO' | 'NO_APLICA',
     empresaNombre: empresasMap[t.empresaId] || `Empresa ${t.empresaId}`,
     enUso: t._count.costeos > 0,
   }))
 }
-
-// â”€â”€â”€ Crear tipo de costeo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function crearTipoCosteo(
   _prev: unknown,
@@ -97,11 +90,11 @@ export async function crearTipoCosteo(
   const raw = {
     empresaId: formData.get('empresaId'),
     nombre: formData.get('nombre'),
-    nivel1Activo: formData.get('nivel1Activo') === 'true',
-    nivel1Etiqueta: formData.get('nivel1Etiqueta') || '',
-    nivel1ConDireccion: formData.get('nivel1ConDireccion') === 'true',
-    nivel2Activo: formData.get('nivel2Activo') === 'true',
-    nivel2Etiqueta: formData.get('nivel2Etiqueta') || '',
+    cantidadNiveles: formData.get('cantidadNiveles'),
+    etiquetasNiveles: formData.get('etiquetasNiveles') || '',
+    coloresNiveles: formData.get('coloresNiveles') || '',
+    iconosNiveles: formData.get('iconosNiveles') || '',
+    nivelConDireccion: formData.get('nivelConDireccion'),
     lineaEtiqueta: formData.get('lineaEtiqueta') || '',
     baseEvaluacion: formData.get('baseEvaluacion') || 'GLOBAL',
     manejoPlazo: formData.get('manejoPlazo') || 'NO_APLICA',
@@ -116,26 +109,24 @@ export async function crearTipoCosteo(
   const {
     empresaId,
     nombre,
-    nivel1Activo,
-    nivel1Etiqueta,
-    nivel1ConDireccion,
-    nivel2Activo,
-    nivel2Etiqueta,
+    cantidadNiveles,
+    etiquetasNiveles,
+    coloresNiveles,
+    iconosNiveles,
+    nivelConDireccion,
     lineaEtiqueta,
     baseEvaluacion,
     manejoPlazo,
     fijarPlazo,
   } = parsed.data
 
-  // Generar cÃ³digo autoincremental por empresa
   const count = await prisma.tipoCosteo.count({ where: { empresaId } })
   const correlativo = String(count + 1).padStart(3, '0')
   const codigo = correlativo
 
-  // Verificar cÃ³digo Ãºnico por empresa
   const existente = await prisma.tipoCosteo.findFirst({ where: { empresaId, codigo } })
   if (existente) {
-    return { ok: false, error: 'Error al generar el cÃ³digo, intente nuevamente' }
+    return { ok: false, error: 'Error al generar el código, intente nuevamente' }
   }
 
   const tipo = await prisma.tipoCosteo.create({
@@ -143,11 +134,11 @@ export async function crearTipoCosteo(
       empresaId,
       codigo,
       nombre,
-      nivel1Activo,
-      nivel1Etiqueta,
-      nivel1ConDireccion,
-      nivel2Activo,
-      nivel2Etiqueta,
+      cantidadNiveles,
+      etiquetasNiveles,
+      coloresNiveles,
+      iconosNiveles,
+      nivelConDireccion,
       lineaEtiqueta,
       baseEvaluacion,
       manejoPlazo,
@@ -159,11 +150,11 @@ export async function crearTipoCosteo(
       empresaId: true,
       codigo: true,
       nombre: true,
-      nivel1Activo: true,
-      nivel1Etiqueta: true,
-      nivel1ConDireccion: true,
-      nivel2Activo: true,
-      nivel2Etiqueta: true,
+      cantidadNiveles: true,
+      etiquetasNiveles: true,
+      coloresNiveles: true,
+      iconosNiveles: true,
+      nivelConDireccion: true,
       lineaEtiqueta: true,
       baseEvaluacion: true,
       manejoPlazo: true,
@@ -186,8 +177,6 @@ export async function crearTipoCosteo(
   return { ok: true, data: { id: tipo.id } }
 }
 
-// â”€â”€â”€ Editar tipo de costeo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
 export async function editarTipoCosteo(
   id: number,
   _prev: unknown,
@@ -200,11 +189,11 @@ export async function editarTipoCosteo(
     empresaId: formData.get('empresaId'),
     codigo: formData.get('codigo'),
     nombre: formData.get('nombre'),
-    nivel1Activo: formData.get('nivel1Activo') === 'true',
-    nivel1Etiqueta: formData.get('nivel1Etiqueta') || '',
-    nivel1ConDireccion: formData.get('nivel1ConDireccion') === 'true',
-    nivel2Activo: formData.get('nivel2Activo') === 'true',
-    nivel2Etiqueta: formData.get('nivel2Etiqueta') || '',
+    cantidadNiveles: formData.get('cantidadNiveles'),
+    etiquetasNiveles: formData.get('etiquetasNiveles') || '',
+    coloresNiveles: formData.get('coloresNiveles') || '',
+    iconosNiveles: formData.get('iconosNiveles') || '',
+    nivelConDireccion: formData.get('nivelConDireccion'),
     lineaEtiqueta: formData.get('lineaEtiqueta') || '',
     baseEvaluacion: formData.get('baseEvaluacion') || 'GLOBAL',
     manejoPlazo: formData.get('manejoPlazo') || 'NO_APLICA',
@@ -221,11 +210,11 @@ export async function editarTipoCosteo(
     empresaId,
     codigo,
     nombre,
-    nivel1Activo,
-    nivel1Etiqueta,
-    nivel1ConDireccion,
-    nivel2Activo,
-    nivel2Etiqueta,
+    cantidadNiveles,
+    etiquetasNiveles,
+    coloresNiveles,
+    iconosNiveles,
+    nivelConDireccion,
     lineaEtiqueta,
     baseEvaluacion,
     manejoPlazo,
@@ -238,36 +227,34 @@ export async function editarTipoCosteo(
     return { ok: false, error: 'Tipo de costeo no encontrado' }
   }
 
-  // Verificar si estÃ¡ en uso (tiene costeos asociados)
   const costeosAsociados = await prisma.costeo.count({ where: { tipoCosteoId: id } })
   const enUso = costeosAsociados > 0
 
-  // Si estÃ¡ en uso y trataron de cambiar la estructura de niveles (concurrencia), rechazamos
   if (enUso) {
-    if (nivel1Activo !== tipoActual.nivel1Activo || nivel2Activo !== tipoActual.nivel2Activo || baseEvaluacion !== tipoActual.baseEvaluacion) {
-      return { ok: false, error: 'El Tipo de Costeo acaba de ser utilizado en un Costeo nuevo por otro usuario y ya no se puede alterar su estructura de niveles ni su base de evaluaciÃ³n.' }
+    if (cantidadNiveles !== tipoActual.cantidadNiveles || baseEvaluacion !== tipoActual.baseEvaluacion || nivelConDireccion !== tipoActual.nivelConDireccion) {
+      return { ok: false, error: 'El Tipo de Costeo está siendo utilizado en un Costeo. No se puede alterar su estructura de niveles ni su base de evaluación.' }
     }
   }
 
-  // Verificar cÃ³digo Ãºnico (excluyendo el actual)
   const existente = await prisma.tipoCosteo.findFirst({
     where: { empresaId, codigo, NOT: { id } },
   })
   if (existente) {
-    return { ok: false, error: 'Ya existe un tipo de costeo con este cÃ³digo', field: 'codigo' }
+    return { ok: false, error: 'Ya existe un tipo de costeo con este código', field: 'codigo' }
   }
 
   const updateData = {
     empresaId,
     codigo,
     nombre,
-    nivel1Activo,
-    nivel1Etiqueta,
-    nivel1ConDireccion,
-    nivel2Activo,
-    nivel2Etiqueta,
+    cantidadNiveles,
+    etiquetasNiveles,
+    coloresNiveles,
+    iconosNiveles,
+    nivelConDireccion,
     lineaEtiqueta,
     baseEvaluacion,
+    manejoPlazo,
     fijarPlazo,
   }
 
@@ -277,7 +264,7 @@ export async function editarTipoCosteo(
   })
 
   if (updateResult.count === 0) {
-    return { ok: false, error: 'El registro ha sido modificado por otro usuario. Por favor, recarga la informaciÃ³n e intenta de nuevo.' }
+    return { ok: false, error: 'El registro ha sido modificado por otro usuario. Por favor, recarga la información e intenta de nuevo.' }
   }
 
   const tipoNuevo = await prisma.tipoCosteo.findUnique({
@@ -287,11 +274,9 @@ export async function editarTipoCosteo(
       empresaId: true,
       codigo: true,
       nombre: true,
-      nivel1Activo: true,
-      nivel1Etiqueta: true,
-      nivel1ConDireccion: true,
-      nivel2Activo: true,
-      nivel2Etiqueta: true,
+      cantidadNiveles: true,
+      etiquetasNiveles: true,
+      nivelConDireccion: true,
       lineaEtiqueta: true,
       baseEvaluacion: true,
       manejoPlazo: true,
@@ -321,8 +306,6 @@ export async function editarTipoCosteo(
   return { ok: true, data: { ...tipoNuevo, enUso } }
 }
 
-// â”€â”€â”€ Toggle activo / inactivo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
 export async function toggleActivo(id: number, registroVersion: number): Promise<ActionResult> {
   const guard = await soloAdmin()
   if (!guard.ok) return guard
@@ -339,7 +322,7 @@ export async function toggleActivo(id: number, registroVersion: number): Promise
   })
 
   if (updateResult.count === 0) {
-    return { ok: false, error: 'El registro ha sido modificado por otro usuario. Por favor, recarga la informaciÃ³n e intenta de nuevo.' }
+    return { ok: false, error: 'El registro ha sido modificado por otro usuario. Por favor, recarga la información e intenta de nuevo.' }
   }
 
   const tipoNuevo = await prisma.tipoCosteo.findUnique({
@@ -374,11 +357,9 @@ export async function getTiposCosteoActivosAction() {
       empresaId: true,
       codigo: true,
       nombre: true,
-      nivel1Activo: true,
-      nivel1Etiqueta: true,
-      nivel1ConDireccion: true,
-      nivel2Activo: true,
-      nivel2Etiqueta: true,
+      cantidadNiveles: true,
+      etiquetasNiveles: true,
+      nivelConDireccion: true,
       lineaEtiqueta: true,
       baseEvaluacion: true,
       activo: true,

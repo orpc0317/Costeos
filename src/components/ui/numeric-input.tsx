@@ -20,7 +20,17 @@ interface NumericInputProps {
  * números decimales de forma fluida, y manteniendo un valor string intermedio 
  * mientras se despacha el número limpio al estado global.
  */
-export const NumericInput = ({ value, onChange, className, min, max, placeholder, isInteger = false, 'aria-invalid': ariaInvalid }: NumericInputProps & Omit<React.ComponentProps<"input">, "onChange" | "value">) => {
+export const NumericInput = ({ 
+  value, 
+  onChange, 
+  className, 
+  min, 
+  max, 
+  placeholder, 
+  isInteger = false, 
+  'aria-invalid': ariaInvalid,
+  ...rest
+}: NumericInputProps & Omit<React.ComponentProps<"input">, "onChange" | "value">) => {
   const [localValue, setLocalValue] = React.useState(value === undefined ? '' : value.toString());
   const [isFocused, setIsFocused] = React.useState(false);
 
@@ -57,11 +67,12 @@ export const NumericInput = ({ value, onChange, className, min, max, placeholder
     }
   };
 
-  const handleFocus = () => {
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     setIsFocused(true);
+    rest.onFocus?.(e);
   };
 
-  const handleBlur = () => {
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     setIsFocused(false);
     if (localValue.endsWith('.') || localValue === '-' || localValue === '-.') {
       const parsed = parseFloat(localValue);
@@ -71,6 +82,7 @@ export const NumericInput = ({ value, onChange, className, min, max, placeholder
     if (localValue === '') {
       setLocalValue('');
     }
+    rest.onBlur?.(e);
   };
 
   const displayValue = React.useMemo(() => {
@@ -106,6 +118,7 @@ export const NumericInput = ({ value, onChange, className, min, max, placeholder
       max={max}
       placeholder={placeholder}
       aria-invalid={ariaInvalid}
+      {...rest}
     />
   );
 };

@@ -9,11 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getDepartamentos, getMunicipios, UbicacionItem } from '@/app/actions/ubicaciones';
-import { getTurnos, getUniformes, TurnoItem, UniformeItem } from '@/app/actions/puestos';
-import { MapPin, Briefcase, Settings, Trash2, Settings2, Calculator } from 'lucide-react';
-import { TurnoCard } from './TurnoCard';
+import { MapPin, Settings2, Calculator, Trash2 } from 'lucide-react';
 import { RecursosSummaryTable } from './RecursosSummaryTable';
 import { ConfirmDeleteDialog } from './modals/ConfirmDeleteDialog';
+import { NodoCosteo, RecursoCosteo } from '@/lib/types/costeos';
 
 export default function EditorPanel() {
   const { proyecto, selectedNode, dispatch } = useCosteo();
@@ -28,56 +27,74 @@ export default function EditorPanel() {
     );
   }
 
-  // Encontrar el nodo en el árbol y guardar IDs padres
   const tc = proyecto.tipoCosteo;
-  const lblN1 = tc?.nivel1Etiqueta || 'Sitio';
-  const lblN2 = tc?.nivel2Etiqueta || 'Puesto';
+  const maxNiveles = tc?.cantidadNiveles ?? 2;
+  const etiquetas = tc?.etiquetasNiveles?.split(',') || ['Sitio', 'Puesto'];
   const lblR = tc?.lineaEtiqueta || 'Línea';
 
   let nodeData: any = null;
   let title = '';
-  let parentSitioId: string | null = null;
-  let parentPuestoId: string | null = null;
+  let parentId: string | null = null;
+  let pathNames: string[] = [];
+  
+  // Buscar nodo recursivamente
+  const findNodo = (nodos: NodoCosteo[], id: string, currentPath: string[]): NodoCosteo | null => {
+    for (const n of nodos) {
+      if (n.id === id) {
+        pathNames = [...currentPath, n.nombre];
+        return n;
+      }
+      const found = findNodo(n.nodos, id, [...currentPath, n.nombre]);
+      if (found) return found;
+    }
+    return null;
+  };
+
+  const findParentOfNodo = (nodos: NodoCosteo[], targetId: string, currentParentId: string | null = null): string | null => {
+    for (const n of nodos) {
+      if (n.id === targetId) return currentParentId;
+      const found = findParentOfNodo(n.nodos, targetId, n.id);
+      if (found !== null) return found;
+    }
+    return null;
+  };
+
+  const findRecurso = (nodos: NodoCosteo[], id: string, currentPath: string[]): { recurso: RecursoCosteo, parentId: string } | null => {
+    for (const n of nodos) {
+      const r = n.recursos.find(rec => rec.id === id);
+      if (r) {
+        pathNames = [...currentPath, n.nombre];
+        return { recurso: r, parentId: n.id };
+      }
+      const found = findRecurso(n.nodos, id, [...currentPath, n.nombre]);
+      if (found) return found;
+    }
+    return null;
+  };
 
   if (selectedNode.type === 'PROYECTO') {
     nodeData = proyecto;
     title = 'Configuración Proyecto';
-  } else if (selectedNode.type === 'SITIO') {
-    nodeData = proyecto.sitios.find(s => s.id === selectedNode.id);
-    parentSitioId = selectedNode.id;
-    title = `Detalles ${lblN1}`;
-  } else if (selectedNode.type === 'PUESTO') {
-    for (const sitio of proyecto.sitios) {
-      const puesto = sitio.puestos.find(p => p.id === selectedNode.id);
-      if (puesto) {
-        nodeData = puesto;
-        parentSitioId = sitio.id;
-        parentPuestoId = puesto.id;
-        title = `Detalles ${lblN2}`;
-        break;
-      }
+  } else if (selectedNode.type === 'NODO') {
+    const n = findNodo(proyecto.nodos, selectedNode.id, []);
+    if (n) {
+      nodeData = n;
+      parentId = findParentOfNodo(proyecto.nodos, n.id, null);
+      title = `Detalles ${etiquetas[n.nivel - 1] || 'Nodo'}`;
     }
   } else if (selectedNode.type === 'RECURSO') {
-    for (const sitio of proyecto.sitios) {
-      for (const puesto of sitio.puestos) {
-        const recurso = puesto.recursos.find(r => r.id === selectedNode.id);
-        if (recurso) {
-          nodeData = recurso;
-          parentSitioId = sitio.id;
-          parentPuestoId = puesto.id;
-          title = `Detalles del ${lblR}`;
-          break;
-        }
-      }
-      if (!nodeData) {
-        const recursoSp = sitio.recursosSinPuesto.find(r => r.id === selectedNode.id);
-        if (recursoSp) {
-          nodeData = recursoSp;
-          parentSitioId = sitio.id;
-          parentPuestoId = null;
-          title = `Detalles del ${lblR} (Sin ${lblN2})`;
-          break;
-        }
+    // Check in root first
+    const rRoot = proyecto.recursos.find(r => r.id === selectedNode.id);
+    if (rRoot) {
+      nodeData = rRoot;
+      parentId = null;
+      title = `Detalles ${lblR} (Proyecto)`;
+    } else {
+      const res = findRecurso(proyecto.nodos, selectedNode.id, []);
+      if (res) {
+        nodeData = res.recurso;
+        parentId = res.parentId;
+        title = `Detalles ${lblR}`;
       }
     }
   }
@@ -90,10 +107,8 @@ export default function EditorPanel() {
     );
   }
 
-  // Handlers para interactividad
   const handleChange = (field: string | Record<string, any>, value?: any) => {
     let data: Record<string, any> = {};
-    
     if (typeof field === 'string') {
       let finalValue = value;
       if (typeof finalValue === 'string' && field !== 'id') {
@@ -106,42 +121,24 @@ export default function EditorPanel() {
     
     if (selectedNode.type === 'PROYECTO') {
       dispatch({ type: 'UPDATE_PROYECTO', payload: data });
-    } else if (selectedNode.type === 'SITIO' && parentSitioId) {
-      dispatch({ type: 'UPDATE_SITIO', payload: { sitioId: parentSitioId, data } });
-    } else if (selectedNode.type === 'PUESTO' && parentSitioId && parentPuestoId) {
-      dispatch({ type: 'UPDATE_PUESTO', payload: { sitioId: parentSitioId, puestoId: parentPuestoId, data } });
-    } else if (selectedNode.type === 'RECURSO' && parentSitioId) {
-      dispatch({ 
-        type: 'UPDATE_RECURSO', 
-        payload: { 
-          sitioId: parentSitioId, 
-          puestoId: parentPuestoId, 
-          recursoId: selectedNode.id, 
-          data 
-        } 
-      });
+    } else if (selectedNode.type === 'NODO') {
+      dispatch({ type: 'UPDATE_NODO', payload: { id: selectedNode.id, data } });
+    } else if (selectedNode.type === 'RECURSO') {
+      dispatch({ type: 'UPDATE_RECURSO', payload: { recursoId: selectedNode.id, data } });
     }
   };
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const confirmDelete = () => {
-    if (selectedNode.type === 'SITIO' && parentSitioId) {
-      dispatch({ type: 'REMOVE_SITIO', payload: parentSitioId });
-    } else if (selectedNode.type === 'PUESTO' && parentSitioId && parentPuestoId) {
-      dispatch({ type: 'REMOVE_PUESTO', payload: { sitioId: parentSitioId, puestoId: parentPuestoId } });
-    } else if (selectedNode.type === 'RECURSO' && parentSitioId) {
-      dispatch({ 
-        type: 'REMOVE_RECURSO', 
-        payload: { sitioId: parentSitioId, puestoId: parentPuestoId, recursoId: selectedNode.id } 
-      });
+    if (selectedNode.type === 'NODO') {
+      dispatch({ type: 'REMOVE_NODO', payload: selectedNode.id });
+    } else if (selectedNode.type === 'RECURSO') {
+      dispatch({ type: 'REMOVE_RECURSO', payload: { recursoId: selectedNode.id } });
     }
-    // Deseleccionar el nodo y volver al PROYECTO
     dispatch({ type: 'SELECT_NODE', payload: { type: 'PROYECTO', id: proyecto.id } });
     setIsDeleteDialogOpen(false);
   };
-
-  const handleDeleteClick = () => setIsDeleteDialogOpen(true);
 
   return (
     <div className="flex flex-col h-full">
@@ -149,6 +146,11 @@ export default function EditorPanel() {
         <div>
           <h2 className="text-xl font-bold text-slate-800">{title}</h2>
           <p className="text-slate-500 mt-1 text-sm font-mono bg-slate-100 inline-block px-1.5 py-0.5 rounded">ID: {nodeData.id}</p>
+          {pathNames.length > 0 && (
+            <p className="text-xs text-slate-400 mt-2">
+              {pathNames.join(' > ')}
+            </p>
+          )}
         </div>
       </div>
 
@@ -188,12 +190,6 @@ export default function EditorPanel() {
                       disabled={nodeData.tipoCosteo?.manejoPlazo === 'FIJO' || nodeData.tipoCosteo?.manejoPlazo === 'NO_APLICA'}
                       onChange={(val) => handleChange('plazoMeses', val)} 
                     />
-                    {nodeData.tipoCosteo?.manejoPlazo === 'FIJO' && (
-                      <p className="text-xs text-muted-foreground mt-1">Plazo fijado por el Tipo de Costeo.</p>
-                    )}
-                    {nodeData.tipoCosteo?.manejoPlazo === 'NO_APLICA' && (
-                      <p className="text-xs text-muted-foreground mt-1">Este proyecto no lleva plazo.</p>
-                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Overhead (%)</label>
@@ -216,41 +212,30 @@ export default function EditorPanel() {
               
               <TabsContent value="resumen" className="outline-none">
                 {(() => {
-                  const allRecursos = nodeData.sitios.flatMap((s: any) => 
-                    s.puestos.flatMap((p: any) => 
-                      p.recursos.map((r: any) => ({ ...r, _sitioNombre: s.nombre, _puestoNombre: p.nombre }))
-                    ).concat((s.recursosSinPuesto || []).map((r: any) => ({ ...r, _sitioNombre: s.nombre, _puestoNombre: 'Sin Puesto' })))
-                  );
-                  return <RecursosSummaryTable 
-                    recursos={allRecursos} 
-                    lblN1={lblN1} 
-                    lblN2={lblN2} 
-                    showN1={tc?.nivel1Activo ?? true} 
-                    showN2={tc?.nivel2Activo ?? true} 
-                  />;
+                  const allRecursos: any[] = [];
+                  const walk = (nodos: NodoCosteo[], path: string[]) => {
+                    for (const n of nodos) {
+                      const newPath = [...path, n.nombre];
+                      n.recursos.forEach(r => allRecursos.push({ ...r, _path: newPath }));
+                      walk(n.nodos, newPath);
+                    }
+                  };
+                  proyecto.recursos.forEach(r => allRecursos.push({ ...r, _path: ['Proyecto'] }));
+                  walk(proyecto.nodos, []);
+                  return <RecursosSummaryTable recursos={allRecursos} />;
                 })()}
               </TabsContent>
             </Tabs>
           </div>
         )}
 
-        {selectedNode.type === 'SITIO' && (
-          <SitioEditor 
+        {selectedNode.type === 'NODO' && (
+          <NodoEditor 
             nodeData={nodeData} 
             handleChange={handleChange} 
-            handleDelete={handleDeleteClick}
-            lblN1={lblN1}
-            lblN2={lblN2}
+            handleDelete={() => setIsDeleteDialogOpen(true)}
             tc={tc}
-          />
-        )}
-
-        {selectedNode.type === 'PUESTO' && (
-          <PuestoEditor 
-            nodeData={nodeData} 
-            handleChange={handleChange} 
-            handleDelete={handleDeleteClick}
-            lblN2={lblN2}
+            etiquetas={etiquetas}
           />
         )}
 
@@ -358,7 +343,7 @@ export default function EditorPanel() {
             )}
             <div className="pt-6 border-t border-slate-200 mt-6">
               <button 
-                onClick={handleDeleteClick}
+                onClick={() => setIsDeleteDialogOpen(true)}
                 className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
               >
                 <Trash2 className="w-4 h-4" />
@@ -370,69 +355,66 @@ export default function EditorPanel() {
 
       </div>
       
-      {/* Diálogo de Confirmación de Eliminación */}
       <ConfirmDeleteDialog 
         open={isDeleteDialogOpen} 
         onOpenChange={setIsDeleteDialogOpen} 
         onConfirm={confirmDelete} 
         nodeName={nodeData.nombre || 'Sin nombre'} 
         nodeType={
-          selectedNode.type === 'SITIO' ? lblN1 : 
-          selectedNode.type === 'PUESTO' ? lblN2 : 
-          lblR
+          selectedNode.type === 'NODO' ? (etiquetas[nodeData.nivel - 1] || 'Nodo') : lblR
         }
       />
     </div>
   );
 }
 
-function SitioEditor({ nodeData, handleChange, handleDelete, lblN1, lblN2, tc }: { nodeData: any, handleChange: (field: string, value: any) => void, handleDelete: () => void, lblN1: string, lblN2: string, tc: any }) {
+function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas }: { nodeData: NodoCosteo, handleChange: (field: string, value: any) => void, handleDelete: () => void, tc: any, etiquetas: string[] }) {
   const [departamentos, setDepartamentos] = useState<UbicacionItem[]>([]);
   const [municipios, setMunicipios] = useState<UbicacionItem[]>([]);
   const [loadingDeptos, setLoadingDeptos] = useState(true);
   const [loadingMunis, setLoadingMunis] = useState(false);
-  const hasDireccion = tc?.nivel1ConDireccion ?? true;
+  
+  const hasDireccion = tc?.nivelConDireccion === nodeData.nivel;
+  const nombreEtiqueta = etiquetas[nodeData.nivel - 1] || 'Nodo';
 
-  // Cargar departamentos al inicio (País fijo a 'GT')
   useEffect(() => {
     let active = true;
-    const fetchDeptos = async () => {
-      setLoadingDeptos(true);
-      const data = await getDepartamentos('GT');
-      if (active) {
-        setDepartamentos(data);
-        setLoadingDeptos(false);
-        // Regla 3: Autoseleccionar si está vacío
-        if (!nodeData.departamento && data.length > 0) {
-          handleChange('departamento', data[0].codigo);
+    if (hasDireccion) {
+      const fetchDeptos = async () => {
+        setLoadingDeptos(true);
+        const data = await getDepartamentos('GT');
+        if (active) {
+          setDepartamentos(data);
+          setLoadingDeptos(false);
+          if (!nodeData.departamento && data.length > 0) {
+            handleChange('departamento', data[0].codigo);
+          }
         }
+      };
+      fetchDeptos();
+      
+      if (nodeData.pais !== 'GT') {
+        handleChange('pais', 'GT');
       }
-    };
-    fetchDeptos();
-    
-    // Si país no es GT, forzarlo
-    if (nodeData.pais !== 'GT') {
-      handleChange('pais', 'GT');
+    } else {
+      setLoadingDeptos(false);
     }
-    
     return () => { active = false; };
-  }, []);
+  }, [hasDireccion]);
 
-  // Cargar municipios cuando cambia el departamento
   useEffect(() => {
     let active = true;
-    if (!nodeData.departamento) {
+    if (!hasDireccion || !nodeData.departamento) {
       setMunicipios([]);
       return;
     }
     
     const fetchMunis = async () => {
       setLoadingMunis(true);
-      const data = await getMunicipios('GT', nodeData.departamento);
+      const data = await getMunicipios('GT', nodeData.departamento!);
       if (active) {
         setMunicipios(data);
         setLoadingMunis(false);
-        // Si el municipio actual no está en la nueva lista, limpiarlo y autoseleccionar el primero
         const muniExists = data.find(m => m.codigo === nodeData.municipio);
         if (!muniExists && data.length > 0) {
           handleChange('municipio', data[0].codigo);
@@ -442,7 +424,7 @@ function SitioEditor({ nodeData, handleChange, handleDelete, lblN1, lblN2, tc }:
     fetchMunis();
     
     return () => { active = false; };
-  }, [nodeData.departamento]);
+  }, [nodeData.departamento, hasDireccion]);
 
   return (
     <div className="max-w-4xl">
@@ -459,141 +441,67 @@ function SitioEditor({ nodeData, handleChange, handleDelete, lblN1, lblN2, tc }:
         </TabsList>
         <TabsContent value="general" className="space-y-4 outline-none min-h-[250px]">
           <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-        <div className="space-y-1.5 col-span-2">
-          <Label>Nombre</Label>
-          <Input 
-            className="uppercase"
-            value={nodeData.nombre || ''} 
-            onChange={(e) => handleChange('nombre', normalizeText(e.target.value))} 
-          />
-        </div>
-        
-        {hasDireccion && (
-          <>
-            <div className="col-span-2 pt-4 pb-1 border-b border-slate-200 flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-slate-400" />
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">UBICACION</h3>
-            </div>
-
             <div className="space-y-1.5 col-span-2">
-              <Label>Dirección</Label>
-              <Input 
-                className="uppercase"
-                value={nodeData.direccion || ''} 
-                onChange={(e) => handleChange('direccion', normalizeText(e.target.value))} 
-              />
-            </div>
-            <div className="space-y-1.5 col-span-2">
-              <Label>País</Label>
-              <SearchableSelect
-                options={[{ value: 'GT', label: 'GUATEMALA' }]}
-                value={nodeData.pais}
-                onChange={(val) => handleChange('pais', val)}
-                disabled={true}
-              />
-            </div>
-            <div className="space-y-1.5 col-span-2">
-              <Label>
-                Departamento {loadingDeptos && <span className="text-xs text-slate-400">(cargando...)</span>}
-              </Label>
-              <SearchableSelect
-                options={departamentos.map(d => ({ value: d.codigo, label: d.nombre }))}
-                value={nodeData.departamento}
-                onChange={(val) => handleChange('departamento', val)}
-                disabled={loadingDeptos}
-                placeholder="Seleccione un departamento"
-                error={!nodeData.departamento}
-              />
-            </div>
-            <div className="space-y-1.5 col-span-2">
-              <Label>
-                Municipio {loadingMunis && <span className="text-xs text-slate-400">(cargando...)</span>}
-              </Label>
-              <SearchableSelect
-                options={municipios.map(m => ({ value: m.codigo, label: m.nombre }))}
-                value={nodeData.municipio}
-                onChange={(val) => handleChange('municipio', val)}
-                disabled={loadingMunis || !nodeData.departamento}
-                placeholder="Seleccione un municipio"
-                error={!nodeData.municipio}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Latitud</Label>
-              <NumericInput 
-                className="w-full border rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
-                value={nodeData.latitud} 
-                onChange={(val) => handleChange('latitud', val)} 
-                placeholder="Ej: 14.6349"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Longitud</Label>
-              <NumericInput 
-                className="w-full border rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
-                value={nodeData.longitud} 
-                onChange={(val) => handleChange('longitud', val)} 
-                placeholder="Ej: -90.5069"
-              />
-            </div>
-          </>
-        )}
-        </div>
-          
-          <div className="pt-6 border-t border-slate-200 mt-6">
-            <button 
-              onClick={handleDelete}
-              className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
-            >
-              <Trash2 className="w-4 h-4" />
-              Eliminar Sitio
-            </button>
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="resumen" className="outline-none">
-          {(() => {
-            const allRecursos = nodeData.puestos.flatMap((p: any) => 
-              p.recursos.map((r: any) => ({ ...r, _puestoNombre: p.nombre }))
-            ).concat(
-              (nodeData.recursosSinPuesto || []).map((r: any) => ({ ...r, _puestoNombre: 'Sin Puesto' }))
-            );
-            return <RecursosSummaryTable 
-              recursos={allRecursos} 
-              lblN2={lblN2} 
-              showN2={tc?.nivel2Activo ?? true} 
-            />;
-          })()}
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
-
-function PuestoEditor({ nodeData, handleChange, handleDelete, lblN2 }: { nodeData: any, handleChange: (field: string, value: any) => void, handleDelete: () => void, lblN2: string }) {
-  return (
-    <div className="max-w-4xl">
-      <Tabs defaultValue="general" className="w-full">
-        <TabsList variant="line" className="mb-4">
-          <TabsTrigger value="general">
-            <Settings2 className="w-4 h-4 mr-2" />
-            General
-          </TabsTrigger>
-          <TabsTrigger value="resumen">
-            <Calculator className="w-4 h-4 mr-2" />
-            Resumen
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="general" className="space-y-6 outline-none min-h-[250px]">
-          <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-            <div className="space-y-1.5 col-span-2">
-              <Label>Nombre {lblN2}</Label>
+              <Label>Nombre {nombreEtiqueta}</Label>
               <Input 
                 className="uppercase"
                 value={nodeData.nombre || ''} 
                 onChange={(e) => handleChange('nombre', normalizeText(e.target.value))} 
               />
             </div>
+            
+            {hasDireccion && (
+              <>
+                <div className="col-span-2 pt-4 pb-1 border-b border-slate-200 flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-slate-400" />
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">UBICACION</h3>
+                </div>
+
+                <div className="space-y-1.5 col-span-2">
+                  <Label>Dirección</Label>
+                  <Input 
+                    className="uppercase"
+                    value={nodeData.direccion || ''} 
+                    onChange={(e) => handleChange('direccion', normalizeText(e.target.value))} 
+                  />
+                </div>
+                <div className="space-y-1.5 col-span-2">
+                  <Label>País</Label>
+                  <SearchableSelect
+                    options={[{ value: 'GT', label: 'GUATEMALA' }]}
+                    value={nodeData.pais || 'GT'}
+                    onChange={() => {}}
+                    disabled={true}
+                  />
+                </div>
+                <div className="space-y-1.5 col-span-2">
+                  <Label>
+                    Departamento {loadingDeptos && <span className="text-xs text-slate-400">(cargando...)</span>}
+                  </Label>
+                  <SearchableSelect
+                    options={departamentos.map(d => ({ value: d.codigo, label: d.nombre }))}
+                    value={nodeData.departamento || ''}
+                    onChange={(val) => handleChange('departamento', val)}
+                    disabled={loadingDeptos}
+                    placeholder="Seleccione un departamento"
+                    error={!nodeData.departamento}
+                  />
+                </div>
+                <div className="space-y-1.5 col-span-2">
+                  <Label>
+                    Municipio {loadingMunis && <span className="text-xs text-slate-400">(cargando...)</span>}
+                  </Label>
+                  <SearchableSelect
+                    options={municipios.map(m => ({ value: m.codigo, label: m.nombre }))}
+                    value={nodeData.municipio || ''}
+                    onChange={(val) => handleChange('municipio', val)}
+                    disabled={loadingMunis || !nodeData.departamento}
+                    placeholder="Seleccione un municipio"
+                    error={!nodeData.municipio}
+                  />
+                </div>
+              </>
+            )}
           </div>
           
           <div className="pt-6 border-t border-slate-200 mt-6">
@@ -602,13 +510,25 @@ function PuestoEditor({ nodeData, handleChange, handleDelete, lblN2 }: { nodeDat
               className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
             >
               <Trash2 className="w-4 h-4" />
-              Eliminar Puesto
+              Eliminar {nombreEtiqueta}
             </button>
           </div>
         </TabsContent>
         
         <TabsContent value="resumen" className="outline-none">
-          <RecursosSummaryTable recursos={nodeData.recursos} />
+          {(() => {
+            const allRecursos: any[] = [];
+            const walk = (nodos: NodoCosteo[], path: string[]) => {
+              for (const n of nodos) {
+                const newPath = [...path, n.nombre];
+                n.recursos.forEach(r => allRecursos.push({ ...r, _path: newPath }));
+                walk(n.nodos, newPath);
+              }
+            };
+            nodeData.recursos.forEach(r => allRecursos.push({ ...r, _path: [nodeData.nombre] }));
+            walk(nodeData.nodos, [nodeData.nombre]);
+            return <RecursosSummaryTable recursos={allRecursos} />;
+          })()}
         </TabsContent>
       </Tabs>
     </div>

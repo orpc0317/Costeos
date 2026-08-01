@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { CosteoProvider } from '@/lib/context/CosteoContext';
 import CosteoBuilderLayout from '@/components/costeos/CosteoBuilderLayout';
-import { ProyectoCosteo } from '@/lib/types/costeos';
+import { ProyectoCosteo, NodoCosteo, RecursoCosteo } from '@/lib/types/costeos';
 
 export default async function CosteoBuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -17,7 +17,6 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
     redirect('/costeos');
   }
 
-  // Cargar el Costeo y sus relaciones principales
   const costeo = await prisma.costeo.findUnique({
     where: { id: costeoId },
     include: {
@@ -25,15 +24,6 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
       contrato: {
         include: {
           cliente: true,
-          sitios: {
-            include: {
-              puestos: {
-                include: {
-                  recursos: true
-                }
-              }
-            }
-          }
         }
       }
     }
@@ -43,7 +33,69 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
     redirect('/costeos');
   }
 
-  // Convertir a la interfaz de estado (ProyectoCosteo)
+  // Cargar nodos y recursos del contrato en memoria para construir el arbol
+  const dbNodos = await prisma.nodo.findMany({
+    where: { contratoId: costeo.contratoId },
+    include: {
+      recursos: true,
+    }
+  });
+
+  const buildNodoTree = (parentId: number | null): NodoCosteo[] => {
+    return dbNodos
+      .filter(n => n.parentId === parentId && n.nombre !== 'DEFAULT')
+      .map(n => ({
+        id: n.id.toString(),
+        nombre: n.nombre,
+        nivel: n.nivel,
+        codigo: n.codigo || undefined,
+        direccion: n.direccion || '',
+        pais: n.pais || '',
+        departamento: n.departamento || '',
+        municipio: n.municipio || '',
+        latitud: n.latitud ? Number(n.latitud) : undefined,
+        longitud: n.longitud ? Number(n.longitud) : undefined,
+        diasCobertura: n.diasCobertura || undefined,
+        horaInicio: n.horaInicio || undefined,
+        horaFin: n.horaFin || undefined,
+        personas: n.personas || 1,
+        horasSemana: n.horasSemana || 0,
+        turnoCodigo: n.turnoCodigo ?? undefined,
+        uniformeCodigo: n.uniformeCodigo ?? undefined,
+        cubreDescanso: n.cubreDescanso || 0,
+        recursos: n.recursos.map(r => ({
+          id: r.id.toString(),
+          erpItemId: r.erpItemId,
+          nombre: r.itemNombre,
+          categoria: r.itemTipo as any,
+          tipoCosto: r.itemTipoCosto as any,
+          cantidad: r.cantidad,
+          costoUnitario: Number(r.costoUnitarioErp || 0),
+          precioVentaUnitario: r.precioVenta ? Number(r.precioVenta) : undefined,
+          precioVentaOrigen: r.precioVentaOrigen as 'LISTA' | 'MANUAL',
+          recetas: [],
+        })),
+        nodos: buildNodoTree(n.id)
+      }));
+  };
+
+  const nodos = buildNodoTree(null);
+
+  // Recursos que esten asignados a 'DEFAULT' root level (nivel 1, nombre 'DEFAULT')
+  const defaultNodo = dbNodos.find(n => n.parentId === null && n.nombre === 'DEFAULT');
+  const recursos = defaultNodo ? defaultNodo.recursos.map(r => ({
+    id: r.id.toString(),
+    erpItemId: r.erpItemId,
+    nombre: r.itemNombre,
+    categoria: r.itemTipo as any,
+    tipoCosto: r.itemTipoCosto as any,
+    cantidad: r.cantidad,
+    costoUnitario: Number(r.costoUnitarioErp || 0),
+    precioVentaUnitario: r.precioVenta ? Number(r.precioVenta) : undefined,
+    precioVentaOrigen: r.precioVentaOrigen as 'LISTA' | 'MANUAL',
+    recetas: [],
+  })) : [];
+
   const dbProyecto: ProyectoCosteo = {
     id: costeo.id.toString(),
     empresaId: costeo.contrato.empresaId,
@@ -64,53 +116,16 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
     tipoCosteo: costeo.tipoCosteo ? {
       id: costeo.tipoCosteo.id,
       nombre: costeo.tipoCosteo.nombre,
-      nivel1Activo: costeo.tipoCosteo.nivel1Activo,
-      nivel1Etiqueta: costeo.tipoCosteo.nivel1Etiqueta,
-      nivel1ConDireccion: costeo.tipoCosteo.nivel1ConDireccion,
-      nivel2Activo: costeo.tipoCosteo.nivel2Activo,
-      nivel2Etiqueta: costeo.tipoCosteo.nivel2Etiqueta,
+      cantidadNiveles: costeo.tipoCosteo.cantidadNiveles,
+      etiquetasNiveles: costeo.tipoCosteo.etiquetasNiveles,
+      nivelConDireccion: costeo.tipoCosteo.nivelConDireccion,
       lineaEtiqueta: costeo.tipoCosteo.lineaEtiqueta,
+      baseEvaluacion: costeo.tipoCosteo.baseEvaluacion as 'MENSUAL' | 'GLOBAL',
       manejoPlazo: costeo.tipoCosteo.manejoPlazo as 'LIBRE' | 'FIJO' | 'NO_APLICA',
       fijarPlazo: costeo.tipoCosteo.fijarPlazo,
     } : undefined,
-    sitios: costeo.contrato.sitios.map(s => ({
-      id: s.id.toString(),
-      nombre: s.nombre,
-      codigo: s.codigo || undefined,
-      direccion: s.direccion || '',
-      pais: s.pais || '',
-      departamento: s.departamento || '',
-      municipio: s.municipio || '',
-      latitud: s.latitud ? Number(s.latitud) : undefined,
-      longitud: s.longitud ? Number(s.longitud) : undefined,
-      recursosSinPuesto: [], // En la base de datos actual todo recurso pertenece a un puesto. Si en el futuro agregamos recursos a nivel sitio, se cargarían aquí.
-      puestos: s.puestos.map(p => ({
-        id: p.id.toString(),
-        nombre: p.nombre,
-        turnoCodigo: p.turnoCodigo ?? (p.codigo ? parseInt(p.codigo, 10) : undefined),
-        uniformeCodigo: p.uniformeCodigo ?? undefined,
-        cubreDescanso: p.cubreDescanso,
-        personas: p.personas,
-        horasSemana: p.horasSemana,
-        recursos: p.recursos.map(r => ({
-          id: r.id.toString(),
-          erpItemId: r.erpItemId,
-          nombre: r.itemNombre,
-          categoria: r.itemTipo as any, // CategoriaItem
-          tipoCosto: r.itemTipoCosto as any,
-          cantidad: r.cantidad,
-          costoUnitario: Number(r.costoUnitarioErp || 0),
-          precioVentaUnitario: r.precioVenta ? Number(r.precioVenta) : undefined,
-          precioVentaOrigen: r.precioVentaOrigen as 'LISTA' | 'MANUAL',
-          turnoCodigo: p.turnoCodigo ?? (p.codigo ? parseInt(p.codigo, 10) : undefined),
-          uniformeCodigo: p.uniformeCodigo ?? undefined,
-          cubreDescanso: p.cubreDescanso,
-          horasSemana: p.horasSemana,
-          personas: p.personas,
-          recetas: [], // TODO: cargar recetas si se guardan en la bd o recalcularlas
-        }))
-      }))
-    })),
+    nodos,
+    recursos,
   };
 
   return (

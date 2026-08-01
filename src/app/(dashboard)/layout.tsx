@@ -14,11 +14,11 @@ export default async function DashboardLayout({
   return (
     <div className="flex h-full">
       {/* Sidebar fijo */}
-      <AppSidebar user={session.user} />
+      <AppSidebar user={session.user as any} />
 
       {/* Contenido principal */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <AppHeader user={session.user} />
+        <AppHeader user={session.user as any} />
         <main className="flex-1 overflow-y-auto p-6">
           {children}
         </main>

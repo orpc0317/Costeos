@@ -83,30 +83,31 @@ export interface RecursoCosteo {
   grupoTurnoId?: string; // Identificador para agrupar recursos humanos del mismo turno
 }
 
-export interface PuestoCosteo {
+export interface NodoCosteo {
   id: string;
   nombre: string;
+  nivel: number;
+  
+  // Ubicación (opcional)
+  direccion?: string;
+  pais?: string;
+  departamento?: string;
+  municipio?: string;
+  latitud?: number;
+  longitud?: number;
+  
+  // Cobertura (opcional)
   turnoCodigo?: number;
   uniformeCodigo?: string;
   cubreDescanso?: number;
   personas?: number;
   horasSemana?: number;
-  recursos: RecursoCosteo[];
-}
+  diasCobertura?: string;
+  horaInicio?: string;
+  horaFin?: string;
 
-// Nivel 1: Sitio dentro del Contrato
-export interface SitioCosteo {
-  id: string;
-  nombre: string;
-  direccion: string;
-  pais: string;
-  departamento: string;
-  municipio: string;
-  latitud?: number;
-  longitud?: number;
-  puestos: PuestoCosteo[];
-  // Recursos que no están en un puesto específico (ej. Coordinador de sitio)
-  recursosSinPuesto: RecursoCosteo[]; 
+  nodos: NodoCosteo[];
+  recursos: RecursoCosteo[];
 }
 
 // Nivel 0: Raíz del Costeo (Contrato)
@@ -120,17 +121,16 @@ export interface ProyectoCosteo {
   plazoMeses: number;
   moneda: Moneda;
   estado: EstadoContrato;
-  sitios: SitioCosteo[];
+  nodos: NodoCosteo[];
+  recursos: RecursoCosteo[]; // Líneas directas en la raíz
   porcentajeOverhead: number;
   porcentajeContingencia: number;
   tipoCosteo?: {
     id: number;
     nombre: string;
-    nivel1Activo: boolean;
-    nivel1Etiqueta: string | null;
-    nivel1ConDireccion: boolean;
-    nivel2Activo: boolean;
-    nivel2Etiqueta: string | null;
+    cantidadNiveles: number;
+    etiquetasNiveles: string | null;
+    nivelConDireccion: number | null;
     lineaEtiqueta: string;
     manejoPlazo: 'LIBRE' | 'FIJO' | 'NO_APLICA';
     fijarPlazo: number;

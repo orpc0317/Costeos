@@ -10,21 +10,16 @@ export const crearTipoCosteoSchema = z.object({
     .max(100, 'El nombre es demasiado largo')
     .toUpperCase()
     .trim(),
-  nivel1Activo: z.boolean().default(false),
-  nivel1Etiqueta: z
+  cantidadNiveles: z.coerce.number().min(0, 'La cantidad de niveles debe ser mayor o igual a 0').max(10, 'Máximo 10 niveles').default(2),
+  etiquetasNiveles: z
     .string()
-    .max(50, 'La etiqueta es demasiado larga')
+    .max(500, 'Las etiquetas son demasiado largas')
     .trim()
     .optional()
     .transform((v) => (v === '' ? undefined : v)),
-  nivel1ConDireccion: z.boolean().default(false),
-  nivel2Activo: z.boolean().default(false),
-  nivel2Etiqueta: z
-    .string()
-    .max(50, 'La etiqueta es demasiado larga')
-    .trim()
-    .optional()
-    .transform((v) => (v === '' ? undefined : v)),
+  coloresNiveles: z.string().max(1000).optional().transform(v => (v === '' ? undefined : v)),
+  iconosNiveles: z.string().max(1000).optional().transform(v => (v === '' ? undefined : v)),
+  nivelConDireccion: z.coerce.number().min(0, 'El nivel con dirección no puede ser negativo').default(1),
   lineaEtiqueta: z
     .string()
     .min(1, 'La etiqueta de la línea es requerida')
@@ -37,6 +32,9 @@ export const crearTipoCosteoSchema = z.object({
 }).refine(data => data.manejoPlazo !== 'FIJO' || data.fijarPlazo > 0, {
   message: "Debe especificar una cantidad de meses mayor a 0",
   path: ["fijarPlazo"],
+}).refine(data => data.nivelConDireccion <= data.cantidadNiveles, {
+  message: "El nivel con dirección no puede ser mayor que la cantidad de niveles",
+  path: ["nivelConDireccion"],
 })
 
 export const editarTipoCosteoSchema = z.object({
@@ -53,21 +51,16 @@ export const editarTipoCosteoSchema = z.object({
     .max(100, 'El nombre es demasiado largo')
     .toUpperCase()
     .trim(),
-  nivel1Activo: z.boolean().default(false),
-  nivel1Etiqueta: z
+  cantidadNiveles: z.coerce.number().min(0, 'La cantidad de niveles debe ser mayor o igual a 0').max(10, 'Máximo 10 niveles').default(2),
+  etiquetasNiveles: z
     .string()
-    .max(50, 'La etiqueta es demasiado larga')
+    .max(500, 'Las etiquetas son demasiado largas')
     .trim()
     .optional()
     .transform((v) => (v === '' ? undefined : v)),
-  nivel1ConDireccion: z.boolean().default(false),
-  nivel2Activo: z.boolean().default(false),
-  nivel2Etiqueta: z
-    .string()
-    .max(50, 'La etiqueta es demasiado larga')
-    .trim()
-    .optional()
-    .transform((v) => (v === '' ? undefined : v)),
+  coloresNiveles: z.string().max(1000).optional().transform(v => (v === '' ? undefined : v)),
+  iconosNiveles: z.string().max(1000).optional().transform(v => (v === '' ? undefined : v)),
+  nivelConDireccion: z.coerce.number().min(0, 'El nivel con dirección no puede ser negativo').default(1),
   lineaEtiqueta: z
     .string()
     .min(1, 'La etiqueta de la línea es requerida')
@@ -81,6 +74,9 @@ export const editarTipoCosteoSchema = z.object({
 }).refine(data => data.manejoPlazo !== 'FIJO' || data.fijarPlazo > 0, {
   message: "Debe especificar una cantidad de meses mayor a 0",
   path: ["fijarPlazo"],
+}).refine(data => data.nivelConDireccion <= data.cantidadNiveles, {
+  message: "El nivel con dirección no puede ser mayor que la cantidad de niveles",
+  path: ["nivelConDireccion"],
 })
 
 // ─── Tipos derivados ──────────────────────────────────────────────────────────
@@ -96,11 +92,11 @@ export type TipoCosteoRow = {
   empresaNombre?: string
   codigo: string
   nombre: string
-  nivel1Activo: boolean
-  nivel1Etiqueta: string | null
-  nivel1ConDireccion: boolean
-  nivel2Activo: boolean
-  nivel2Etiqueta: string | null
+  cantidadNiveles: number
+  etiquetasNiveles: string | null
+  coloresNiveles: string | null
+  iconosNiveles: string | null
+  nivelConDireccion: number | null
   lineaEtiqueta: string
   baseEvaluacion: 'GLOBAL' | 'MENSUAL'
   manejoPlazo: 'LIBRE' | 'FIJO' | 'NO_APLICA'

@@ -61,3 +61,11 @@ Este documento contiene las reglas y componentes estandarizados que han nacido o
 ### Normalización de Textos (Mayúsculas y sin Tildes)
 - **Regla:** TODO el texto ingresado por el usuario en campos de texto libre (nombres, direcciones, etc.) debe guardarse SIEMPRE en MAYÚSCULAS y SIN TILDES (diacríticos) para facilitar las búsquedas y evitar duplicidad de registros (ej. "Petén" vs "PETEN").
 - **Solución:** Utilizar la función `normalizeText` ubicada en `src/lib/utils/text.ts` en los manejadores de cambios (`onChange` o antes de hacer dispatch/guardar).
+
+### Mensajes de Error de Validación (Campos)
+- **Regla:** Cuando un campo individual de un formulario no cumple las condiciones (ej. requerido o inválido), el mensaje de error debe aparecer justo debajo del campo de input correspondiente, manteniendo un espaciado muy ajustado para integrarse visualmente.
+- **Solución:** Utilizar siempre las clases `text-xs text-red-500 !mt-0.5 leading-none` en la etiqueta `<p>` del mensaje de error. El `!mt-0.5` sobreescribe los márgenes de los contenedores padre, manteniéndolo pegado al input.
+- **Uso:**
+  ```tsx
+  {fieldErrors.nombre && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.nombre}</p>}
+  ```

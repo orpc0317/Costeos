@@ -97,7 +97,15 @@ Para mantener una apariencia corporativa ("ERP state of the art"):
 3. **Pestañas adicionales**: Si el formulario requiere configuración avanzada o mucha información, divídelo lógicamente en más pestañas (ej: "Configuración", "Estructura").
 4. **Layout de Cuadrícula (Grid)**: Dentro de cada `TabsContent`, los campos deben agruparse utilizando CSS Grid de mínimo 2 columnas (`<div className="grid grid-cols-2 gap-x-6 gap-y-4">`). No usar listas verticales simples.
 9. **Estética ERP**: Los componentes base (`Input`, `Select`, `Label`) ya están modificados globalmente para usar una alta densidad visual (más pequeños, tipografía `text-sm`, `rounded-sm`), garantizando una experiencia profesional.
-10. **Flujo de Edición (Editar -> Guardar -> Ver)**:
+10. **Estructura Interna del Modal (Scroll y Sticky Elements)**:
+    - Para que las pestañas (`TabsList`) no se pierdan al hacer scroll y los botones de acción (`Footer`) queden fijos abajo, el formulario debe utilizar Flexbox:
+      - `<form className="flex-1 overflow-hidden flex flex-col pt-2">`
+      - El contenedor principal de Tabs: `<Tabs className="w-full flex-1 flex flex-col min-h-0">`
+      - El Listado de Tabs: `<TabsList className="mb-4 shrink-0">`
+      - El Contenedor de contenido con scroll: `<div className="flex-1 overflow-y-auto pr-2 pb-4"> <TabsContent ...> </div>`
+      - El Footer: `<div className="flex flex-row items-center justify-between mt-6 -mx-4 -mb-4 px-4 py-4 border-t bg-slate-50 sm:rounded-b-xl shrink-0">`
+11. **Mensajes de Campos Bloqueados**: Si un registro "en uso" bloquea ciertos campos (modo de edición restringido), evita mostrar cajas de alerta (blocks amarillos) en el formulario que rompen la estética. En su lugar, agrega un "foot note" pequeño (ej. `<p className="text-[11px] text-amber-700">`) del lado izquierdo del footer para mantener el diseño limpio.
+12. **Flujo de Edición (Editar -> Guardar -> Ver)**:
     - Al guardar exitosamente una modificación (UPDATE), el modal **NO** debe cerrarse.
     - El Backend (Server Action) debe devolver el registro recién actualizado en la respuesta.
     - El Frontend debe tomar este nuevo registro, actualizar su estado interno (`initialData`) y cambiar inmediatamente a modo "vista" (`setMode('view')`).
@@ -108,7 +116,7 @@ Para mantener una apariencia corporativa ("ERP state of the art"):
     - En el componente cliente, se debe mantener un estado `fieldErrors` para mapear los errores por campo.
     - Cuando ocurra un error, el modal debe navegar automáticamente a la pestaña que contiene el campo (`setActiveTab`), aplicarle el foco usando `document.getElementById(...).focus()` tras un breve timeout de renderizado.
     - Los controles (`Input`, `NumericInput`, etc.) deben recibir la propiedad `aria-invalid={!!fieldErrors.nombreCampo}` (o `error` en caso de usar selectores) para marcarse con un borde rojo.
-    - El mensaje de error debe renderizarse de forma *inline* debajo del control afectado, usando `<p className="text-xs text-red-500 mt-1">{fieldErrors.nombreCampo}</p>`.
+    - El mensaje de error debe renderizarse de forma *inline* debajo del control afectado. **IMPORTANTE**: Utilizar las clases `text-xs text-red-500 !mt-0.5 leading-none` (ej. `<p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.nombreCampo}</p>`) para forzar una proximidad estrecha al input y lograr una excelente integración visual.
 
 ## 6. Configuración Visual de Pestañas (Tabs)
 

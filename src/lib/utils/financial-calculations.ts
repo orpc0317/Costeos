@@ -1,6 +1,6 @@
 // src/lib/utils/financial-calculations.ts
 
-import { ProyectoCosteo, RecursoCosteo, SitioCosteo, RecetaCosteo, ItemRecetaCosteo } from '../types/costeos';
+import { ProyectoCosteo, RecursoCosteo, NodoCosteo, RecetaCosteo, ItemRecetaCosteo } from '../types/costeos';
 
 export interface ResumenFinanciero {
   totalCostoMensual: number;
@@ -36,7 +36,6 @@ export function calcularResumenFinanciero(proyecto: ProyectoCosteo, selectedNode
     desgloseCostoCategoria: {},
   };
 
-  // Función recursiva para procesar Recetas e Items de Recetas
   const procesarReceta = (receta: RecetaCosteo, cantidadPadre: number) => {
     receta.items.forEach((item) => {
       procesarItemReceta(item, cantidadPadre);
@@ -60,7 +59,6 @@ export function calcularResumenFinanciero(proyecto: ProyectoCosteo, selectedNode
     }
   };
 
-  // Procesar Recursos
   const procesarRecurso = (recurso: RecursoCosteo) => {
     const costoTotal = recurso.costoUnitario * recurso.cantidad;
     const ventaTotal = (recurso.precioVentaUnitario || 0) * recurso.cantidad;
@@ -75,59 +73,53 @@ export function calcularResumenFinanciero(proyecto: ProyectoCosteo, selectedNode
 
     resumen.desgloseCostoCategoria[recurso.categoria] = (resumen.desgloseCostoCategoria[recurso.categoria] || 0) + costoTotal;
 
-    // Procesar sus recetas
+    if (recurso.categoria === 'RECURSO_HUMANO') {
+      resumen.totalPersonas += (recurso.personas || 1) * recurso.cantidad;
+      resumen.totalHorasHombre += (recurso.horasSemana || 0) * recurso.cantidad;
+    }
+
     recurso.recetas.forEach((receta) => procesarReceta(receta, recurso.cantidad));
   };
 
-  // Iterar por todo el árbol del proyecto
-  proyecto.sitios.forEach((sitio) => {
-    // Si filtramos por SITIO y no es este, saltar
-    if (selectedNode && selectedNode.type === 'SITIO' && selectedNode.id !== sitio.id) return;
+  const checkIncludeResource = (recursoId: string, inSelectedNodeTree: boolean): boolean => {
+    if (!selectedNode || selectedNode.type === 'PROYECTO') return true;
+    if (selectedNode.type === 'RECURSO') return selectedNode.id === recursoId;
+    return inSelectedNodeTree;
+  };
 
-    // Recursos sin puesto
-    sitio.recursosSinPuesto.forEach((recurso) => {
-      // Si filtramos por PUESTO, no mostramos recursos sin puesto
-      if (selectedNode && selectedNode.type === 'PUESTO') return;
-      // Si filtramos por RECURSO y no es este, saltar
-      if (selectedNode && selectedNode.type === 'RECURSO' && selectedNode.id !== recurso.id) return;
-      
-      procesarRecurso(recurso);
-    });
+  const walkNodos = (nodos: NodoCosteo[], inSelectedTree: boolean) => {
+    for (const nodo of nodos) {
+      const isThisNodeSelected = selectedNode?.type === 'NODO' && selectedNode.id === nodo.id;
+      const currentInTree = inSelectedTree || isThisNodeSelected;
 
-    // Recursos en puestos
-    sitio.puestos.forEach((puesto) => {
-      // Si filtramos por PUESTO y no es este, saltar
-      if (selectedNode && selectedNode.type === 'PUESTO' && selectedNode.id !== puesto.id) return;
-
-      // Las métricas del puesto se suman SOLO si no estamos filtrando por un RECURSO específico
-      if (!selectedNode || selectedNode.type !== 'RECURSO') {
-        // Contar personas de los recursos humanos
-        const personas = puesto.recursos.filter(r => r.categoria === 'RECURSO_HUMANO').length;
-        resumen.totalPersonas += personas;
-        // horasSemana y ventaPuesto se manejan a nivel de Recurso ahora
-      }
-      
-      puesto.recursos.forEach((recurso) => {
-        // Si filtramos por RECURSO y no es este, saltar
-        if (selectedNode && selectedNode.type === 'RECURSO' && selectedNode.id !== recurso.id) return;
-        
-        procesarRecurso(recurso);
+      nodo.recursos.forEach(recurso => {
+        if (checkIncludeResource(recurso.id, currentInTree)) {
+          procesarRecurso(recurso);
+        }
       });
-    });
+
+      walkNodos(nodo.nodos, currentInTree);
+    }
+  };
+
+  // Process root resources
+  proyecto.recursos.forEach(recurso => {
+    if (checkIncludeResource(recurso.id, false)) {
+      procesarRecurso(recurso);
+    }
   });
 
-  // Calcular totales del proyecto considerando el plazo
+  walkNodos(proyecto.nodos, false);
+
   resumen.totalCostoProyecto = (resumen.totalCostoMensual * plazo) + resumen.totalCostoUnico;
   resumen.totalVentaProyecto = (resumen.totalVentaMensual * plazo) + resumen.totalVentaUnico;
 
-  // Aplicar Overhead y Contingencia al costo total (si aplica al total, esto puede variar según la regla de negocio)
   const factorOverhead = (proyecto.porcentajeOverhead || 0) / 100;
   const factorContingencia = (proyecto.porcentajeContingencia || 0) / 100;
 
   resumen.totalCostoProyecto += (resumen.totalCostoProyecto * factorOverhead);
   resumen.totalCostoProyecto += (resumen.totalCostoProyecto * factorContingencia);
 
-  // Calcular Indicadores
   if (resumen.totalVentaProyecto > 0) {
     resumen.grossMarginProyecto = ((resumen.totalVentaProyecto - resumen.totalCostoProyecto) / resumen.totalVentaProyecto) * 100;
   }

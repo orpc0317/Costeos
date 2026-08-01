@@ -28,24 +28,6 @@ export function TiposCosteoClient({ tiposCosteo }: { tiposCosteo: TipoCosteoRow[
         cell: ({ row }) => <span className="font-medium">{row.original.nombre}</span>,
       },
       {
-        accessorKey: 'nivel1',
-        header: 'Nivel 1',
-        meta: { align: 'center' },
-        cell: ({ row }) => {
-          if (!row.original.nivel1Activo) return <span className="text-muted-foreground">-</span>
-          return <span>{row.original.nivel1Etiqueta || 'Sí'}</span>
-        },
-      },
-      {
-        accessorKey: 'nivel2',
-        header: 'Nivel 2',
-        meta: { align: 'center' },
-        cell: ({ row }) => {
-          if (!row.original.nivel2Activo) return <span className="text-muted-foreground">-</span>
-          return <span>{row.original.nivel2Etiqueta || 'Sí'}</span>
-        },
-      },
-      {
         accessorKey: 'lineaEtiqueta',
         header: 'Línea',
         meta: { align: 'center' },
@@ -95,7 +77,7 @@ export function TiposCosteoClient({ tiposCosteo }: { tiposCosteo: TipoCosteoRow[
       {
         id: 'acciones',
         header: '',
-        enableHiding: false, // Las acciones no se deben ocultar normalmente
+        enableHiding: false,
         meta: { align: 'center' },
         cell: ({ row }) => <TipoCosteoAcciones tipoCosteo={row.original} />,
       },
@@ -105,7 +87,6 @@ export function TiposCosteoClient({ tiposCosteo }: { tiposCosteo: TipoCosteoRow[
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2 text-indigo-900">
@@ -120,13 +101,12 @@ export function TiposCosteoClient({ tiposCosteo }: { tiposCosteo: TipoCosteoRow[
         </div>
       </div>
 
-      {/* Tabla Estandarizada */}
       <DataTable
         columns={columns}
         data={tiposCosteo}
         tableId="tipos-costeo-crud-v3"
         searchPlaceholder="Buscar por código o nombre..."
-        searchKey="nombre" // Búsqueda por defecto usando el nombre
+        searchKey="nombre"
         customToolbarActions={<NuevoTipoCosteoButton />}
       />
     </div>

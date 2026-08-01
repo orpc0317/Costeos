@@ -103,7 +103,7 @@ export async function crearUsuario(
   const passwordHash = await bcrypt.hash(password, 12)
 
   const usuario = await prisma.usuario.create({
-    data: { nombre, email, passwordHash, rol, usuarioErp: parsed.data.usuarioErp ?? null, activo: true, agregoUsuario: guard.userId, modificoUsuario: guard.userId },
+    data: { nombre, email, passwordHash, rol, usuarioErp: parsed.data.usuarioErp ?? '', activo: true, agregoUsuario: guard.userId, modificoUsuario: guard.userId },
     select: { id: true, nombre: true, email: true, rol: true, usuarioErp: true, activo: true },
   })
 
@@ -178,11 +178,11 @@ export async function editarUsuario(
     nombre: string
     email: string
     rol: string
-    usuarioErp?: string | null
+    usuarioErp?: string
     passwordHash?: string
     modificoUsuario: number
     registroVersion: { increment: number }
-  } = { nombre, email, rol, usuarioErp: parsed.data.usuarioErp ?? null, modificoUsuario: guard.userId, registroVersion: { increment: 1 } }
+  } = { nombre, email, rol, usuarioErp: parsed.data.usuarioErp ?? '', modificoUsuario: guard.userId, registroVersion: { increment: 1 } }
 
   if (password) {
     updateData.passwordHash = await bcrypt.hash(password, 12)

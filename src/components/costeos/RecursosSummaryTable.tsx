@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useCosteo } from '@/lib/context/CosteoContext';
 import { getTurnos, getUniformes, TurnoItem, UniformeItem } from '@/app/actions/puestos';
+import { RecursoCosteo } from '@/lib/types/costeos';
 
 const OPCIONES_CUBRE_DESCANSO = [
   { value: 0, label: '0 - No Aplica' },
@@ -9,7 +10,11 @@ const OPCIONES_CUBRE_DESCANSO = [
   { value: 3, label: '3 - Bono Descanso' }
 ];
 
-export function RecursosSummaryTable({ recursos, lblN1, lblN2, showN1, showN2 }: { recursos: any[], lblN1?: string, lblN2?: string, showN1?: boolean, showN2?: boolean }) {
+interface RecursoSummaryItem extends RecursoCosteo {
+  _path?: string[]; // Arrays of node names in the hierarchy
+}
+
+export function RecursosSummaryTable({ recursos }: { recursos: RecursoSummaryItem[] }) {
   const { proyecto } = useCosteo();
   const [turnos, setTurnos] = useState<TurnoItem[]>([]);
   const [uniformes, setUniformes] = useState<UniformeItem[]>([]);
@@ -38,11 +43,13 @@ export function RecursosSummaryTable({ recursos, lblN1, lblN2, showN1, showN2 }:
   // Agrupar recursos
   const recursosAgrupados = useMemo(() => {
     const grupos: Record<string, any> = {};
-    (recursos || []).forEach((r: any) => {
-      const key = `${r._sitioNombre || ''}-${r._puestoNombre || ''}-${r.erpItemId}-${r.turnoCodigo || 'NA'}-${r.uniformeCodigo || 'NA'}-${r.cubreDescanso || 0}-${r.precioVentaUnitario || 0}`;
+    (recursos || []).forEach((r) => {
+      const pathStr = (r._path || []).join(' > ');
+      const key = `${pathStr}-${r.erpItemId}-${r.turnoCodigo || 'NA'}-${r.uniformeCodigo || 'NA'}-${r.cubreDescanso || 0}-${r.precioVentaUnitario || 0}`;
       if (!grupos[key]) {
         grupos[key] = {
           ...r,
+          _pathStr: pathStr,
           cantidadTotal: 0,
         };
       }
@@ -59,8 +66,7 @@ export function RecursosSummaryTable({ recursos, lblN1, lblN2, showN1, showN2 }:
     }
   };
 
-  const renderN1 = showN1 && (recursos || []).some(r => !!r._sitioNombre);
-  const renderN2 = showN2 && (recursos || []).some(r => !!r._puestoNombre);
+  const showPath = (recursos || []).some(r => r._path && r._path.length > 0);
 
   return (
     <div className="mt-8 border rounded-md overflow-hidden bg-white shadow-sm">
@@ -77,8 +83,7 @@ export function RecursosSummaryTable({ recursos, lblN1, lblN2, showN1, showN2 }:
           <table className="w-full text-sm text-left">
             <thead className="bg-slate-50 text-slate-500 border-b">
               <tr>
-                {renderN1 && <th className="py-2 px-3 font-medium">{lblN1 || 'Sitio'}</th>}
-                {renderN2 && <th className="py-2 px-3 font-medium">{lblN2 || 'Puesto'}</th>}
+                {showPath && <th className="py-2 px-3 font-medium">Ubicación</th>}
                 <th className="py-2 px-3 font-medium">Item / Descripción</th>
                 <th className="py-2 px-3 font-medium text-center">Cant.</th>
                 <th className="py-2 px-3 font-medium">Turno</th>
@@ -97,8 +102,7 @@ export function RecursosSummaryTable({ recursos, lblN1, lblN2, showN1, showN2 }:
 
                 return (
                   <tr key={i} className="border-b last:border-0 hover:bg-slate-50">
-                    {renderN1 && <td className="py-2 px-3 font-medium text-slate-700">{g._sitioNombre || '-'}</td>}
-                    {renderN2 && <td className="py-2 px-3 font-medium text-slate-700">{g._puestoNombre || '-'}</td>}
+                    {showPath && <td className="py-2 px-3 text-slate-600 text-xs">{g._pathStr || '-'}</td>}
                     <td className="py-2 px-3 font-medium text-slate-700">{g.nombre}</td>
                     <td className="py-2 px-3 text-center">{g.cantidadTotal}</td>
                     <td className="py-2 px-3 text-slate-600 text-xs">{turnoDesc}</td>

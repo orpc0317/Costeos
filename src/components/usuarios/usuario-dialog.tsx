@@ -170,17 +170,18 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="pt-2" noValidate>
-          {error && <div className="text-red-500 text-sm font-medium mb-4">{error}</div>}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList variant="line" className="mb-4">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col pt-2" noValidate>
+          {error && <div className="text-red-500 text-sm font-medium mb-4 shrink-0">{error}</div>}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
+            <TabsList variant="line" className="mb-4 shrink-0">
               <TabsTrigger value="general">
                 <Settings2 className="w-4 h-4 mr-2" />
                 General
               </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="general" className="outline-none mt-0">
+            <div className="flex-1 overflow-y-auto pr-2 pb-4">
+              <TabsContent value="general" className="outline-none mt-0">
               <div className="grid grid-cols-4 gap-x-6 gap-y-4">
                 {/* Nombre */}
                 <div className="space-y-1.5 col-span-4">
@@ -209,7 +210,7 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
                       }
                     }}
                   />
-                  {fieldErrors.nombre && <p className="text-xs text-red-500 mt-1">{fieldErrors.nombre}</p>}
+                  {fieldErrors.nombre && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.nombre}</p>}
                 </div>
 
                 {/* Email */}
@@ -244,7 +245,7 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
                       }
                     }}
                   />
-                  {fieldErrors.email && <p className="text-xs text-red-500 mt-1">{fieldErrors.email}</p>}
+                  {fieldErrors.email && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.email}</p>}
                 </div>
 
                 {/* Usuario ERP */}
@@ -275,7 +276,7 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
                       }
                     }}
                   />
-                  {fieldErrors.usuarioErp && <p className="text-xs text-red-500 mt-1">{fieldErrors.usuarioErp}</p>}
+                  {fieldErrors.usuarioErp && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.usuarioErp}</p>}
                 </div>
 
                 {/* Rol */}
@@ -287,7 +288,7 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
                     name="rol" 
                     value={rol}
                     onValueChange={(val) => {
-                      setRol(val)
+                      setRol(val || '')
                       setFieldErrors(prev => ({ ...prev, rol: '' }))
                     }}
                     required
@@ -306,20 +307,20 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
                       ))}
                     </SelectContent>
                   </Select>
-                  {fieldErrors.rol && <p className="text-xs text-red-500 mt-1">{fieldErrors.rol}</p>}
+                  {fieldErrors.rol && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.rol}</p>}
                 </div>
               </div>
             </TabsContent>
+            </div>
           </Tabs>
 
-          <div className="flex flex-row items-center justify-between mt-6 -mx-4 -mb-4 px-4 py-3 border-t bg-slate-50 sm:rounded-b-xl">
+          <div className="flex flex-row items-center justify-between mt-6 -mx-4 -mb-4 px-4 py-4 border-t bg-slate-50 sm:rounded-b-xl shrink-0">
             {mode === 'view' ? (
               <>
                 {usuario && (
                   <Button 
                     type="button" 
                     variant={usuario.activo ? "destructive" : "default"} 
-                    size="sm"
                     className="mr-auto"
                     disabled={isPendingToggle}
                     onClick={handleToggle}
@@ -341,7 +342,7 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
                   >
                     <History className="mr-2 h-4 w-4" /> Historial
                   </Button>
-                  <Button type="button" size="sm" onClick={() => setMode('edit')}>
+                  <Button type="button" onClick={() => setMode('edit')}>
                     <Pencil className="mr-2 h-4 w-4" /> Editar
                   </Button>
                 </div>
@@ -351,7 +352,6 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
                 <Button 
                   type="button" 
                   variant="outline"
-                  size="sm" 
                   onClick={() => {
                     if (mode === 'edit') {
                       setNombre(initialUsuario?.nombre ?? '')
@@ -368,7 +368,7 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
                 >
                   Cancelar
                 </Button>
-                <Button type="submit" size="sm" disabled={loading}>
+                <Button type="submit" disabled={loading}>
                   {loading ? 'Guardando...' : 'Guardar'}
                 </Button>
               </div>

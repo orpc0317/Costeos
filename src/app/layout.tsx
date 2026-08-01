@@ -26,7 +26,7 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${inter.variable} h-full`} suppressHydrationWarning>
       <body className="h-full">
-        <TooltipProvider delayDuration={300}>
+        <TooltipProvider delay={300}>
           {children}
           <Toaster
             position="top-right"

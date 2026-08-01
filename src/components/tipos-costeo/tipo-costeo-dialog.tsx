@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import { toast } from 'sonner'
-import { Settings2, Hash, Power, PowerOff, History, Pencil, Info, CalendarDays } from 'lucide-react'
+import { Settings2, Hash, Power, PowerOff, History, Pencil, Info, CalendarDays, CornerDownRight, Network, Building, MapPin, Briefcase, Users, Layers, Box, Component, Folder, ListTree, Tags, ChevronDown } from 'lucide-react'
 import { normalizeText } from '@/lib/utils/text'
 import { cn } from '@/lib/utils'
 import {
@@ -19,31 +19,47 @@ import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { SearchableSelect } from '@/components/ui/searchable-select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { NumericInput } from '@/components/ui/numeric-input'
 import { getEmpresasForUser } from '@/app/actions/erp'
 import { crearTipoCosteo, editarTipoCosteo, toggleActivo } from '@/app/actions/tipos-costeo'
 import type { TipoCosteoRow } from '@/lib/types/tipos-costeo'
 
-// ─── Props ────────────────────────────────────────────────────────────────────
+const PREDEFINED_COLORS = [
+  'bg-white text-slate-900 border-slate-200',
+  'bg-emerald-100 text-emerald-700 border-emerald-200',
+  'bg-amber-100 text-amber-700 border-amber-200',
+  'bg-rose-100 text-rose-700 border-rose-200',
+  'bg-purple-100 text-purple-700 border-purple-200',
+  'bg-indigo-100 text-indigo-700 border-indigo-200',
+  'bg-cyan-100 text-cyan-700 border-cyan-200',
+  'bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200',
+  'bg-orange-100 text-orange-700 border-orange-200',
+  'bg-teal-100 text-teal-700 border-teal-200',
+]
+
+const PREDEFINED_ICONS = [
+  'Building', 'MapPin', 'Briefcase', 'Users', 'Layers', 
+  'Box', 'Component', 'Folder', 'ListTree', 'Tags'
+]
+
+const ICON_COMPONENTS: Record<string, React.ElementType> = {
+  Building, MapPin, Briefcase, Users, Layers, 
+  Box, Component, Folder, ListTree, Tags, Network, Hash
+}
 
 interface TipoCosteoDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** Si viene tipoCosteo, es edición; si no, es creación */
   tipoCosteo?: TipoCosteoRow | null
 }
-
-// ─── Componente ───────────────────────────────────────────────────────────────
 
 export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoDialogProps) {
   const [historialOpen, setHistorialOpen] = useState(false)
 
-  // Congelamos el estado inicial al abrir el modal
   const [initialTipoCosteo, setInitialTipoCosteo] = useState(tipoCosteo)
-  
-  // mode: view (solo lectura), edit (edición), create (nuevo)
   const [mode, setMode] = useState<'view' | 'edit' | 'create'>(tipoCosteo ? 'view' : 'create')
-  
   const [isPendingToggle, startTransitionToggle] = useTransition()
 
   function handleToggle() {
@@ -74,11 +90,17 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
   const [empresaId, setEmpresaId] = useState(initialTipoCosteo?.empresaId?.toString() ?? '')
   const [codigo, setCodigo] = useState(initialTipoCosteo?.codigo ?? '')
   const [nombre, setNombre] = useState(initialTipoCosteo?.nombre ?? '')
-  const [nivel1Activo, setNivel1Activo] = useState(initialTipoCosteo?.nivel1Activo ?? false)
-  const [nivel1Etiqueta, setNivel1Etiqueta] = useState(initialTipoCosteo?.nivel1Etiqueta ?? '')
-  const [nivel1ConDireccion, setNivel1ConDireccion] = useState(initialTipoCosteo?.nivel1ConDireccion ?? false)
-  const [nivel2Activo, setNivel2Activo] = useState(initialTipoCosteo?.nivel2Activo ?? false)
-  const [nivel2Etiqueta, setNivel2Etiqueta] = useState(initialTipoCosteo?.nivel2Etiqueta ?? '')
+  const [cantidadNiveles, setCantidadNiveles] = useState(initialTipoCosteo?.cantidadNiveles ?? 2)
+  const [etiquetasNiveles, setEtiquetasNiveles] = useState<string[]>(
+    initialTipoCosteo?.etiquetasNiveles ? initialTipoCosteo.etiquetasNiveles.split(',') : ['NIVEL 1', 'NIVEL 2']
+  )
+  const [coloresNiveles, setColoresNiveles] = useState<string[]>(
+    initialTipoCosteo?.coloresNiveles ? initialTipoCosteo.coloresNiveles.split(',') : [PREDEFINED_COLORS[0], PREDEFINED_COLORS[1]]
+  )
+  const [iconosNiveles, setIconosNiveles] = useState<string[]>(
+    initialTipoCosteo?.iconosNiveles ? initialTipoCosteo.iconosNiveles.split(',') : [PREDEFINED_ICONS[0], PREDEFINED_ICONS[1]]
+  )
+  const [nivelConDireccion, setNivelConDireccion] = useState(initialTipoCosteo?.nivelConDireccion ?? 1)
   const [lineaEtiqueta, setLineaEtiqueta] = useState(initialTipoCosteo?.lineaEtiqueta ?? '')
   const [baseEvaluacion, setBaseEvaluacion] = useState<'GLOBAL'|'MENSUAL'>(initialTipoCosteo?.baseEvaluacion ?? 'GLOBAL')
   const [manejoPlazo, setManejoPlazo] = useState<'LIBRE'|'FIJO'|'NO_APLICA'>(initialTipoCosteo?.manejoPlazo ?? 'NO_APLICA')
@@ -103,11 +125,11 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
       setEmpresaId(tipoCosteo?.empresaId?.toString() ?? '')
       setCodigo(tipoCosteo?.codigo ?? '')
       setNombre(tipoCosteo?.nombre ?? '')
-      setNivel1Activo(tipoCosteo?.nivel1Activo ?? false)
-      setNivel1Etiqueta(tipoCosteo?.nivel1Etiqueta ?? '')
-      setNivel1ConDireccion(tipoCosteo?.nivel1ConDireccion ?? false)
-      setNivel2Activo(tipoCosteo?.nivel2Activo ?? false)
-      setNivel2Etiqueta(tipoCosteo?.nivel2Etiqueta ?? '')
+      setCantidadNiveles(tipoCosteo?.cantidadNiveles ?? 2)
+      setEtiquetasNiveles(tipoCosteo?.etiquetasNiveles ? tipoCosteo.etiquetasNiveles.split(',') : ['NIVEL 1', 'NIVEL 2'])
+      setColoresNiveles(tipoCosteo?.coloresNiveles ? tipoCosteo.coloresNiveles.split(',') : [PREDEFINED_COLORS[0], PREDEFINED_COLORS[0]])
+      setIconosNiveles(tipoCosteo?.iconosNiveles ? tipoCosteo.iconosNiveles.split(',') : [PREDEFINED_ICONS[0], PREDEFINED_ICONS[0]])
+      setNivelConDireccion(tipoCosteo?.nivelConDireccion ?? 1)
       setLineaEtiqueta(tipoCosteo?.lineaEtiqueta ?? '')
       setBaseEvaluacion(tipoCosteo?.baseEvaluacion ?? 'GLOBAL')
       setManejoPlazo(tipoCosteo?.manejoPlazo ?? 'NO_APLICA')
@@ -116,6 +138,33 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
       setFieldErrors({})
     }
   }, [open, tipoCosteo])
+
+  useEffect(() => {
+    setEtiquetasNiveles(prev => {
+      if (prev.length === cantidadNiveles) return prev
+      const newArray = [...prev]
+      while (newArray.length < cantidadNiveles) {
+        newArray.push(`NIVEL ${newArray.length + 1}`)
+      }
+      return newArray.slice(0, cantidadNiveles)
+    })
+    setColoresNiveles(prev => {
+      if (prev.length === cantidadNiveles) return prev
+      const newArray = [...prev]
+      while (newArray.length < cantidadNiveles) {
+        newArray.push(PREDEFINED_COLORS[0])
+      }
+      return newArray.slice(0, cantidadNiveles)
+    })
+    setIconosNiveles(prev => {
+      if (prev.length === cantidadNiveles) return prev
+      const newArray = [...prev]
+      while (newArray.length < cantidadNiveles) {
+        newArray.push(PREDEFINED_ICONS[0])
+      }
+      return newArray.slice(0, cantidadNiveles)
+    })
+  }, [cantidadNiveles])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -132,11 +181,11 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
     formData.append('empresaId', empresaId)
     formData.append('codigo', codigo)
     formData.append('nombre', nombre)
-    formData.append('nivel1Activo', String(nivel1Activo))
-    formData.append('nivel1Etiqueta', nivel1Etiqueta)
-    formData.append('nivel1ConDireccion', String(nivel1ConDireccion))
-    formData.append('nivel2Activo', String(nivel2Activo))
-    formData.append('nivel2Etiqueta', nivel2Etiqueta)
+    formData.append('cantidadNiveles', cantidadNiveles.toString())
+    formData.append('etiquetasNiveles', etiquetasNiveles.join(','))
+    formData.append('coloresNiveles', coloresNiveles.join(','))
+    formData.append('iconosNiveles', iconosNiveles.join(','))
+    formData.append('nivelConDireccion', nivelConDireccion.toString())
     formData.append('lineaEtiqueta', lineaEtiqueta)
     formData.append('baseEvaluacion', baseEvaluacion)
     formData.append('manejoPlazo', manejoPlazo)
@@ -156,7 +205,7 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
       if (result && !result.ok) {
         if (result.field) {
           const generalFields = ['empresaId', 'codigo', 'nombre', 'lineaEtiqueta']
-          const nivelesFields = ['nivel1Activo', 'nivel1Etiqueta', 'nivel1ConDireccion', 'nivel2Activo', 'nivel2Etiqueta']
+          const nivelesFields = ['cantidadNiveles', 'etiquetasNiveles', 'nivelConDireccion']
           const evaluacionFields = ['baseEvaluacion', 'manejoPlazo', 'fijarPlazo']
 
           if (generalFields.includes(result.field)) setActiveTab('general')
@@ -165,9 +214,7 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
 
           setTimeout(() => {
             let elementId = `tc-${result.field}`
-            if (result.field === 'nivel1Etiqueta') elementId = 'tc-n1-etiqueta'
-            if (result.field === 'nivel2Etiqueta') elementId = 'tc-n2-etiqueta'
-            if (result.field === 'lineaEtiqueta') elementId = 'tc-linea-etiqueta'
+            if (result.field === 'lineaEtiqueta') elementId = 'tc-linea'
 
             const el = document.getElementById(elementId) as HTMLInputElement | HTMLButtonElement
             if (el) {
@@ -199,10 +246,34 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
     }
   }
 
+  function handleUpdateEtiqueta(index: number, value: string) {
+    setEtiquetasNiveles(prev => {
+      const newArray = [...prev]
+      newArray[index] = value
+      return newArray
+    })
+  }
+
+  function handleUpdateColor(index: number, value: string) {
+    setColoresNiveles(prev => {
+      const newArray = [...prev]
+      newArray[index] = value
+      return newArray
+    })
+  }
+  
+  function handleUpdateIcon(index: number, value: string) {
+    setIconosNiveles(prev => {
+      const newArray = [...prev]
+      newArray[index] = value
+      return newArray
+    })
+  }
+
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] h-[520px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Hash className="w-5 h-5 text-slate-500" />
@@ -210,17 +281,17 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="pt-2" noValidate>
-          {error && <div className="text-red-500 text-sm font-medium mb-4">{error}</div>}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList variant="line" className="mb-4">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col" noValidate>
+          {error && <div className="text-red-500 text-sm font-medium mb-4 shrink-0">{error}</div>}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
+            <TabsList variant="line" className="mb-4 shrink-0">
               <TabsTrigger value="general">
                 <Settings2 className="w-4 h-4 mr-2" />
                 General
               </TabsTrigger>
               <TabsTrigger value="niveles">
-                <Hash className="w-4 h-4 mr-2" />
-                Niveles
+                <Network className="w-4 h-4 mr-2" />
+                Estructura
               </TabsTrigger>
               <TabsTrigger value="evaluacion">
                 <CalendarDays className="w-4 h-4 mr-2" />
@@ -228,7 +299,8 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
               </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="general" className="outline-none mt-0 min-h-[250px]">
+            <div className="flex-1 overflow-y-auto pr-2 pb-4">
+              <TabsContent value="general" className="outline-none mt-0">
               <div className="grid grid-cols-4 gap-x-6 gap-y-4">
                 
                 {/* Empresa */}
@@ -249,7 +321,7 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                       placeholder={cargandoEmpresas ? "Cargando..." : "Seleccionar empresa"}
                       disabled={mode === 'view' || mode === 'edit' || cargandoEmpresas}
                     />
-                    {fieldErrors.empresaId && <p className="text-xs text-red-500 mt-1">{fieldErrors.empresaId}</p>}
+                    {fieldErrors.empresaId && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.empresaId}</p>}
                   </div>
 
                 {/* Código */}
@@ -267,7 +339,7 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                       aria-invalid={!!fieldErrors.codigo}
                       className="bg-muted/50 font-mono text-sm uppercase"
                     />
-                    {fieldErrors.codigo && <p className="text-xs text-red-500 mt-1">{fieldErrors.codigo}</p>}
+                    {fieldErrors.codigo && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.codigo}</p>}
                   </div>
                 )}
 
@@ -297,7 +369,7 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                       }
                     }}
                   />
-                  {fieldErrors.nombre && <p className="text-xs text-red-500 mt-1">{fieldErrors.nombre}</p>}
+                  {fieldErrors.nombre && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.nombre}</p>}
                 </div>
 
                 {/* Línea Etiqueta */}
@@ -326,146 +398,171 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                       }
                     }}
                   />
-                  {fieldErrors.lineaEtiqueta && <p className="text-xs text-red-500 mt-1">{fieldErrors.lineaEtiqueta}</p>}
+                  {fieldErrors.lineaEtiqueta && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.lineaEtiqueta}</p>}
                 </div>
               </div>
             </TabsContent>
 
-            <TabsContent value="niveles" className="outline-none mt-0 min-h-[250px]">
-              {tipoCosteo?.enUso && (
-                <div className="mb-4 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-md flex items-start gap-3 text-sm">
-                  <Info className="w-5 h-5 flex-shrink-0 text-amber-600 mt-0.5" />
-                  <p>
-                    La activación de estos niveles no se puede modificar porque ya existen Costeos utilizando esta estructura. Sin embargo, puede modificar sus etiquetas.
-                  </p>
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-x-6 gap-y-6">
-                
-                {/* Nivel 1 */}
-                <div className="col-span-1 space-y-4 border p-4 rounded-md">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="tc-n1-activo" className="font-semibold">Nivel 1 Activo</Label>
-                    <Switch
-                      id="tc-n1-activo"
-                      checked={nivel1Activo}
-                      onCheckedChange={(checked) => {
-                        setNivel1Activo(checked)
-                        if (!checked) {
-                          setNivel1Etiqueta('')
-                          setNivel1ConDireccion(false)
-                        }
+            <TabsContent value="niveles" className="outline-none mt-0">
+
+              
+              <div className="space-y-3">
+                <div className="flex gap-4">
+                  <div className="space-y-1.5 w-1/4">
+                    <Label htmlFor="tc-cantidadNiveles">
+                      Cantidad Niveles
+                    </Label>
+                    <NumericInput
+                      id="tc-cantidadNiveles"
+                      value={cantidadNiveles}
+                      onChange={(val) => {
+                        setCantidadNiveles(val || 0)
                       }}
+                      isInteger={true}
+                      min="0"
+                      max="10"
                       disabled={mode === 'view' || !!tipoCosteo?.enUso}
+                      aria-invalid={!!fieldErrors.cantidadNiveles}
                     />
+                    {fieldErrors.cantidadNiveles && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.cantidadNiveles}</p>}
                   </div>
                   
-                  <div className="space-y-1.5">
-                    <Label htmlFor="tc-n1-etiqueta">
-                      Etiqueta Nivel 1
+                  <div className="space-y-1.5 w-1/4">
+                    <Label htmlFor="tc-nivelConDireccion">
+                      Nivel Con Dirección
                     </Label>
-                    <Input
-                      id="tc-n1-etiqueta"
-                      name="nivel1Etiqueta"
-                      placeholder="Ej: SITIO"
-                      value={nivel1Etiqueta}
-                      autoComplete="off"
-                      className="uppercase"
-                      disabled={mode === 'view' || !nivel1Activo}
-                      aria-invalid={!!fieldErrors.nivel1Etiqueta}
-                      data-view-mode={mode === 'view'}
-                      onChange={(e) => {
-                        setNivel1Etiqueta(normalizeText(e.target.value))
-                        e.target.setCustomValidity('')
-                        setFieldErrors(prev => ({ ...prev, nivel1Etiqueta: '' }))
+                    <NumericInput
+                      id="tc-nivelConDireccion"
+                      value={nivelConDireccion}
+                      onChange={(val) => {
+                        setNivelConDireccion(val || 0)
                       }}
-                    />
-                    {fieldErrors.nivel1Etiqueta && <p className="text-xs text-red-500 mt-1">{fieldErrors.nivel1Etiqueta}</p>}
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2">
-                    <Label htmlFor="tc-n1-dir">Con Dirección (Nivel 1)</Label>
-                    <Switch
-                      id="tc-n1-dir"
-                      checked={nivel1ConDireccion}
-                      onCheckedChange={setNivel1ConDireccion}
-                      disabled={mode === 'view' || !nivel1Activo}
-                    />
-                  </div>
-                </div>
-
-                {/* Nivel 2 */}
-                <div className="col-span-1 space-y-4 border p-4 rounded-md">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="tc-n2-activo" className="font-semibold">Nivel 2 Activo</Label>
-                    <Switch
-                      id="tc-n2-activo"
-                      checked={nivel2Activo}
-                      onCheckedChange={(checked) => {
-                        setNivel2Activo(checked)
-                        if (!checked) {
-                          setNivel2Etiqueta('')
-                        }
-                      }}
+                      isInteger={true}
+                      min="0"
+                      max={cantidadNiveles.toString()}
                       disabled={mode === 'view' || !!tipoCosteo?.enUso}
+                      aria-invalid={!!fieldErrors.nivelConDireccion}
                     />
-                  </div>
-                  
-                  <div className="space-y-1.5">
-                    <Label htmlFor="tc-n2-etiqueta">
-                      Etiqueta Nivel 2
-                    </Label>
-                    <Input
-                      id="tc-n2-etiqueta"
-                      name="nivel2Etiqueta"
-                      placeholder="Ej: PUESTO"
-                      value={nivel2Etiqueta}
-                      autoComplete="off"
-                      className="uppercase"
-                      disabled={mode === 'view' || !nivel2Activo}
-                      aria-invalid={!!fieldErrors.nivel2Etiqueta}
-                      data-view-mode={mode === 'view'}
-                      onChange={(e) => {
-                        setNivel2Etiqueta(normalizeText(e.target.value))
-                        e.target.setCustomValidity('')
-                        setFieldErrors(prev => ({ ...prev, nivel2Etiqueta: '' }))
-                      }}
-                    />
-                    {fieldErrors.nivel2Etiqueta && <p className="text-xs text-red-500 mt-1">{fieldErrors.nivel2Etiqueta}</p>}
+                    <p className="text-[11px] text-muted-foreground !mt-0.5 leading-none">0 = Ningún nivel maneja dirección</p>
+                    {fieldErrors.nivelConDireccion && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.nivelConDireccion}</p>}
                   </div>
                 </div>
 
+                {cantidadNiveles > 0 && (
+                  <div className="space-y-4">
+                    <Label className="text-base font-semibold border-b pb-2 block">Estructura Costeo</Label>
+                    <div className="h-[250px] overflow-y-auto pr-4 py-2 space-y-3 bg-slate-50/50 rounded-md border border-slate-100 p-4">
+                      {Array.from({ length: cantidadNiveles }).map((_, i) => (
+                        <div key={i} className="flex items-start">
+                          {i > 0 && (
+                            <div className="flex shrink-0 justify-end" style={{ marginLeft: `${(i - 1) * 32}px`, width: '32px' }}>
+                              <CornerDownRight className="w-5 h-5 text-slate-300 mt-2" />
+                            </div>
+                          )}
+                          <div className={cn(
+                            "flex flex-col gap-1.5 w-full", 
+                            i > 0 && "ml-2"
+                          )}>
+                            <Label htmlFor={`tc-etiqueta-nivel-${i}`} className="text-xs font-semibold text-slate-500 flex items-center justify-between">
+                              <span>Nivel {i + 1}</span>
+                              {nivelConDireccion === i + 1 && <span className="text-emerald-700 text-[10px] uppercase font-bold bg-emerald-100 px-2 py-0.5 rounded-full">Con Dirección</span>}
+                            </Label>
+                            <div className="flex items-center gap-2">
+                              {/* ICON DROPDOWN */}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger render={
+                                  <Button variant="outline" size="icon" className={cn("h-8 w-8 shrink-0", coloresNiveles[i])} disabled={mode === 'view'}>
+                                    {(() => {
+                                      const IconComp = ICON_COMPONENTS[iconosNiveles[i] || 'Hash'] || Hash
+                                      return <IconComp className="w-4 h-4" />
+                                    })()}
+                                  </Button>
+                                } />
+                                <DropdownMenuContent align="start" className="w-[200px]">
+                                  <div className="grid grid-cols-5 gap-1 p-1">
+                                    {PREDEFINED_ICONS.map((iconName) => {
+                                      const Icon = ICON_COMPONENTS[iconName]
+                                      return (
+                                        <Button
+                                          key={iconName}
+                                          type="button"
+                                          variant="ghost"
+                                          size="icon"
+                                          className={cn("h-8 w-8", iconosNiveles[i] === iconName && "bg-accent")}
+                                          onClick={() => handleUpdateIcon(i, iconName)}
+                                        >
+                                          <Icon className="w-4 h-4" />
+                                        </Button>
+                                      )
+                                    })}
+                                  </div>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+
+                              {/* COLOR DROPDOWN */}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger render={
+                                  <Button variant="outline" size="icon" className={cn("h-8 w-8 shrink-0 bg-white")} disabled={mode === 'view'}>
+                                    <div className={cn("w-4 h-4 rounded-full border", coloresNiveles[i])} />
+                                  </Button>
+                                } />
+                                <DropdownMenuContent align="start" className="w-[180px]">
+                                  <div className="grid grid-cols-5 gap-1 p-1">
+                                    {PREDEFINED_COLORS.map((colorClass, idx) => (
+                                      <Button
+                                        key={idx}
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className={cn("h-8 w-8", coloresNiveles[i] === colorClass && "ring-2 ring-ring")}
+                                        onClick={() => handleUpdateColor(i, colorClass)}
+                                      >
+                                        <div className={cn("w-5 h-5 rounded-full border", colorClass)} />
+                                      </Button>
+                                    ))}
+                                  </div>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+
+                              <Input
+                                id={`tc-etiqueta-nivel-${i}`}
+                                placeholder={`NIVEL ${i + 1}`}
+                                value={etiquetasNiveles[i] || ''}
+                                onChange={(e) => handleUpdateEtiqueta(i, normalizeText(e.target.value))}
+                                disabled={mode === 'view'}
+                                className={cn("uppercase h-8 text-sm flex-1 font-bold", coloresNiveles[i])}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </TabsContent>
 
-            <TabsContent value="evaluacion" className="outline-none mt-0 min-h-[250px]">
-              <div className="space-y-6">
-                <div className="space-y-3">
+            <TabsContent value="evaluacion" className="outline-none mt-0">
+              <div className="space-y-4">
+                <div className="space-y-1.5">
                   <Label className="text-base font-semibold">Base Evaluación Financiera</Label>
                   <p className="text-sm text-slate-500">
                     Define la temporalidad sobre la cual se consolidarán y evaluarán las ventas y los costos de los contratos asociados a este Tipo de Costeo.
                   </p>
                 </div>
                 
-                {tipoCosteo?.enUso && (
-                  <div className="mb-4 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-md flex items-start gap-3 text-sm">
-                    <Info className="w-5 h-5 flex-shrink-0 text-amber-600 mt-0.5" />
-                    <p>
-                      La base de evaluación no se puede modificar porque ya existen Costeos utilizando esta configuración.
-                    </p>
-                  </div>
-                )}
+
 
                 <RadioGroup 
                   value={baseEvaluacion} 
                   onValueChange={(val: 'GLOBAL' | 'MENSUAL') => setBaseEvaluacion(val)}
                   disabled={mode === 'view' || !!tipoCosteo?.enUso}
-                  className="flex flex-col gap-3"
+                  className="flex flex-col gap-2"
                 >
                   <div
                     onClick={() => { if (mode !== 'view' && !tipoCosteo?.enUso) setBaseEvaluacion('GLOBAL') }}
                     className={cn(
-                      "flex flex-row items-center space-x-3 rounded-md border-2 p-3 cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors",
+                      "flex flex-row items-center space-x-3 rounded-md border p-2 cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors",
                       baseEvaluacion === 'GLOBAL' ? "border-indigo-600 bg-indigo-50/50" : "border-muted bg-popover",
                       (mode === 'view' || tipoCosteo?.enUso) && "opacity-50 cursor-not-allowed"
                     )}
@@ -473,10 +570,10 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                     <RadioGroupItem value="GLOBAL" id="eval-global" />
                     <Label
                       htmlFor="eval-global"
-                      className="flex-1 cursor-pointer pointer-events-none grid grid-cols-1 sm:grid-cols-[130px_1fr] gap-1 sm:gap-4 sm:items-center"
+                      className="flex-1 cursor-pointer pointer-events-none grid grid-cols-1 sm:grid-cols-[130px_1fr] gap-1 sm:gap-2 sm:items-center"
                     >
                       <span className="font-semibold text-sm">Plazo Completo</span>
-                      <span className="text-sm text-slate-500 font-normal leading-tight">
+                      <span className="text-xs text-slate-500 font-normal leading-tight">
                         Suma los totales de las ventas y los costos durante toda la vida del contrato.
                       </span>
                     </Label>
@@ -485,7 +582,7 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                   <div
                     onClick={() => { if (mode !== 'view' && !tipoCosteo?.enUso) setBaseEvaluacion('MENSUAL') }}
                     className={cn(
-                      "flex flex-row items-center space-x-3 rounded-md border-2 p-3 cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors",
+                      "flex flex-row items-center space-x-3 rounded-md border p-2 cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors",
                       baseEvaluacion === 'MENSUAL' ? "border-indigo-600 bg-indigo-50/50" : "border-muted bg-popover",
                       (mode === 'view' || tipoCosteo?.enUso) && "opacity-50 cursor-not-allowed"
                     )}
@@ -493,17 +590,17 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                     <RadioGroupItem value="MENSUAL" id="eval-mensual" />
                     <Label
                       htmlFor="eval-mensual"
-                      className="flex-1 cursor-pointer pointer-events-none grid grid-cols-1 sm:grid-cols-[130px_1fr] gap-1 sm:gap-4 sm:items-center"
+                      className="flex-1 cursor-pointer pointer-events-none grid grid-cols-1 sm:grid-cols-[130px_1fr] gap-1 sm:gap-2 sm:items-center"
                     >
                       <span className="font-semibold text-sm">Mensual</span>
-                      <span className="text-sm text-slate-500 font-normal leading-tight">
+                      <span className="text-xs text-slate-500 font-normal leading-tight">
                         Todas las ventas y los costos se mensualizan y la evaluación se hace mensual.
                       </span>
                     </Label>
                   </div>
                 </RadioGroup>
 
-                <div className="space-y-4 pt-6 border-t mt-6">
+                <div className="space-y-3 pt-4 border-t mt-4">
                   <div>
                     <Label className="text-base font-semibold">Manejo Plazo</Label>
                     <p className="text-sm text-slate-500 mb-3">
@@ -511,22 +608,28 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="flex flex-col gap-1.5 justify-end">
-                        <SearchableSelect
-                          id="tc-manejoPlazo"
-                          value={manejoPlazo}
-                          onChange={(val) => setManejoPlazo(val as 'LIBRE'|'FIJO'|'NO_APLICA')}
-                          options={[
-                            { value: 'NO_APLICA', label: 'No Aplica' },
-                            { value: 'LIBRE', label: 'Libre (Editable al crear)' },
-                            { value: 'FIJO', label: 'Fijo (Forzado a X meses)' }
-                          ]}
+                        <Select 
+                          value={manejoPlazo} 
+                          onValueChange={(val) => setManejoPlazo(val as 'LIBRE'|'FIJO'|'NO_APLICA')}
                           disabled={mode === 'view'}
-                          placeholder="Seleccione el manejo..."
-                        />
+                        >
+                          <SelectTrigger id="tc-manejoPlazo" className="w-full h-10 bg-white">
+                            <SelectValue placeholder="Seleccione el manejo...">
+                              {manejoPlazo === 'NO_APLICA' && 'No Aplica'}
+                              {manejoPlazo === 'LIBRE' && 'Libre (Editable al crear)'}
+                              {manejoPlazo === 'FIJO' && 'Fijo (Forzado a X meses)'}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="NO_APLICA">No Aplica</SelectItem>
+                            <SelectItem value="LIBRE">Libre (Editable al crear)</SelectItem>
+                            <SelectItem value="FIJO">Fijo (Forzado a X meses)</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       
                       {manejoPlazo === 'FIJO' && (
-                        <div className="flex flex-col w-full">
+                        <div className="flex flex-col w-full justify-end">
                           <div className="flex flex-row items-center gap-3 animate-in fade-in slide-in-from-left-2">
                             <Label htmlFor="tc-fijar-plazo" className="text-sm font-semibold whitespace-nowrap">Meses Fijos</Label>
                             <NumericInput
@@ -539,28 +642,28 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                               isInteger={true}
                               disabled={mode === 'view'}
                               aria-invalid={!!fieldErrors.fijarPlazo}
-                              className="w-full"
+                              className="w-full h-10"
                               placeholder="Cantidad de meses..."
                             />
                           </div>
-                          {fieldErrors.fijarPlazo && <p className="text-xs text-red-500 mt-1 ml-[100px]">{fieldErrors.fijarPlazo}</p>}
+                          {fieldErrors.fijarPlazo && <p className="text-xs text-red-500 !mt-0.5 leading-none ml-[100px]">{fieldErrors.fijarPlazo}</p>}
                         </div>
                       )}
                     </div>
                   </div>
                 </div>
               </div>
-            </TabsContent>
+              </TabsContent>
+            </div>
           </Tabs>
 
-          <div className="flex flex-row items-center justify-between mt-6 -mx-4 -mb-4 px-4 py-3 border-t bg-slate-50 sm:rounded-b-xl">
+          <div className="flex flex-row items-center justify-between mt-6 -mx-4 -mb-4 px-4 py-4 border-t bg-slate-50 sm:rounded-b-xl shrink-0">
             {mode === 'view' ? (
               <>
                 {tipoCosteo && (
                   <Button 
                     type="button" 
                     variant={tipoCosteo.activo ? "destructive" : "default"} 
-                    size="sm"
                     className="mr-auto"
                     disabled={isPendingToggle}
                     onClick={handleToggle}
@@ -576,47 +679,58 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                   <Button 
                     type="button" 
                     variant="outline" 
-                    size="sm"
                     className="bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 hover:text-sky-800"
                     onClick={() => setHistorialOpen(true)}
                   >
                     <History className="mr-2 h-4 w-4" /> Historial
                   </Button>
-                  <Button type="button" size="sm" onClick={() => setMode('edit')}>
+                  <Button type="button" onClick={() => setMode('edit')}>
                     <Pencil className="mr-2 h-4 w-4" /> Editar
                   </Button>
                 </div>
               </>
             ) : (
-              <div className="flex gap-2 justify-end w-full">
-                <Button 
-                  type="button" 
-                  variant="outline"
-                  size="sm" 
-                  onClick={() => {
-                    if (mode === 'edit') {
-                      setEmpresaId(initialTipoCosteo?.empresaId?.toString() ?? '')
-                      setCodigo(initialTipoCosteo?.codigo ?? '')
-                      setNombre(initialTipoCosteo?.nombre ?? '')
-                      setNivel1Activo(initialTipoCosteo?.nivel1Activo ?? false)
-                      setNivel1Etiqueta(initialTipoCosteo?.nivel1Etiqueta ?? '')
-                      setNivel1ConDireccion(initialTipoCosteo?.nivel1ConDireccion ?? false)
-                      setNivel2Activo(initialTipoCosteo?.nivel2Activo ?? false)
-                      setNivel2Etiqueta(initialTipoCosteo?.nivel2Etiqueta ?? '')
-                      setLineaEtiqueta(initialTipoCosteo?.lineaEtiqueta ?? '')
-                      setError(null)
-                      setMode('view')
-                    } else {
-                      onOpenChange(false)
-                    }
-                  }} 
-                  disabled={loading}
-                >
-                  Cancelar
-                </Button>
-                <Button type="submit" size="sm" disabled={loading}>
-                  {loading ? 'Guardando...' : 'Guardar'}
-                </Button>
+              <div className="flex items-center justify-between w-full">
+                <div className="flex-1">
+                  {mode === 'edit' && tipoCosteo?.enUso && (
+                    <p className="text-[11px] text-amber-700 font-medium flex items-center gap-1.5">
+                      <Info className="w-3.5 h-3.5" />
+                      Estructura y Evaluación bloqueadas (en uso).
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-2 justify-end shrink-0">
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    onClick={() => {
+                      if (mode === 'edit') {
+                        setEmpresaId(initialTipoCosteo?.empresaId?.toString() ?? '')
+                        setCodigo(initialTipoCosteo?.codigo ?? '')
+                        setNombre(initialTipoCosteo?.nombre ?? '')
+                        setCantidadNiveles(initialTipoCosteo?.cantidadNiveles ?? 2)
+                        setEtiquetasNiveles(initialTipoCosteo?.etiquetasNiveles ? initialTipoCosteo.etiquetasNiveles.split(',') : ['NIVEL 1', 'NIVEL 2'])
+                        setColoresNiveles(initialTipoCosteo?.coloresNiveles ? initialTipoCosteo.coloresNiveles.split(',') : [PREDEFINED_COLORS[0], PREDEFINED_COLORS[0]])
+                        setIconosNiveles(initialTipoCosteo?.iconosNiveles ? initialTipoCosteo.iconosNiveles.split(',') : [PREDEFINED_ICONS[0], PREDEFINED_ICONS[0]])
+                        setNivelConDireccion(initialTipoCosteo?.nivelConDireccion ?? 1)
+                        setLineaEtiqueta(initialTipoCosteo?.lineaEtiqueta ?? '')
+                        setBaseEvaluacion(initialTipoCosteo?.baseEvaluacion ?? 'GLOBAL')
+                        setManejoPlazo(initialTipoCosteo?.manejoPlazo ?? 'NO_APLICA')
+                        setFijarPlazo(initialTipoCosteo?.fijarPlazo ?? 0)
+                        setError(null)
+                        setMode('view')
+                      } else {
+                        onOpenChange(false)
+                      }
+                    }} 
+                    disabled={loading}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={loading}>
+                    {loading ? 'Guardando...' : 'Guardar'}
+                  </Button>
+                </div>
               </div>
             )}
           </div>

@@ -43,4 +43,7 @@ export type {
   ItemFiltros,
   ClienteFiltros,
   ContratoAprobadoPayload,
+  ErpEmpresa,
+  ErpDepartamento,
+  ErpMunicipio,
 } from './types'

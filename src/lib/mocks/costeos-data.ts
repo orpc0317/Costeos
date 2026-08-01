@@ -34,6 +34,7 @@ export const mockRecetasCatalogo: RecetaCatalogo[] = [
 
 export const mockProyectoInicial: ProyectoCosteo = {
   id: 'PROY-001',
+  empresaId: 1,
   cliente: {
     id: 'CLI-123',
     razonSocial: 'Corporación Ejemplo S.A.',
@@ -47,23 +48,36 @@ export const mockProyectoInicial: ProyectoCosteo = {
   estado: 'BORRADOR',
   porcentajeOverhead: 5,
   porcentajeContingencia: 2,
-  sitios: [
+  tipoCosteo: {
+    id: 1,
+    nombre: 'Costeo Estandar',
+    cantidadNiveles: 2,
+    etiquetasNiveles: 'Sitio,Puesto',
+    nivelConDireccion: 1,
+    lineaEtiqueta: 'Líneas',
+    baseEvaluacion: 'GLOBAL',
+    manejoPlazo: 'LIBRE',
+    fijarPlazo: 0,
+  },
+  nodos: [
     {
       id: 'SIT-001',
       nombre: 'Oficinas Centrales',
+      nivel: 1,
       direccion: 'Zona 10',
       pais: 'Guatemala',
       departamento: 'Guatemala',
       municipio: 'Guatemala',
-      recursosSinPuesto: [],
-      puestos: [
+      nodos: [
         {
           id: 'PUE-001',
           nombre: 'Garita Principal',
+          nivel: 2,
+          nodos: [],
           recursos: [
             {
               id: 'REC-001',
-              erpItemId: 10,
+              erpItemId: '10',
               nombre: 'Guardia Estándar 12h',
               categoria: 'RECURSO_HUMANO',
               tipoCosto: 'MENSUAL',
@@ -85,7 +99,9 @@ export const mockProyectoInicial: ProyectoCosteo = {
             }
           ]
         }
-      ]
+      ],
+      recursos: []
     }
-  ]
+  ],
+  recursos: []
 };

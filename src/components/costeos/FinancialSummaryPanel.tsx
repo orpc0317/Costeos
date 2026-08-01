@@ -5,6 +5,7 @@ import { useCosteo } from '@/lib/context/CosteoContext';
 import { TrendingUp, DollarSign, PieChart, Activity, CalendarClock } from 'lucide-react';
 
 import { calcularResumenFinanciero } from '@/lib/utils/financial-calculations';
+import { NodoCosteo } from '@/lib/types/costeos';
 
 export default function FinancialSummaryPanel() {
   const { proyecto, selectedNode } = useCosteo();
@@ -16,7 +17,6 @@ export default function FinancialSummaryPanel() {
 
   if (!proyecto) return null;
 
-  // Calculamos el resumen en tiempo real dependiendo del nodo seleccionado
   const resumen = calcularResumenFinanciero(proyecto, selectedNode || undefined);
 
   const formatNumber = (value: number) => {
@@ -35,49 +35,46 @@ export default function FinancialSummaryPanel() {
     }).format(value / 100);
   };
 
-  // Determinar divisor matemático según viewMode
   const plazo = Math.max(1, proyecto.plazoMeses || 1);
   let divisor = 1;
   if (viewMode === 'MENSUAL') divisor = plazo;
   else if (viewMode === 'ANUAL') divisor = plazo / 12;
   
-  // Valores a mostrar (extrapolados o interpolados matemáticamente)
   const dispVenta = resumen.totalVentaProyecto / divisor;
   const dispCosto = resumen.totalCostoProyecto / divisor;
   const dispMargen = dispVenta - dispCosto;
   const dispGrossMargin = dispVenta > 0 ? (dispMargen / dispVenta) * 100 : 0;
 
-  // Determinar el título según la selección
   let contextTitle = "Proyecto Completo";
   if (selectedNode) {
     if (selectedNode.type === 'PROYECTO') {
       contextTitle = proyecto.nombreProyecto || "Proyecto Completo";
-    } else if (selectedNode.type === 'SITIO') {
-      const sitio = proyecto.sitios.find(s => s.id === selectedNode.id);
-      if (sitio) contextTitle = sitio.nombre || "Sitio";
-    } else if (selectedNode.type === 'PUESTO') {
-      for (const sitio of proyecto.sitios) {
-        const puesto = sitio.puestos.find(p => p.id === selectedNode.id);
-        if (puesto) {
-          contextTitle = puesto.nombre || "Puesto";
-          break;
+    } else if (selectedNode.type === 'NODO') {
+      const findNodo = (nodos: NodoCosteo[], id: string): NodoCosteo | null => {
+        for (const n of nodos) {
+          if (n.id === id) return n;
+          const found = findNodo(n.nodos, id);
+          if (found) return found;
         }
-      }
+        return null;
+      };
+      const nodo = findNodo(proyecto.nodos, selectedNode.id);
+      if (nodo) contextTitle = nodo.nombre || "Nodo";
     } else if (selectedNode.type === 'RECURSO') {
-      for (const sitio of proyecto.sitios) {
-        let recurso = sitio.recursosSinPuesto.find(r => r.id === selectedNode.id);
-        if (recurso) {
-          contextTitle = recurso.nombre || "Ítem";
-          break;
-        }
-        for (const puesto of sitio.puestos) {
-          recurso = puesto.recursos.find(r => r.id === selectedNode.id);
-          if (recurso) {
-            contextTitle = recurso.nombre || "Ítem";
-            break;
+      const rRoot = proyecto.recursos.find(r => r.id === selectedNode.id);
+      if (rRoot) contextTitle = rRoot.nombre || "Ítem";
+      else {
+        const findRecurso = (nodos: NodoCosteo[], id: string): string | null => {
+          for (const n of nodos) {
+            const r = n.recursos.find(rec => rec.id === id);
+            if (r) return r.nombre;
+            const found = findRecurso(n.nodos, id);
+            if (found) return found;
           }
-        }
-        if (contextTitle !== "Proyecto Completo") break;
+          return null;
+        };
+        const recNombre = findRecurso(proyecto.nodos, selectedNode.id);
+        if (recNombre) contextTitle = recNombre || "Ítem";
       }
     }
   }
@@ -97,7 +94,6 @@ export default function FinancialSummaryPanel() {
           </div>
         </div>
         
-        {/* Toggle de Vista */}
         <div className="mt-4 flex bg-slate-100 p-1 rounded-lg">
           <button
             onClick={() => setViewMode('MENSUAL')}
@@ -122,7 +118,6 @@ export default function FinancialSummaryPanel() {
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         
-        {/* Categoría: Margen */}
         <div className="bg-white rounded-xl border shadow-sm overflow-hidden mb-4">
           <div className="bg-slate-50 px-3 py-2 border-b">
             <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
@@ -154,7 +149,6 @@ export default function FinancialSummaryPanel() {
           </div>
         </div>
 
-        {/* Categoría: Operativos */}
         <div className="bg-white rounded-xl border shadow-sm overflow-hidden mb-4">
           <div className="bg-slate-50 px-3 py-2 border-b">
             <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
@@ -180,7 +174,6 @@ export default function FinancialSummaryPanel() {
           </div>
         </div>
 
-        {/* Desglose Mensual vs Único */}
         <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
           <div className="bg-slate-50 px-4 py-2 border-b">
             <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
@@ -204,7 +197,6 @@ export default function FinancialSummaryPanel() {
           </div>
         </div>
 
-        {/* Desglose por Categoría */}
         <div className="bg-white rounded-xl border shadow-sm overflow-hidden mb-6">
           <div className="bg-slate-50 px-4 py-2 border-b">
             <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">

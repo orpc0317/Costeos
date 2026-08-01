@@ -317,7 +317,7 @@ export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
 
                 <div className="space-y-2">
                   <Label htmlFor="monedaSelect">Moneda</Label>
-                  <Select value={moneda} onValueChange={setMoneda}>
+                  <Select value={moneda} onValueChange={(v) => v && setMoneda(v)}>
                     <SelectTrigger id="monedaSelect">
                       <SelectValue placeholder="Moneda" />
                     </SelectTrigger>

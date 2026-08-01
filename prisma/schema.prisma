@@ -88,96 +88,74 @@ model Contrato {
   cliente   Cliente  @relation(fields: [clienteId], references: [id])
   creador   Usuario  @relation("ContratoCreador", fields: [creadoPor], references: [id])
   aprobador Usuario? @relation("ContratoAprobador", fields: [aprobadoPor], references: [id])
-  sitios    Sitio[]
+  nodos     Nodo[]
   costeo    Costeo?
 
   @@map("costeos_contrato")
 }
 
-// ─── SITIOS ───────────────────────────────────────────────────────────────────
+// ─── NODOS (N-NIVELES) ────────────────────────────────────────────────────────
 //
-// Ubicaciones físicas donde se prestará el servicio.
-// Ej: "Oficinas Centrales", "Bodega Zona 4", "La Formuladora"
+// Un nodo genérico que representa cualquier nivel de la jerarquía
+// (ej. Sitio, Edificio, Piso, Puesto, Área).
 
-model Sitio {
-  id           Int      @id @default(autoincrement())
-  contratoId   Int      @map("contrato_id")
-  codigo       String?  @db.VarChar(20)
-  nombre       String   @db.VarChar(200)
-  direccion    String?  @db.VarChar(500)
-  pais         String?  @db.VarChar(100)
-  departamento String?  @db.VarChar(100)
-  municipio    String?  @db.VarChar(100)
-  latitud      Decimal? @db.Decimal(10, 7)
-  longitud     Decimal? @db.Decimal(10, 7)
+model Nodo {
+  id             Int      @id @default(autoincrement())
+  contratoId     Int      @map("contrato_id")
+  parentId       Int?     @map("parent_id")
+  nivel          Int      @default(1)
+  codigo         String?  @db.VarChar(20)
+  nombre         String   @db.VarChar(200)
 
-  contrato Contrato @relation(fields: [contratoId], references: [id], onDelete: Cascade)
-  puestos  Puesto[]
+  // Ubicación (opcional, aplicable según configuración de TipoCosteo)
+  direccion      String?  @db.VarChar(500)
+  pais           String?  @db.VarChar(100)
+  departamento   String?  @db.VarChar(100)
+  municipio      String?  @db.VarChar(100)
+  latitud        Decimal? @db.Decimal(10, 7)
+  longitud       Decimal? @db.Decimal(10, 7)
 
-  @@map("costeos_sitio")
+  // Cobertura/Operación (opcional)
+  diasCobertura  String?  @map("dias_cobertura") @db.VarChar(100) // Ej: "LUN-VIE"
+  horaInicio     String?  @map("hora_inicio") @db.VarChar(5) // "06:00"
+  horaFin        String?  @map("hora_fin") @db.VarChar(5) // "18:00"
+  personas       Int      @default(1)
+  horasSemana    Int      @default(0) @map("horas_semana")
+  turnoCodigo    Int?     @map("turno_codigo")
+  uniformeCodigo String?  @map("uniforme_codigo") @db.VarChar(50)
+  cubreDescanso  Int      @default(0) @map("cubre_descanso")
+
+  contrato       Contrato @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+  parent         Nodo?    @relation("JerarquiaNodos", fields: [parentId], references: [id], onDelete: Cascade)
+  children       Nodo[]   @relation("JerarquiaNodos")
+  recursos       NodoRecurso[]
+
+  @@map("costeos_nodo")
 }
 
-// ─── PUESTOS ──────────────────────────────────────────────────────────────────
+// ─── RECURSOS EN NODO ─────────────────────────────────────────────────────────
 //
-// Posiciones dentro de un Sitio donde estará el personal o equipo.
-// Ej: "Garita", "Puerta Principal", "Parqueo"
-// Los puestos tienen cobertura por días y horario.
+// Items del ERP asignados a un Nodo (las "Hojas" del árbol).
 
-model Puesto {
-  id             Int     @id @default(autoincrement())
-  sitioId        Int     @map("sitio_id")
-  codigo         String? @db.VarChar(20)
-  nombre         String  @db.VarChar(200) // texto libre
-  diasCobertura  String  @map("dias_cobertura") @db.VarChar(100)
-  // Ej: "LUN-VIE", "LUN-DOM", "MAR,JUE,SAB"
-  horaInicio     String  @map("hora_inicio") @db.VarChar(5) // "06:00"
-  horaFin        String  @map("hora_fin") @db.VarChar(5) // "18:00"
-  personas       Int     @default(1)
-  horasSemana    Int     @default(0) @map("horas_semana")
-  turnoCodigo    Int?    @map("turno_codigo")
-  uniformeCodigo String? @map("uniforme_codigo") @db.VarChar(50)
-  cubreDescanso  Int     @default(0) @map("cubre_descanso")
-
-  sitio    Sitio           @relation(fields: [sitioId], references: [id], onDelete: Cascade)
-  recursos PuestoRecurso[]
-
-  @@map("costeos_puesto")
-}
-
-// ─── RECURSOS EN PUESTO ───────────────────────────────────────────────────────
-//
-// Items del ERP asignados a un Puesto.
-// Tipos: RECURSO_HUMANO | EQUIPO | ARTICULO | SERVICIO
-//
-// Ciclo de vida de costos:
-//   BORRADOR → costo_unitario_erp = null (se refresca del ERP al abrir)
-//   APROBADO → costo_unitario_erp = precio congelado al momento de aprobar
-//
-// Precio de venta:
-//   LISTA  → viene del ERP (precio_venta en ErpItem)
-//   MANUAL → ingresado por el usuario
-
-model PuestoRecurso {
+model NodoRecurso {
   id                Int       @id @default(autoincrement())
-  puestoId          Int       @map("puesto_id")
+  nodoId            Int       @map("nodo_id")
   erpItemId         String    @map("erp_item_id") @db.VarChar(50) // ID o Código del item en ERP
   itemNombre        String    @map("item_nombre") @db.VarChar(200) // snapshot
   itemTipo          String    @map("item_tipo") @db.VarChar(30)
-  // RECURSO_HUMANO | EQUIPO | ARTICULO | SERVICIO
   itemCategoria     String    @map("item_categoria") @db.VarChar(100) // ej: "SALARIOS"
   itemTipoCosto     String    @map("item_tipo_costo") @db.VarChar(10) // MENSUAL | UNICO
   cantidad          Int       @default(1)
   costoUnitarioErp  Decimal?  @map("costo_unitario_erp") @db.Decimal(18, 4) // null en BORRADOR
   precioVenta       Decimal?  @map("precio_venta") @db.Decimal(18, 2)
   precioVentaOrigen String    @default("LISTA") @map("precio_venta_origen") @db.VarChar(10)
-  // LISTA | MANUAL
   congeladoEn       DateTime? @map("congelado_en") // null en BORRADOR
   orden             Int       @default(0)
 
-  puesto     Puesto       @relation(fields: [puestoId], references: [id], onDelete: Cascade)
+  nodo       Nodo         @relation(fields: [nodoId], references: [id], onDelete: Cascade)
   recetaSnap RecetaSnap[]
 
-  @@map("costeos_puesto_recurso")
+  @@map("costeos_nodo_recurso")
 }
 
 // ─── SNAPSHOT DE RECETA ───────────────────────────────────────────────────────
@@ -190,7 +168,7 @@ model PuestoRecurso {
 
 model RecetaSnap {
   id              Int     @id @default(autoincrement())
-  puestoRecursoId Int     @map("puesto_recurso_id")
+  nodoRecursoId   Int     @map("nodo_recurso_id")
   nivel           Int // 1, 2, 3, 4 (profundidad dentro de la receta)
   erpItemId       String  @map("erp_item_id") @db.VarChar(50)
   itemNombre      String  @map("item_nombre") @db.VarChar(200)
@@ -202,7 +180,7 @@ model RecetaSnap {
   esOpcional      Boolean @default(false) @map("es_opcional")
   fueEliminado    Boolean @default(false) @map("fue_eliminado") // el usuario lo quitó
 
-  puestoRecurso PuestoRecurso @relation(fields: [puestoRecursoId], references: [id], onDelete: Cascade)
+  nodoRecurso NodoRecurso @relation(fields: [nodoRecursoId], references: [id], onDelete: Cascade)
 
   @@map("costeos_receta_snap")
 }
@@ -319,11 +297,11 @@ model TipoCosteo {
   empresaId          Int      @default(1) @map("empresa_id")
   codigo             String   @db.VarChar(20)
   nombre             String   @db.VarChar(200)
-  nivel1Activo       Boolean  @default(true) @map("nivel1_activo")
-  nivel1Etiqueta     String?  @map("nivel1_etiqueta") @db.VarChar(50) // ej: "Sitio"
-  nivel1ConDireccion Boolean  @default(false) @map("nivel1_con_direccion")
-  nivel2Activo       Boolean  @default(true) @map("nivel2_activo")
-  nivel2Etiqueta     String?  @map("nivel2_etiqueta") @db.VarChar(50) // ej: "Puesto"
+  cantidadNiveles    Int      @default(2) @map("cantidad_niveles")
+  etiquetasNiveles   String?  @map("etiquetas_niveles") @db.VarChar(200) // ej: "Sitio,Puesto"
+  coloresNiveles     String?  @map("colores_niveles") @db.VarChar(200)
+  iconosNiveles      String?  @map("iconos_niveles") @db.VarChar(200)
+  nivelConDireccion  Int?     @default(1) @map("nivel_con_direccion")
   lineaEtiqueta      String         @default("Línea") @map("linea_etiqueta") @db.VarChar(50)
   baseEvaluacion     BaseEvaluacion @default(GLOBAL) @map("base_evaluacion")
   manejoPlazo        String         @default("NO_APLICA") @map("manejo_plazo") @db.VarChar(20)

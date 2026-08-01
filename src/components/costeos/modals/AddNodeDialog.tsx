@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useCosteo } from '@/lib/context/CosteoContext';
-import { SitioCosteo, RecursoCosteo, PuestoCosteo } from '@/lib/types/costeos';
+import { NodoCosteo, RecursoCosteo } from '@/lib/types/costeos';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -22,17 +22,16 @@ import { TurnoCard } from '../TurnoCard';
 import { ErpItem } from '@/lib/erp/types';
 
 export interface AddNodeDialogProps {
-  level: 1 | 2 | 3;
-  sitioId?: string;
-  puestoId?: string | null;
+  level: number;
+  parentId: string | null;
   parentName?: string;
 }
 
-export function AddNodeDialog({ level, sitioId, puestoId, parentName }: AddNodeDialogProps) {
+export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProps) {
   const { proyecto, dispatch } = useCosteo();
   const [open, setOpen] = useState(false);
   
-  // Estado para Nivel 1
+  // Estado para Nivel
   const [nombre, setNombre] = useState('');
   const [direccion, setDireccion] = useState('');
   const [departamento, setDepartamento] = useState('');
@@ -69,15 +68,15 @@ export function AddNodeDialog({ level, sitioId, puestoId, parentName }: AddNodeD
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const tc = proyecto?.tipoCosteo;
-  const hasN1 = tc?.nivel1Activo ?? true;
-  const lblN1 = tc?.nivel1Etiqueta || 'Sitio';
-  const lblN2 = tc?.nivel2Etiqueta || 'Puesto';
+  const maxNiveles = tc?.cantidadNiveles ?? 2;
+  const etiquetas = tc?.etiquetasNiveles?.split(',') || ['Sitio', 'Puesto'];
+  const lblN = etiquetas[level - 1] || 'Nodo';
   const lblR = tc?.lineaEtiqueta || 'Línea';
   
-  const isLineLevel = level === 3;
-  const hasDireccion = level === 1 && (tc?.nivel1ConDireccion ?? true);
+  const isLineLevel = level > maxNiveles;
+  const hasDireccion = tc?.nivelConDireccion === level;
   
-  const title = level === 1 ? "Agregar Item Proyecto" : `Agregar Item ${parentName || (level === 2 ? lblN1 : lblR)}`;
+  const title = level === 1 ? `Agregar ${lblN} (Raíz)` : `Agregar ${isLineLevel ? lblR : lblN} a ${parentName}`;
 
   const OPCIONES_CUBRE_DESCANSO = [
     { value: '0', label: '0 - No Aplica' },
@@ -89,7 +88,7 @@ export function AddNodeDialog({ level, sitioId, puestoId, parentName }: AddNodeD
   useEffect(() => {
     let active = true;
     if (open) {
-      if (hasDireccion && hasN1) {
+      if (hasDireccion) {
         setLoadingDeptos(true);
         getDepartamentos('GT').then(data => {
           if (active) {
@@ -147,11 +146,11 @@ export function AddNodeDialog({ level, sitioId, puestoId, parentName }: AddNodeD
       setCantidadTurnos(1);
     }
     return () => { active = false; };
-  }, [open, hasDireccion, hasN1, proyecto?.empresaId]);
+  }, [open, hasDireccion, proyecto?.empresaId]);
 
   useEffect(() => {
     let active = true;
-    if (open && departamento && hasDireccion && hasN1) {
+    if (open && departamento && hasDireccion) {
       setLoadingMunis(true);
       getMunicipios('GT', departamento).then(data => {
         if (active) {
@@ -161,12 +160,12 @@ export function AddNodeDialog({ level, sitioId, puestoId, parentName }: AddNodeD
           else setMunicipio('');
         }
       });
-    } else if (!open || !hasDireccion || !hasN1) {
+    } else if (!open || !hasDireccion) {
       setMunicipios([]);
       setMunicipio('');
     }
     return () => { active = false; };
-  }, [open, departamento, hasDireccion, hasN1]);
+  }, [open, departamento, hasDireccion]);
 
   const servicioSeleccionado = servicios.find(s => s.codigo === selectedItemId);
   const erpItem = items.find(i => i.id.toString() === selectedItemId);
@@ -195,27 +194,18 @@ export function AddNodeDialog({ level, sitioId, puestoId, parentName }: AddNodeD
     }
   }, [servicioSeleccionado]);
 
-  const formatCurrency = (val: number | undefined) => {
-    if (val === undefined) return '';
-    return new Intl.NumberFormat('es-GT', {
-      style: 'currency',
-      currency: 'GTQ',
-      minimumFractionDigits: 2
-    }).format(val);
-  };
-
   const handleAdd = async () => {
     setError(null);
     setFieldErrors({});
     const cleanNombre = normalizeText(nombre);
     const cleanDireccion = normalizeText(direccion);
     
-    const hasSitioInfo = hasN1 && (cleanNombre.length > 0 || (hasDireccion && cleanDireccion.length > 0));
+    const hasNodeInfo = !isLineLevel;
     const hasLineaInfo = !!selectedItemId;
     
-    if (!hasSitioInfo && !hasLineaInfo) {
-      if (hasN1) {
-        setError(`Debe ingresar información para Datos ${lblN1} o Selección Item.`);
+    if (!hasNodeInfo && !hasLineaInfo) {
+      if (!isLineLevel) {
+        setError(`Debe ingresar información para Datos ${lblN} o Selección Item.`);
       } else {
         setError(`Debe realizar la Selección Item.`);
       }
@@ -225,7 +215,7 @@ export function AddNodeDialog({ level, sitioId, puestoId, parentName }: AddNodeD
     let hasFieldErrors = false;
     const newFieldErrors: Record<string, string> = {};
     
-    if (hasSitioInfo) {
+    if (hasNodeInfo) {
       if (!cleanNombre) {
         newFieldErrors.nombre = `El Nombre es obligatorio.`;
         hasFieldErrors = true;
@@ -353,7 +343,6 @@ export function AddNodeDialog({ level, sitioId, puestoId, parentName }: AddNodeD
           let horasSemana = 0;
           if (turnoSeleccionado) {
             personas = turnoSeleccionado.personas;
-            horasSemana = diasTrabajo; // Ojo, diasTrabajo son días, horasSemana se calcula abajo
             horasSemana = 
               (turnoSeleccionado.lunes === 1 ? turnoSeleccionado.lunes_horas : 0) +
               (turnoSeleccionado.martes === 1 ? turnoSeleccionado.martes_horas : 0) +
@@ -391,34 +380,25 @@ export function AddNodeDialog({ level, sitioId, puestoId, parentName }: AddNodeD
         }
       }
 
-      if (level === 1) {
-        // Opción: Sitio (Nivel 1) + Lineas opcionales
-        const nuevoSitio: SitioCosteo = {
-          id: `SIT-${Date.now()}`,
+      if (!isLineLevel) {
+        // Opción: Crear Nodo
+        const nuevoNodo: NodoCosteo = {
+          id: `NOD-${Date.now()}`,
+          nivel: level,
           nombre: cleanNombre,
-          direccion: hasDireccion ? cleanDireccion : 'N/A',
-          pais: hasDireccion ? 'GT' : '',
-          departamento: hasDireccion ? departamento : '',
-          municipio: hasDireccion ? municipio : '',
-          puestos: [],
-          recursosSinPuesto: recursosNuevos
-        };
-        dispatch({ type: 'ADD_SITIO', payload: nuevoSitio });
-        dispatch({ type: 'SELECT_NODE', payload: { type: 'SITIO', id: nuevoSitio.id } });
-      } else if (level === 2) {
-        if (!sitioId) throw new Error("Falta sitioId");
-        // Opción: Puesto (Nivel 2) + Lineas opcionales
-        const nuevoPuesto: PuestoCosteo = {
-          id: `PUE-${Date.now()}`,
-          nombre: cleanNombre,
+          direccion: hasDireccion ? cleanDireccion : undefined,
+          pais: hasDireccion ? 'GT' : undefined,
+          departamento: hasDireccion ? departamento : undefined,
+          municipio: hasDireccion ? municipio : undefined,
+          nodos: [],
           recursos: recursosNuevos
         };
-        dispatch({ type: 'ADD_PUESTO', payload: { sitioId, puesto: nuevoPuesto } });
-        dispatch({ type: 'SELECT_NODE', payload: { type: 'PUESTO', id: nuevoPuesto.id } });
-      } else if (level === 3) {
-        // Opción: Agregar recursos directos
+        dispatch({ type: 'ADD_NODO', payload: { parentId, nodo: nuevoNodo } });
+        dispatch({ type: 'SELECT_NODE', payload: { type: 'NODO', id: nuevoNodo.id } });
+      } else {
+        // Opción: Agregar recursos directos a parentId
         recursosNuevos.forEach((recurso, idx) => {
-          dispatch({ type: 'ADD_RECURSO', payload: { sitioId: sitioId || null, puestoId: puestoId || null, recurso } });
+          dispatch({ type: 'ADD_RECURSO', payload: { nodoId: parentId, recurso } });
           if (idx === 0) dispatch({ type: 'SELECT_NODE', payload: { type: 'RECURSO', id: recurso.id } });
         });
       }
@@ -434,7 +414,7 @@ export function AddNodeDialog({ level, sitioId, puestoId, parentName }: AddNodeD
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<button className="p-1 hover:bg-slate-200 rounded text-slate-500" title={level === 1 ? `Agregar a Proyecto` : level === 2 ? `Agregar a ${lblN1}` : `Agregar a ${lblN2}`} />}>
+      <DialogTrigger render={<button className="p-1 hover:bg-slate-200 rounded text-slate-500" title={level === 1 ? `Agregar a Proyecto` : `Agregar a ${parentName || 'Nodo'}`} />}>
         <Plus className="w-4 h-4" />
       </DialogTrigger>
       <DialogContent className={cn(!isLineLevel ? "sm:max-w-[950px] w-[95vw]" : "sm:max-w-[500px]", "h-[90vh] sm:h-[600px] flex flex-col")}>
@@ -451,7 +431,7 @@ export function AddNodeDialog({ level, sitioId, puestoId, parentName }: AddNodeD
         <div className={cn(!isLineLevel ? "grid grid-cols-2 gap-6" : "", "flex-1 overflow-y-auto pr-2 py-2")}>
           {!isLineLevel && (
             <div className="space-y-4 pr-6 border-r">
-              <h3 className="font-medium text-slate-900 border-b pb-2">Datos {level === 1 ? lblN1 : lblN2}</h3>
+              <h3 className="font-medium text-slate-900 border-b pb-2">Datos {lblN}</h3>
               
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">Nombre</label>

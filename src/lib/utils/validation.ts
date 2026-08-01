@@ -1,6 +1,6 @@
-import { ProyectoCosteo, SitioCosteo, PuestoCosteo, RecursoCosteo } from '@/lib/types/costeos';
+import { ProyectoCosteo, NodoCosteo, RecursoCosteo } from '@/lib/types/costeos';
 
-export type NodeType = 'PROYECTO' | 'SITIO' | 'PUESTO' | 'RECURSO';
+export type NodeType = 'PROYECTO' | 'NODO' | 'RECURSO';
 
 export function isNodeValid(nodeData: any, type: NodeType, options?: { hasDireccion?: boolean }): boolean {
   if (!nodeData) return false;
@@ -9,7 +9,7 @@ export function isNodeValid(nodeData: any, type: NodeType, options?: { hasDirecc
     case 'PROYECTO':
       return !!nodeData.nombreProyecto?.trim();
 
-    case 'SITIO':
+    case 'NODO':
       if (options?.hasDireccion === false) {
         return !!nodeData.nombre?.trim();
       }
@@ -18,11 +18,6 @@ export function isNodeValid(nodeData: any, type: NodeType, options?: { hasDirecc
         nodeData.direccion?.trim() &&
         nodeData.departamento &&
         nodeData.municipio
-      );
-
-    case 'PUESTO':
-      return !!(
-        nodeData.nombre?.trim()
       );
 
     case 'RECURSO':
