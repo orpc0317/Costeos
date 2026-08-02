@@ -29,7 +29,7 @@ export const crearTipoCosteoSchema = z.object({
   baseEvaluacion: z.enum(['GLOBAL', 'MENSUAL']).default('GLOBAL'),
   manejoPlazo: z.enum(['LIBRE', 'FIJO', 'NO_APLICA']).default('NO_APLICA'),
   fijarPlazo: z.coerce.number().min(0, 'El plazo fijo no puede ser negativo').default(0),
-}).refine(data => data.manejoPlazo !== 'FIJO' || data.fijarPlazo > 0, {
+}).refine(data => data.manejoPlazo === 'NO_APLICA' || data.fijarPlazo > 0, {
   message: "Debe especificar una cantidad de meses mayor a 0",
   path: ["fijarPlazo"],
 }).refine(data => data.nivelConDireccion <= data.cantidadNiveles, {
@@ -71,7 +71,7 @@ export const editarTipoCosteoSchema = z.object({
   manejoPlazo: z.enum(['LIBRE', 'FIJO', 'NO_APLICA']).default('NO_APLICA'),
   fijarPlazo: z.coerce.number().min(0, 'El plazo fijo no puede ser negativo').default(0),
   registroVersion: z.coerce.number().min(1, 'La versión de registro es requerida'),
-}).refine(data => data.manejoPlazo !== 'FIJO' || data.fijarPlazo > 0, {
+}).refine(data => data.manejoPlazo === 'NO_APLICA' || data.fijarPlazo > 0, {
   message: "Debe especificar una cantidad de meses mayor a 0",
   path: ["fijarPlazo"],
 }).refine(data => data.nivelConDireccion <= data.cantidadNiveles, {

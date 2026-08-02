@@ -50,9 +50,21 @@ export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!searchQuery.trim() || !empresaId) return alert('Por favor, selecciona una empresa y escribe algo para buscar.')
+    setFieldErrors({})
+
+    if (!empresaId) {
+      setFieldErrors({ empresaId: 'Por favor, selecciona una empresa.' })
+      return
+    }
+
+    if (!searchQuery.trim()) {
+      setFieldErrors({ search: 'Por favor, escribe algo para buscar.' })
+      return
+    }
+
     if (searchQuery.trim().length < 3) {
-      return alert('Por favor, ingresa al menos 3 letras para la búsqueda.')
+      setFieldErrors({ search: 'Por favor, ingresa al menos 3 letras para la búsqueda.' })
+      return
     }
 
     const busquedaNormalizada = normalizeText(searchQuery)
@@ -80,8 +92,9 @@ export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
   const [showForm, setShowForm] = useState(false)
   const [moneda, setMoneda] = useState<string>('GTQ')
   const [nombreProyecto, setNombreProyecto] = useState('')
-  const [plazoMeses, setPlazoMeses] = useState<number>(12)
+  const [plazoMeses, setPlazoMeses] = useState<number | undefined>(undefined)
   const [formError, setFormError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Filtrar tipos de costeo por empresa seleccionada
@@ -105,8 +118,8 @@ export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
 
   useEffect(() => {
     if (selectedTipoCosteo) {
-      if (selectedTipoCosteo.manejoPlazo === 'FIJO' && selectedTipoCosteo.fijarPlazo > 0) {
-        setPlazoMeses(selectedTipoCosteo.fijarPlazo)
+      if ((selectedTipoCosteo.manejoPlazo === 'FIJO' || selectedTipoCosteo.manejoPlazo === 'LIBRE')) {
+        setPlazoMeses(selectedTipoCosteo.fijarPlazo > 0 ? selectedTipoCosteo.fijarPlazo : undefined)
       } else if (selectedTipoCosteo.manejoPlazo === 'NO_APLICA') {
         setPlazoMeses(0)
       }
@@ -141,9 +154,21 @@ export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setFormError(null)
+    setFieldErrors({})
     setIsSubmitting(true)
 
     try {
+      if (!nombreProyecto.trim()) {
+        setFieldErrors({ nombreProyecto: 'El nombre del proyecto es requerido' })
+        setIsSubmitting(false)
+        return
+      }
+      if ((selectedTipoCosteo?.manejoPlazo === 'FIJO' || selectedTipoCosteo?.manejoPlazo === 'LIBRE') && (!plazoMeses || plazoMeses <= 0)) {
+        setFieldErrors({ plazoMeses: 'Debe especificar una cantidad de meses mayor a 0' })
+        setIsSubmitting(false)
+        return
+      }
+
       const formData = new FormData()
       formData.append('empresa', empresaId)
       formData.append('erpClienteData', JSON.stringify(selectedCliente))
@@ -152,7 +177,7 @@ export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
       formData.append('tipoCosteoCodigo', tipoCosteoCodigo)
       formData.append('moneda', moneda)
       formData.append('nombreProyecto', nombreProyecto)
-      formData.append('plazoMeses', plazoMeses.toString())
+      formData.append('plazoMeses', (plazoMeses || 0).toString())
 
       await createCosteo(formData)
     } catch (err: any) {
@@ -179,10 +204,14 @@ export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
                 <SearchableSelect
                   options={empresas}
                   value={empresaId}
-                  onChange={handleEmpresaChange}
+                  onChange={(val) => {
+                    handleEmpresaChange(val)
+                    setFieldErrors((prev) => ({ ...prev, empresaId: '' }))
+                  }}
                   placeholder={cargandoEmpresas ? "Cargando..." : "Seleccionar empresa"}
                   disabled={cargandoEmpresas}
                 />
+                {fieldErrors.empresaId && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.empresaId}</p>}
               </div>
               
               <div className="space-y-2">
@@ -203,14 +232,19 @@ export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
                     id="search" 
                     placeholder="Ej. CONSTRUCTORA..." 
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(normalizeText(e.target.value))}
+                    onChange={(e) => {
+                      setSearchQuery(normalizeText(e.target.value))
+                      setFieldErrors((prev) => ({ ...prev, search: '' }))
+                    }}
                     disabled={!empresaId}
                     className="flex-1"
+                    aria-invalid={!!fieldErrors.search}
                   />
                   <Button type="submit" disabled={!empresaId || isLoading} className="bg-indigo-600 hover:bg-indigo-700 whitespace-nowrap">
                     <Search className="mr-2 h-4 w-4" /> Buscar
                   </Button>
                 </div>
+                {fieldErrors.search && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.search}</p>}
               </div>
             </form>
           </CardContent>
@@ -284,33 +318,43 @@ export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
                 {formError}
               </div>
             )}
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6" noValidate>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="nombreProyecto">Nombre Proyecto</Label>
                   <Input 
                     id="nombreProyecto" 
-                    required 
                     placeholder="Ej. Seguridad Oficinas Centrales" 
                     className="uppercase focus:ring-2 focus:ring-indigo-500" 
                     value={nombreProyecto}
-                    onChange={(e) => setNombreProyecto(normalizeText(e.target.value))}
+                    aria-invalid={!!fieldErrors.nombreProyecto}
+                    onChange={(e) => {
+                      setNombreProyecto(normalizeText(e.target.value))
+                      setFieldErrors((prev) => ({ ...prev, nombreProyecto: '' }))
+                    }}
                   />
+                  {fieldErrors.nombreProyecto && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.nombreProyecto}</p>}
                 </div>
                 
                 <div className="space-y-2">
                   <Label htmlFor="plazoMeses">Plazo Meses</Label>
                   <NumericInput 
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-slate-100"
                     value={plazoMeses}
                     isInteger={true}
-                    disabled={selectedTipoCosteo && (selectedTipoCosteo.manejoPlazo === 'FIJO' || selectedTipoCosteo.manejoPlazo === 'NO_APLICA')}
-                    onChange={(val) => setPlazoMeses(val || 0)}
+                    disabled={Boolean(selectedTipoCosteo && (selectedTipoCosteo.manejoPlazo === 'FIJO' || selectedTipoCosteo.manejoPlazo === 'NO_APLICA'))}
+                    aria-invalid={!!fieldErrors.plazoMeses}
+                    onChange={(val) => {
+                      setPlazoMeses(val)
+                      setFieldErrors((prev) => ({ ...prev, plazoMeses: '' }))
+                    }}
                   />
-                  {selectedTipoCosteo && selectedTipoCosteo.manejoPlazo === 'FIJO' && (
+                  {fieldErrors.plazoMeses && (
+                    <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.plazoMeses}</p>
+                  )}
+                  {selectedTipoCosteo && selectedTipoCosteo.manejoPlazo === 'FIJO' && !fieldErrors.plazoMeses && (
                     <p className="text-xs text-muted-foreground">Plazo fijado por el Tipo de Costeo.</p>
                   )}
-                  {selectedTipoCosteo && selectedTipoCosteo.manejoPlazo === 'NO_APLICA' && (
+                  {selectedTipoCosteo && selectedTipoCosteo.manejoPlazo === 'NO_APLICA' && !fieldErrors.plazoMeses && (
                     <p className="text-xs text-muted-foreground">Este tipo de proyecto no lleva plazo.</p>
                   )}
                 </div>

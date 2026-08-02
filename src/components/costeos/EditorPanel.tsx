@@ -7,12 +7,22 @@ import { normalizeText } from '@/lib/utils/text';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getDepartamentos, getMunicipios, UbicacionItem } from '@/app/actions/ubicaciones';
+import { getTurnos, getUniformes, TurnoItem, UniformeItem } from '@/app/actions/puestos';
 import { MapPin, Settings2, Calculator, Trash2 } from 'lucide-react';
 import { RecursosSummaryTable } from './RecursosSummaryTable';
 import { ConfirmDeleteDialog } from './modals/ConfirmDeleteDialog';
+import { TurnoCard } from './TurnoCard';
 import { NodoCosteo, RecursoCosteo } from '@/lib/types/costeos';
+
+const OPCIONES_CUBRE_DESCANSO = [
+  { value: '0', label: '0 - No Aplica' },
+  { value: '1', label: '1 - Descansero' },
+  { value: '2', label: '2 - Extrero' },
+  { value: '3', label: '3 - Bono Descanso' }
+];
 
 export default function EditorPanel() {
   const { proyecto, selectedNode, dispatch } = useCosteo();
@@ -29,7 +39,7 @@ export default function EditorPanel() {
 
   const tc = proyecto.tipoCosteo;
   const maxNiveles = tc?.cantidadNiveles ?? 2;
-  const etiquetas = tc?.etiquetasNiveles?.split(',') || ['Sitio', 'Puesto'];
+  const etiquetas = tc?.etiquetasNiveles ? tc.etiquetasNiveles.split(',') : [];
   const lblR = tc?.lineaEtiqueta || 'Línea';
 
   let nodeData: any = null;
@@ -80,7 +90,7 @@ export default function EditorPanel() {
     if (n) {
       nodeData = n;
       parentId = findParentOfNodo(proyecto.nodos, n.id, null);
-      title = `Detalles ${etiquetas[n.nivel - 1] || 'Nodo'}`;
+      title = `Detalles ${etiquetas[n.nivel - 1] || `Nivel ${n.nivel}`}`;
     }
   } else if (selectedNode.type === 'RECURSO') {
     // Check in root first
@@ -88,13 +98,13 @@ export default function EditorPanel() {
     if (rRoot) {
       nodeData = rRoot;
       parentId = null;
-      title = `Detalles ${lblR} (Proyecto)`;
+      title = `Detalle ${nodeData.nombre}`;
     } else {
       const res = findRecurso(proyecto.nodos, selectedNode.id, []);
       if (res) {
         nodeData = res.recurso;
         parentId = res.parentId;
-        title = `Detalles ${lblR}`;
+        title = `Detalle ${nodeData.nombre}`;
       }
     }
   }
@@ -129,6 +139,17 @@ export default function EditorPanel() {
   };
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [turnos, setTurnos] = useState<TurnoItem[]>([]);
+  const [uniformes, setUniformes] = useState<UniformeItem[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    if (proyecto?.empresaId) {
+      getTurnos(proyecto.empresaId).then(data => { if (active) setTurnos(data); });
+      getUniformes(proyecto.empresaId).then(data => { if (active) setUniformes(data); });
+    }
+    return () => { active = false; };
+  }, [proyecto?.empresaId]);
 
   const confirmDelete = () => {
     if (selectedNode.type === 'NODO') {
@@ -142,21 +163,22 @@ export default function EditorPanel() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-6 border-b flex justify-between items-start">
+      <div className="px-6 py-4 border-b flex justify-between items-start">
         <div>
           <h2 className="text-xl font-bold text-slate-800">{title}</h2>
-          <p className="text-slate-500 mt-1 text-sm font-mono bg-slate-100 inline-block px-1.5 py-0.5 rounded">ID: {nodeData.id}</p>
           {pathNames.length > 0 && (
-            <p className="text-xs text-slate-400 mt-2">
+            <p className="text-xs text-slate-400 mt-1">
               {pathNames.join(' > ')}
             </p>
           )}
+          <p className="text-slate-500 mt-2 text-sm font-mono bg-slate-100 inline-block px-1.5 py-0.5 rounded">ID: {nodeData.id}</p>
         </div>
       </div>
 
-      <div className="p-6 overflow-y-auto flex-1 bg-slate-50/30">
+      <div className="flex-1 flex flex-col min-h-0 bg-slate-50/30 overflow-hidden">
         
         {selectedNode.type === 'PROYECTO' && (
+          <div className="p-6 pt-4 overflow-y-auto h-full w-full">
           <div className="max-w-4xl">
             <Tabs defaultValue="general" className="w-full">
               <TabsList variant="line" className="mb-4">
@@ -170,8 +192,8 @@ export default function EditorPanel() {
                 </TabsTrigger>
               </TabsList>
               
-              <TabsContent value="general" className="space-y-4 outline-none min-h-[250px]">
-                <div className="grid grid-cols-2 gap-4">
+              <TabsContent value="general" className="space-y-3 outline-none min-h-[250px]">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Nombre Proyecto</label>
                     <input 
@@ -227,9 +249,11 @@ export default function EditorPanel() {
               </TabsContent>
             </Tabs>
           </div>
+          </div>
         )}
 
         {selectedNode.type === 'NODO' && (
+          <div className="p-6 pt-4 overflow-y-auto h-full w-full">
           <NodoEditor 
             nodeData={nodeData} 
             handleChange={handleChange} 
@@ -237,74 +261,172 @@ export default function EditorPanel() {
             tc={tc}
             etiquetas={etiquetas}
           />
+          </div>
         )}
 
         {selectedNode.type === 'RECURSO' && (
-          <div className="space-y-6 max-w-3xl">
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Item / Recurso</label>
-                <input type="text" className="w-full border rounded-md p-2 bg-slate-100 text-slate-500 cursor-not-allowed" value={nodeData.nombre} readOnly title="No editable directamente" />
+          <Tabs defaultValue="general" className="flex-1 flex flex-col min-h-0 w-full">
+            <div className="px-6 pt-4 shrink-0">
+              <TabsList variant="line" className="mb-4">
+                <TabsTrigger value="general">
+                  <Settings2 className="w-4 h-4 mr-2" />
+                  General
+                </TabsTrigger>
+              </TabsList>
+            </div>
+            
+            <TabsContent value="general" className="flex-1 overflow-y-auto px-6 pb-6 outline-none m-0">
+              <div className="space-y-2 max-w-[460px]">
+            {/* 1era fila solo Codigo y Descripcion */}
+            <div className="grid grid-cols-12 gap-3">
+              <div className="col-span-4 flex flex-col gap-1.5">
+                <Label>Código</Label>
+                <Input type="text" className="bg-slate-100 text-slate-500 cursor-not-allowed font-mono text-sm h-8 py-1" value={nodeData.itemServicio?.codigo || nodeData.erpItemId || 'N/A'} readOnly title="Código ERP" />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Cantidad</label>
-                <NumericInput 
-                  className="w-full border rounded-md p-2 font-medium text-blue-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
-                  value={nodeData.cantidad}
-                  isInteger={true}
-                  onChange={(val) => handleChange('cantidad', val)} 
-                  min="0"
-                />
+              <div className="col-span-8 flex flex-col gap-1.5">
+                <Label>Descripción</Label>
+                <Input type="text" className="bg-slate-100 text-slate-500 cursor-not-allowed uppercase text-sm h-8 py-1" value={nodeData.nombre} readOnly title="No editable directamente" />
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4 border-t pt-4">
-               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Costo Unitario</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-slate-500">{proyecto.moneda === 'GTQ' ? 'Q' : '$'}</span>
-                  <NumericInput 
-                    className="w-full border rounded-md p-2 pl-8 text-red-600 focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all" 
-                    value={nodeData.costoUnitario} 
-                    onChange={(val) => handleChange('costoUnitario', val)} 
-                  />
-                </div>
+            <div className="pt-2">
+              <div className="flex items-center mb-3">
+                <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider border-l-2 border-blue-500 pl-2 leading-none">
+                  CONFIGURACION
+                </h3>
+                <div className="flex-1 border-t border-blue-200 ml-3 mt-0.5"></div>
               </div>
-               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Precio Venta ({proyecto.moneda})</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-slate-500">{proyecto.moneda === 'GTQ' ? 'Q' : '$'}</span>
-                  <NumericInput 
-                    className="w-full border rounded-md p-2 pl-8 text-emerald-600 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all" 
-                    value={nodeData.precioVentaUnitario} 
-                    onChange={(val) => handleChange('precioVentaUnitario', val)} 
-                  />
-                </div>
-              </div>
-               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Total</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-slate-500">{proyecto.moneda === 'GTQ' ? 'Q' : '$'}</span>
-                  {(() => {
-                    const total = (nodeData.precioVentaUnitario || 0) * (nodeData.cantidad || 0);
-                    const formatCurrency = (val: number) => {
-                      try {
-                        return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
-                      } catch(e) {
-                        return val.toFixed(2);
-                      }
-                    };
-                    return (
-                      <input 
-                        type="text"
-                        className="w-full border rounded-md p-2 pl-8 bg-slate-100 text-blue-700 font-bold outline-none cursor-not-allowed" 
-                        value={formatCurrency(total)} 
-                        readOnly 
+              
+              {nodeData.categoria === 'RECURSO_HUMANO' ? (
+                // RRHH layout (Turnos, etc)
+              <div className="space-y-2">
+                <div className="grid grid-cols-12 gap-3">
+                  <div className="col-span-4 flex flex-col gap-1.5">
+                    <Label>Cant. Turnos</Label>
+                    <NumericInput 
+                      className="flex h-8 w-full rounded-sm border border-slate-200 bg-white px-2.5 py-1 text-sm font-medium text-blue-600 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-slate-100" 
+                      value={nodeData.cantidad}
+                      isInteger={true}
+                      onChange={(val) => handleChange('cantidad', val || 1)} 
+                      min="1"
+                      disabled={proyecto?.estado !== 'BORRADOR'}
+                    />
+                  </div>
+                  <div className="col-span-8 flex flex-col gap-1.5">
+                    <Label>Turno</Label>
+                    {proyecto?.estado === 'BORRADOR' ? (
+                      <SearchableSelect
+                        id="field-turno"
+                        options={turnos.map(t => ({ value: String(t.codigo), label: t.descripcion }))}
+                        value={nodeData.turnoCodigo !== undefined ? String(nodeData.turnoCodigo) : ''}
+                        onChange={(val) => {
+                          const code = parseInt(val, 10);
+                          const t = turnos.find(x => x.codigo === code);
+                          handleChange({
+                            turnoCodigo: code,
+                            personas: t?.personas || 1,
+                            horasSemana: t?.totalHoras || 0
+                          });
+                        }}
+                        placeholder="Seleccione..."
                       />
-                    );
-                  })()}
+                    ) : (
+                      <Input value={turnos.find(t => t.codigo === nodeData.turnoCodigo)?.descripcion || turnos.find(t => t.codigo === nodeData.turnoCodigo)?.nombre || `Cód: ${nodeData.turnoCodigo}`} readOnly className="bg-slate-100 text-slate-500 cursor-not-allowed text-sm uppercase h-8 py-1 px-2.5" />
+                    )}
+                  </div>
+                </div>
+
+                {nodeData.turnoCodigo && turnos.find(t => t.codigo === nodeData.turnoCodigo) && (
+                  <div className="py-2">
+                    <TurnoCard turno={turnos.find(t => t.codigo === nodeData.turnoCodigo)!} cantidadTurnos={nodeData.cantidad || 1} />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-1 flex flex-col gap-1.5">
+                    <Label>Cubre Descanso</Label>
+                    {proyecto?.estado === 'BORRADOR' ? (
+                      <SearchableSelect
+                        id="field-cubreDescanso"
+                        options={OPCIONES_CUBRE_DESCANSO}
+                        value={String(nodeData.cubreDescanso || 0)}
+                        onChange={(val) => handleChange('cubreDescanso', parseInt(val, 10))}
+                        placeholder="Seleccione..."
+                      />
+                    ) : (
+                      <Input value={
+                        nodeData.cubreDescanso === 1 ? '1 - Descansero' :
+                        nodeData.cubreDescanso === 2 ? '2 - Extrero' :
+                        nodeData.cubreDescanso === 3 ? '3 - Bono Descanso' : '0 - No Aplica'
+                      } readOnly className="bg-slate-100 text-slate-500 cursor-not-allowed text-sm h-8 py-1 px-2.5" />
+                    )}
+                  </div>
+                  <div className="col-span-1 flex flex-col gap-1.5">
+                    <Label>Uniforme</Label>
+                    {proyecto?.estado === 'BORRADOR' ? (
+                      <SearchableSelect
+                        id="field-uniforme"
+                        options={uniformes.map(u => ({ value: u.codigo, label: u.descripcion }))}
+                        value={nodeData.uniformeCodigo || ''}
+                        onChange={(val) => handleChange('uniformeCodigo', val)}
+                        placeholder="Seleccione..."
+                      />
+                    ) : (
+                      <Input value={uniformes.find(u => u.codigo === nodeData.uniformeCodigo)?.descripcion || uniformes.find(u => u.codigo === nodeData.uniformeCodigo)?.nombre || `Cód: ${nodeData.uniformeCodigo}`} readOnly className="bg-slate-100 text-slate-500 cursor-not-allowed text-sm uppercase h-8 py-1 px-2.5" />
+                    )}
+                  </div>
                 </div>
               </div>
+            ) : (
+              // Estándar layout (Cantidad, Unidad Medida)
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label>Cantidad</Label>
+                  <NumericInput 
+                    className="flex h-8 w-full rounded-sm border border-slate-200 bg-white px-2.5 py-1 text-sm font-medium text-blue-600 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-slate-100" 
+                    value={nodeData.cantidad}
+                    isInteger={true}
+                    onChange={(val) => handleChange('cantidad', val || 1)} 
+                    min="1"
+                    disabled={proyecto?.estado !== 'BORRADOR'}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label>Unidad Medida</Label>
+                  <Input value={nodeData.itemServicio?.unidad_medida || 'UNIDAD'} readOnly className="bg-slate-100 text-slate-500 cursor-not-allowed uppercase text-sm h-8 py-1" />
+                </div>
+              </div>
+            )}
+            </div>
+
+            <div className="pt-2">
+              <div className="flex items-center mb-3">
+                <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider border-l-2 border-blue-500 pl-2 leading-none">
+                  FINANCIERO
+                </h3>
+                <div className="flex-1 border-t border-blue-200 ml-3 mt-0.5"></div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+               <div className="flex flex-col gap-1.5">
+                <Label>Precio Venta ({proyecto?.moneda || 'Q'})</Label>
+                <NumericInput 
+                  className="flex h-8 w-full rounded-sm border border-slate-200 bg-white px-2.5 py-1 text-sm font-medium text-slate-900 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-slate-100" 
+                  value={nodeData.precioVentaUnitario}
+                  onChange={(val) => handleChange('precioVentaUnitario', val || 0)} 
+                  min="0"
+                  disabled={proyecto?.estado !== 'BORRADOR'}
+                />
+               </div>
+               <div className="flex flex-col gap-1.5">
+                <Label>Total Venta ({proyecto?.moneda || 'Q'})</Label>
+                <Input value={((nodeData.cantidad || 0) * (nodeData.precioVentaUnitario || 0)).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} readOnly className="bg-blue-50/50 text-blue-700 font-bold border-blue-200 text-sm px-2.5 h-8 py-1" />
+               </div>
+               <div className="flex flex-col gap-1.5">
+                <Label>Total Costo ({proyecto?.moneda || 'Q'})</Label>
+                <Input value={(0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} readOnly className="bg-slate-100 text-slate-500 cursor-not-allowed text-sm px-2.5 h-8 py-1" />
+               </div>
+            </div>
             </div>
 
             {nodeData.recetas && nodeData.recetas.length > 0 && (
@@ -341,20 +463,25 @@ export default function EditorPanel() {
                 ))}
               </div>
             )}
-            <div className="pt-6 border-t border-slate-200 mt-6">
-              <button 
-                onClick={() => setIsDeleteDialogOpen(true)}
-                className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
-              >
-                <Trash2 className="w-4 h-4" />
-                Eliminar Recurso
-              </button>
             </div>
-          </div>
+          </TabsContent>
+        </Tabs>
         )}
 
       </div>
       
+      {selectedNode.type !== 'PROYECTO' && (
+        <div className="flex flex-row items-center justify-between px-6 py-4 border-t bg-slate-50 shrink-0">
+          <Button 
+            variant="destructive"
+            onClick={() => setIsDeleteDialogOpen(true)}
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Eliminar
+          </Button>
+        </div>
+      )}
+
       <ConfirmDeleteDialog 
         open={isDeleteDialogOpen} 
         onOpenChange={setIsDeleteDialogOpen} 
@@ -375,7 +502,7 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas }: { n
   const [loadingMunis, setLoadingMunis] = useState(false);
   
   const hasDireccion = tc?.nivelConDireccion === nodeData.nivel;
-  const nombreEtiqueta = etiquetas[nodeData.nivel - 1] || 'Nodo';
+  const nombreEtiqueta = etiquetas[nodeData.nivel - 1] || `Nivel ${nodeData.nivel}`;
 
   useEffect(() => {
     let active = true;
@@ -439,10 +566,10 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas }: { n
             Resumen
           </TabsTrigger>
         </TabsList>
-        <TabsContent value="general" className="space-y-4 outline-none min-h-[250px]">
-          <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+        <TabsContent value="general" className="space-y-3 outline-none min-h-[250px]">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3">
             <div className="space-y-1.5 col-span-2">
-              <Label>Nombre {nombreEtiqueta}</Label>
+              <Label>Nombre</Label>
               <Input 
                 className="uppercase"
                 value={nodeData.nombre || ''} 
@@ -452,7 +579,7 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas }: { n
             
             {hasDireccion && (
               <>
-                <div className="col-span-2 pt-4 pb-1 border-b border-slate-200 flex items-center gap-2">
+                <div className="col-span-2 pt-2 pb-1 border-b border-slate-200 flex items-center gap-2 mt-2">
                   <MapPin className="w-4 h-4 text-slate-400" />
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">UBICACION</h3>
                 </div>
@@ -465,7 +592,7 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas }: { n
                     onChange={(e) => handleChange('direccion', normalizeText(e.target.value))} 
                   />
                 </div>
-                <div className="space-y-1.5 col-span-2">
+                <div className="space-y-1.5 col-span-1">
                   <Label>País</Label>
                   <SearchableSelect
                     options={[{ value: 'GT', label: 'GUATEMALA' }]}
@@ -474,7 +601,7 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas }: { n
                     disabled={true}
                   />
                 </div>
-                <div className="space-y-1.5 col-span-2">
+                <div className="space-y-1.5 col-span-1">
                   <Label>
                     Departamento {loadingDeptos && <span className="text-xs text-slate-400">(cargando...)</span>}
                   </Label>
@@ -487,7 +614,7 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas }: { n
                     error={!nodeData.departamento}
                   />
                 </div>
-                <div className="space-y-1.5 col-span-2">
+                <div className="space-y-1.5 col-span-1">
                   <Label>
                     Municipio {loadingMunis && <span className="text-xs text-slate-400">(cargando...)</span>}
                   </Label>
@@ -502,16 +629,6 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas }: { n
                 </div>
               </>
             )}
-          </div>
-          
-          <div className="pt-6 border-t border-slate-200 mt-6">
-            <button 
-              onClick={handleDelete}
-              className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
-            >
-              <Trash2 className="w-4 h-4" />
-              Eliminar {nombreEtiqueta}
-            </button>
           </div>
         </TabsContent>
         

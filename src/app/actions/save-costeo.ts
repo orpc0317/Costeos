@@ -165,7 +165,7 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
         if (isNaN(rId)) {
           const nuevoR = await tx.nodoRecurso.create({
             data: {
-              nodoId: nDbId,
+              nodo: { connect: { id: nDbId } },
               erpItemId: rFront.erpItemId,
               itemNombre: rFront.nombre,
               itemTipo: rFront.categoria,
@@ -175,6 +175,11 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
               costoUnitarioErp: rFront.costoUnitario,
               precioVenta: rFront.precioVentaUnitario || null,
               precioVentaOrigen: rFront.precioVentaOrigen || 'MANUAL',
+              turnoCodigo: rFront.turnoCodigo || null,
+              uniformeCodigo: rFront.uniformeCodigo || null,
+              cubreDescanso: rFront.cubreDescanso || 0,
+              personas: rFront.personas || 1,
+              horasSemana: rFront.horasSemana || 0,
             }
           });
           idMap.recursos[rFront.id] = nuevoR.id.toString();
@@ -182,11 +187,16 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
           await tx.nodoRecurso.update({
             where: { id: rId },
             data: {
-              nodoId: nDbId,
+              nodo: { connect: { id: nDbId } },
               cantidad: rFront.cantidad,
               costoUnitarioErp: rFront.costoUnitario,
               precioVenta: rFront.precioVentaUnitario || null,
               precioVentaOrigen: rFront.precioVentaOrigen || 'MANUAL',
+              turnoCodigo: rFront.turnoCodigo || null,
+              uniformeCodigo: rFront.uniformeCodigo || null,
+              cubreDescanso: rFront.cubreDescanso || 0,
+              personas: rFront.personas || 1,
+              horasSemana: rFront.horasSemana || 0,
             }
           });
         }

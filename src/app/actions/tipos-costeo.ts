@@ -362,6 +362,8 @@ export async function getTiposCosteoActivosAction() {
       nivelConDireccion: true,
       lineaEtiqueta: true,
       baseEvaluacion: true,
+      manejoPlazo: true,
+      fijarPlazo: true,
       activo: true,
     },
     orderBy: { nombre: 'asc' },

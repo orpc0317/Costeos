@@ -155,27 +155,7 @@ function costeoReducer(state: CosteoState, action: CosteoAction): CosteoState {
       const rId = action.payload.recursoId;
       let proyectoMod = { ...state.proyecto };
       
-      // Buscar si el recurso tiene grupoTurnoId para borrar todos los del grupo
-      let grupoTurnoIdToRemove: string | undefined = undefined;
-      const findGrupo = (recursos: RecursoCosteo[]) => {
-        const target = recursos.find(r => r.id === rId);
-        if (target?.grupoTurnoId) grupoTurnoIdToRemove = target.grupoTurnoId;
-      };
-      
-      findGrupo(proyectoMod.recursos);
-      const searchNodos = (nodos: NodoCosteo[]) => {
-        for (const n of nodos) {
-          findGrupo(n.recursos);
-          searchNodos(n.nodos);
-        }
-      };
-      searchNodos(proyectoMod.nodos);
-
-      const filterRecursos = (recursos: RecursoCosteo[]) => recursos.filter(r => {
-        if (r.id === rId) return false;
-        if (grupoTurnoIdToRemove && r.grupoTurnoId === grupoTurnoIdToRemove) return false;
-        return true;
-      });
+      const filterRecursos = (recursos: RecursoCosteo[]) => recursos.filter(r => r.id !== rId);
 
       proyectoMod.recursos = filterRecursos(proyectoMod.recursos);
       proyectoMod.nodos = mapNodos(proyectoMod.nodos, n => {

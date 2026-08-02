@@ -97,13 +97,13 @@ export function HistorialDrawer({
                       </p>
                     )}
                     
-                    {item.accion !== 'CREATE' && item.cambios && item.cambios.length > 0 && (
+                    {item.accion !== 'CREATE' && item.cambios && item.cambios.filter(c => !['registroVersion', 'updatedAt'].includes(c.campo)).length > 0 && (
                       <div className="mt-3 space-y-2">
                         <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
                           Campos Modificados
                         </div>
                         <div className="border border-slate-100 rounded-md overflow-hidden bg-slate-50/50">
-                          {item.cambios.map((c, i) => (
+                          {item.cambios.filter(c => !['registroVersion', 'updatedAt'].includes(c.campo)).map((c, i) => (
                             <div key={i} className="flex flex-col sm:flex-row sm:items-center text-xs p-2 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
                               <div className="font-medium text-slate-700 w-1/3 mb-1 sm:mb-0">
                                 {c.campo}

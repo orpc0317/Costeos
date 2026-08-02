@@ -2,8 +2,16 @@
 
 import React from 'react';
 import { useCosteo } from '@/lib/context/CosteoContext';
-import { MapPin, Briefcase, User, Box, Shield, Monitor, FileText, AlertTriangle } from 'lucide-react';
+import { 
+  MapPin, Briefcase, User, Box, Shield, Monitor, FileText, AlertTriangle,
+  Building, Users, Layers, Component, Folder, ListTree, Tags, Network, Hash
+} from 'lucide-react';
 import { CategoriaItem, NodoCosteo, RecursoCosteo } from '@/lib/types/costeos';
+
+const ICON_COMPONENTS: Record<string, React.ElementType> = {
+  Building, MapPin, Briefcase, Users, Layers, Shield,
+  Box, Component, Folder, ListTree, Tags, Network, Hash
+};
 import { AddNodeDialog } from './modals/AddNodeDialog';
 import { isNodeValid } from '@/lib/utils/validation';
 
@@ -14,7 +22,9 @@ export default function TreeViewSidebar() {
 
   const tc = proyecto.tipoCosteo;
   const maxNiveles = tc?.cantidadNiveles ?? 2;
-  const etiquetas = tc?.etiquetasNiveles?.split(',') || ['Sitio', 'Puesto'];
+  const etiquetas = tc?.etiquetasNiveles ? tc.etiquetasNiveles.split(',') : [];
+  const colores = tc?.coloresNiveles?.split(',') || [];
+  const iconos = tc?.iconosNiveles?.split(',') || [];
   const lblR = tc?.lineaEtiqueta || 'Líneas';
 
   const handleSelectNode = (type: 'NODO' | 'RECURSO' | 'PROYECTO', id: string) => {
@@ -64,23 +74,26 @@ export default function TreeViewSidebar() {
   const renderNodos = (nodos: NodoCosteo[], nivelActual: number) => {
     if (!nodos || nodos.length === 0) return null;
     
+    const idx = nivelActual - 1;
+    const colorClass = colores[idx] || 'bg-blue-50 text-blue-700';
+    const textMatch = colorClass.match(/text-[a-z]+-[0-9]+/);
+    const textColor = textMatch ? textMatch[0] : 'text-slate-400';
+    
+    const IconName = iconos[idx] || (nivelActual === 1 ? 'MapPin' : 'Shield');
+    const IconComponent = ICON_COMPONENTS[IconName] || MapPin;
+
     // Sort nodes by creation order or id (if needed, here we just map)
     return (
       <div className="ml-3 border-l border-slate-200 pl-2 space-y-1">
         {nodos.map(nodo => (
           <div key={nodo.id} className="space-y-1">
             <div 
-              className={`flex items-center justify-between px-2 py-1 rounded-md cursor-pointer group ${selectedNode?.id === nodo.id ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-slate-100 text-slate-600'}`}
+              className={`flex items-center justify-between px-2 py-1 rounded-md cursor-pointer group ${selectedNode?.id === nodo.id ? `${colorClass} font-medium` : 'hover:bg-slate-100 text-slate-600'}`}
               onClick={() => handleSelectNode('NODO', nodo.id)}
             >
               <div className="flex items-center gap-1.5 overflow-hidden">
-                {nivelActual === 1 ? (
-                  <MapPin className={`w-3.5 h-3.5 shrink-0 ${selectedNode?.id === nodo.id ? 'text-blue-600' : 'text-slate-400'}`} />
-                ) : (
-                  <Shield className={`w-3.5 h-3.5 shrink-0 ${selectedNode?.id === nodo.id ? 'text-blue-600' : 'text-slate-400'}`} />
-                )}
-                
-                <span className="truncate text-[13px]">{nodo.nombre || `Nuevo ${etiquetas[nivelActual - 1] || 'Nodo'}`}</span>
+                <IconComponent className={`w-3.5 h-3.5 shrink-0 ${selectedNode?.id === nodo.id ? 'opacity-100' : textColor}`} />
+                <span className="truncate text-[13px]">{nodo.nombre || `Nuevo ${etiquetas[idx] || `Nivel ${nivelActual}`}`}</span>
               </div>
               <div className="flex items-center gap-1">
                 {!isNodeValid(nodo, 'NODO', { hasDireccion: tc?.nivelConDireccion === nivelActual }) && (

@@ -530,6 +530,7 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                                 value={etiquetasNiveles[i] || ''}
                                 onChange={(e) => handleUpdateEtiqueta(i, normalizeText(e.target.value))}
                                 disabled={mode === 'view'}
+                                autoComplete="off"
                                 className={cn("uppercase h-8 text-sm flex-1 font-bold", coloresNiveles[i])}
                               />
                             </div>
@@ -606,14 +607,14 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                     <p className="text-sm text-slate-500 mb-3">
                       Define cómo se comportará la duración en meses de estos proyectos.
                     </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="flex flex-col gap-1.5 justify-end">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+                      <div className="flex flex-col gap-1.5 justify-start">
                         <Select 
                           value={manejoPlazo} 
                           onValueChange={(val) => setManejoPlazo(val as 'LIBRE'|'FIJO'|'NO_APLICA')}
                           disabled={mode === 'view'}
                         >
-                          <SelectTrigger id="tc-manejoPlazo" className="w-full h-10 bg-white">
+                          <SelectTrigger id="tc-manejoPlazo" className="w-full bg-white">
                             <SelectValue placeholder="Seleccione el manejo...">
                               {manejoPlazo === 'NO_APLICA' && 'No Aplica'}
                               {manejoPlazo === 'LIBRE' && 'Libre (Editable al crear)'}
@@ -628,10 +629,12 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                         </Select>
                       </div>
                       
-                      {manejoPlazo === 'FIJO' && (
-                        <div className="flex flex-col w-full justify-end">
+                      {(manejoPlazo === 'FIJO' || manejoPlazo === 'LIBRE') && (
+                        <div className="flex flex-col w-full justify-start">
                           <div className="flex flex-row items-center gap-3 animate-in fade-in slide-in-from-left-2">
-                            <Label htmlFor="tc-fijar-plazo" className="text-sm font-semibold whitespace-nowrap">Meses Fijos</Label>
+                            <Label htmlFor="tc-fijar-plazo" className="text-sm font-semibold whitespace-nowrap">
+                              {manejoPlazo === 'FIJO' ? 'Meses Fijos' : 'Meses Default'}
+                            </Label>
                             <NumericInput
                               id="tc-fijar-plazo"
                               value={fijarPlazo || undefined}
@@ -642,14 +645,14 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                               isInteger={true}
                               disabled={mode === 'view'}
                               aria-invalid={!!fieldErrors.fijarPlazo}
-                              className="w-full h-10"
+                              className="w-full"
                               placeholder="Cantidad de meses..."
                             />
                           </div>
-                          {fieldErrors.fijarPlazo && <p className="text-xs text-red-500 !mt-0.5 leading-none ml-[100px]">{fieldErrors.fijarPlazo}</p>}
                         </div>
                       )}
                     </div>
+                    {fieldErrors.fijarPlazo && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.fijarPlazo}</p>}
                   </div>
                 </div>
               </div>

@@ -149,6 +149,14 @@ model NodoRecurso {
   costoUnitarioErp  Decimal?  @map("costo_unitario_erp") @db.Decimal(18, 4) // null en BORRADOR
   precioVenta       Decimal?  @map("precio_venta") @db.Decimal(18, 2)
   precioVentaOrigen String    @default("LISTA") @map("precio_venta_origen") @db.VarChar(10)
+  
+  // Datos RRHH cuando el recurso es de Recursos Humanos
+  turnoCodigo       Int?      @map("turno_codigo")
+  uniformeCodigo    String?   @map("uniforme_codigo") @db.VarChar(50)
+  cubreDescanso     Int       @default(0) @map("cubre_descanso")
+  personas          Int       @default(1)
+  horasSemana       Int       @default(0) @map("horas_semana")
+
   congeladoEn       DateTime? @map("congelado_en") // null en BORRADOR
   orden             Int       @default(0)
 

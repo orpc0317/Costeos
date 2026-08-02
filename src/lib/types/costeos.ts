@@ -80,7 +80,7 @@ export interface RecursoCosteo {
   personas?: number;
   horasSemana?: number;
   cubreDescanso?: number;
-  grupoTurnoId?: string; // Identificador para agrupar recursos humanos del mismo turno
+
 }
 
 export interface NodoCosteo {
@@ -130,6 +130,8 @@ export interface ProyectoCosteo {
     nombre: string;
     cantidadNiveles: number;
     etiquetasNiveles: string | null;
+    coloresNiveles: string | null;
+    iconosNiveles: string | null;
     nivelConDireccion: number | null;
     lineaEtiqueta: string;
     manejoPlazo: 'LIBRE' | 'FIJO' | 'NO_APLICA';

@@ -69,7 +69,7 @@ export function RecursosSummaryTable({ recursos }: { recursos: RecursoSummaryIte
   const showPath = (recursos || []).some(r => r._path && r._path.length > 0);
 
   return (
-    <div className="mt-8 border rounded-md overflow-hidden bg-white shadow-sm">
+    <div className="mt-4 border rounded-md overflow-hidden bg-white shadow-sm">
       <div className="bg-slate-100 p-3 font-semibold text-slate-700 border-b flex justify-between items-center">
         <span>Recursos Asignados (Resumen)</span>
         {loading && <span className="text-xs text-slate-500 font-normal">Cargando catálogos...</span>}

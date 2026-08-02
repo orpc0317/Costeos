@@ -69,3 +69,25 @@ Este documento contiene las reglas y componentes estandarizados que han nacido o
   ```tsx
   {fieldErrors.nombre && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.nombre}</p>}
   ```
+
+### Espaciado de Formularios y Campos
+- **Regla:** El espaciado vertical entre campos no debe sentirse demasiado holgado. Los campos de texto y combos deben ser compactos (ej. h-8), y el espaciado vertical entre filas debe ser `space-y-2`.
+- **Solución:** Utilizar clases como `space-y-2` (en lugar de space-y-4 o 6), `gap-3` o `gap-4` para grid horizontal, e inputs con clase `h-8 py-1`.
+- **Max-Width:** Para evitar que los formularios se estiren excesivamente en monitores grandes, envolverlos en un contenedor con restricciones (ej. `max-w-md`, `max-w-xl` o `max-w-2xl` dependiendo de la densidad de columnas).
+
+### Encabezados de Secciones (Separadores)
+- **Regla 1 (Ortografía):** NUNCA usar tildes en los títulos o nombres de sección (ej. usar "CONFIGURACION" en lugar de "Configuración").
+- **Regla 2 (Diseño):** El diseño estándar para separar secciones dentro de un formulario es utilizar un contenedor flexible que alinee verticalmente el texto con una línea divisoria. El título debe llevar un borde izquierdo (`border-l-2`) y la línea debe dibujarse a media altura usando `border-t`. Ambos usando el color azul tenue estándar de la aplicación.
+- **Uso (Ejemplo):**
+  ```tsx
+  <div className="flex items-center mb-3">
+    <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider border-l-2 border-blue-500 pl-2 leading-none">
+      TITULO SECCION
+    </h3>
+    <div className="flex-1 border-t border-blue-200 ml-3 mt-0.5"></div>
+  </div>
+  ```
+
+### Labels e Inputs (Formularios)
+- **Contenedor:** Cada campo de formulario (Label + Input) debe estar envuelto en un contenedor con la clase `flex flex-col gap-1.5` (o `space-y-1.5`). Esto asegura un espaciado consistente y pegado entre el label y su input en toda la aplicación.
+- **Label:** Utilizar el componente `<Label>` de shadcn/ui sin sobreescribir sus clases base de texto. NO agregar `className="text-sm font-medium"` manualmente, ya que el componente por defecto ya incluye `text-sm font-medium leading-none`. Solo usar `className` si se requiere un estilo especial (ej. cursiva o color).

@@ -10,6 +10,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { NumericInput } from '@/components/ui/numeric-input';
 import { Plus, Loader2 } from 'lucide-react';
 import { normalizeText } from '@/lib/utils/text';
@@ -69,14 +70,14 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
 
   const tc = proyecto?.tipoCosteo;
   const maxNiveles = tc?.cantidadNiveles ?? 2;
-  const etiquetas = tc?.etiquetasNiveles?.split(',') || ['Sitio', 'Puesto'];
-  const lblN = etiquetas[level - 1] || 'Nodo';
+  const etiquetas = tc?.etiquetasNiveles ? tc.etiquetasNiveles.split(',') : [];
+  const lblN = etiquetas[level - 1] || `Nivel ${level}`;
   const lblR = tc?.lineaEtiqueta || 'Línea';
   
   const isLineLevel = level > maxNiveles;
   const hasDireccion = tc?.nivelConDireccion === level;
   
-  const title = level === 1 ? `Agregar ${lblN} (Raíz)` : `Agregar ${isLineLevel ? lblR : lblN} a ${parentName}`;
+  const title = level === 1 ? `Agregar ${lblN}` : `Agregar ${isLineLevel ? lblR : lblN} a ${parentName}`;
 
   const OPCIONES_CUBRE_DESCANSO = [
     { value: '0', label: '0 - No Aplica' },
@@ -200,12 +201,12 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
     const cleanNombre = normalizeText(nombre);
     const cleanDireccion = normalizeText(direccion);
     
-    const hasNodeInfo = !isLineLevel;
     const hasLineaInfo = !!selectedItemId;
+    const creatingNode = !isLineLevel && !!cleanNombre;
     
-    if (!hasNodeInfo && !hasLineaInfo) {
+    if (!creatingNode && !hasLineaInfo) {
       if (!isLineLevel) {
-        setError(`Debe ingresar información para Datos ${lblN} o Selección Item.`);
+        setError(`Debe ingresar el Nombre para crear un ${lblN} o seleccionar un Item para agregarlo directo.`);
       } else {
         setError(`Debe realizar la Selección Item.`);
       }
@@ -215,11 +216,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
     let hasFieldErrors = false;
     const newFieldErrors: Record<string, string> = {};
     
-    if (hasNodeInfo) {
-      if (!cleanNombre) {
-        newFieldErrors.nombre = `El Nombre es obligatorio.`;
-        hasFieldErrors = true;
-      }
+    if (creatingNode) {
       if (hasDireccion) {
         if (!cleanDireccion) {
           newFieldErrors.direccion = `La dirección es obligatoria.`;
@@ -353,35 +350,29 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
               (turnoSeleccionado.domingo === 1 ? turnoSeleccionado.domingo_horas : 0);
           }
 
-          for (let t = 0; t < cantidadTurnos; t++) {
-            const grupoTurnoId = `GT-${Date.now()}-${t}`;
-            for(let p = 0; p < personas; p++) {
-              recursosNuevos.push({
-                id: `REC-${Date.now()}-${t}-${p}`,
-                erpItemId: erpItem.id,
-                nombre: erpItem.nombre,
-                categoria: 'RECURSO_HUMANO',
-                tipoCosto: erpItem.tipoCosto as any,
-                cantidad: 1,
-                costoUnitario: erpItem.costoUnitario,
-                precioVentaUnitario: precioVenta,
-                precioVentaOrigen: 'MANUAL',
-                itemServicio: servicioSeleccionado,
-                turnoCodigo,
-                uniformeCodigo,
-                personas: 1,
-                horasSemana,
-                cubreDescanso,
-                recetas: recetasDelRecurso,
-                grupoTurnoId
-              });
-            }
-          }
+          recursosNuevos.push({
+            id: `REC-${Date.now()}`,
+            erpItemId: erpItem.id,
+            nombre: erpItem.nombre,
+            categoria: 'RECURSO_HUMANO',
+            tipoCosto: erpItem.tipoCosto as any,
+            cantidad: cantidadTurnos,
+            costoUnitario: erpItem.costoUnitario,
+            precioVentaUnitario: precioVenta,
+            precioVentaOrigen: 'MANUAL',
+            itemServicio: servicioSeleccionado,
+            turnoCodigo,
+            uniformeCodigo,
+            personas,
+            horasSemana,
+            cubreDescanso,
+            recetas: recetasDelRecurso
+          });
         }
       }
 
-      if (!isLineLevel) {
-        // Opción: Crear Nodo
+      if (creatingNode) {
+        // Opción: Crear Nodo (y asignarle los recursos si los hay)
         const nuevoNodo: NodoCosteo = {
           id: `NOD-${Date.now()}`,
           nivel: level,
@@ -396,7 +387,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
         dispatch({ type: 'ADD_NODO', payload: { parentId, nodo: nuevoNodo } });
         dispatch({ type: 'SELECT_NODE', payload: { type: 'NODO', id: nuevoNodo.id } });
       } else {
-        // Opción: Agregar recursos directos a parentId
+        // Opción: Agregar recursos directos a parentId (el nodo actual)
         recursosNuevos.forEach((recurso, idx) => {
           dispatch({ type: 'ADD_RECURSO', payload: { nodoId: parentId, recurso } });
           if (idx === 0) dispatch({ type: 'SELECT_NODE', payload: { type: 'RECURSO', id: recurso.id } });
@@ -428,13 +419,11 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
           </div>
         )}
         
-        <div className={cn(!isLineLevel ? "grid grid-cols-2 gap-6" : "", "flex-1 overflow-y-auto pr-2 py-2")}>
+        <div className={cn(!isLineLevel ? "grid grid-cols-2 gap-0" : "", "flex-1 overflow-y-auto pr-2 py-2")}>
           {!isLineLevel && (
-            <div className="space-y-4 pr-6 border-r">
-              <h3 className="font-medium text-slate-900 border-b pb-2">Datos {lblN}</h3>
-              
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium">Nombre</label>
+            <div className="space-y-2 pr-6 border-r border-slate-200">
+              <div className="flex flex-col gap-1.5">
+                <Label>Nombre</Label>
                 <Input 
                   id="field-nombre"
                   value={nombre} 
@@ -447,13 +436,20 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                   className="uppercase"
                   aria-invalid={!!fieldErrors.nombre}
                 />
-                {fieldErrors.nombre && <p className="text-xs text-red-500">{fieldErrors.nombre}</p>}
+                {fieldErrors.nombre && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.nombre}</p>}
               </div>
               
               {hasDireccion && (
-                <>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium">Dirección</label>
+                <div className="pt-2">
+                  <div className="flex items-center mb-3">
+                    <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider border-l-2 border-blue-500 pl-2 leading-none">
+                      UBICACION
+                    </h3>
+                    <div className="flex-1 border-t border-blue-200 ml-3 mt-0.5"></div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex flex-col gap-1.5">
+                    <Label>Dirección</Label>
                     <Input 
                       id="field-direccion"
                       value={direccion} 
@@ -466,11 +462,11 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                       className="uppercase"
                       aria-invalid={!!fieldErrors.direccion}
                     />
-                    {fieldErrors.direccion && <p className="text-xs text-red-500">{fieldErrors.direccion}</p>}
+                    {fieldErrors.direccion && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.direccion}</p>}
                   </div>
     
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium">País</label>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>País</Label>
                     <SearchableSelect
                       options={[{ value: 'GT', label: 'GUATEMALA' }]}
                       value="GT"
@@ -479,10 +475,10 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                     />
                   </div>
                   
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium">
+                  <div className="flex flex-col gap-1.5">
+                    <Label>
                       Departamento {loadingDeptos && <span className="text-xs text-slate-400 font-normal">(cargando...)</span>}
-                    </label>
+                    </Label>
                     <SearchableSelect
                       id="field-departamento"
                       options={departamentos.map(d => ({ value: d.codigo, label: d.nombre }))}
@@ -496,13 +492,13 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                       placeholder="Seleccione..."
                       error={!!fieldErrors.departamento}
                     />
-                    {fieldErrors.departamento && <p className="text-xs text-red-500">{fieldErrors.departamento}</p>}
+                    {fieldErrors.departamento && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.departamento}</p>}
                   </div>
   
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium">
+                  <div className="flex flex-col gap-1.5">
+                    <Label>
                       Municipio {loadingMunis && <span className="text-xs text-slate-400 font-normal">(cargando...)</span>}
-                    </label>
+                    </Label>
                     <SearchableSelect
                       id="field-municipio"
                       options={municipios.map(m => ({ value: m.codigo, label: m.nombre }))}
@@ -516,17 +512,18 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                       placeholder="Seleccione..."
                       error={!!fieldErrors.municipio}
                     />
-                    {fieldErrors.municipio && <p className="text-xs text-red-500">{fieldErrors.municipio}</p>}
+                    {fieldErrors.municipio && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.municipio}</p>}
                   </div>
-                </>
-              )}
+                </div>
+              </div>
+            )}
             </div>
           )}
 
-          <div className="space-y-4">
-            <h3 className="font-medium text-slate-900 border-b pb-2">Selección Item</h3>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium">Item</label>
+          <div className={cn("space-y-2", !isLineLevel ? "pl-6" : "")}>
+
+            <div className="flex flex-col gap-1.5">
+              <Label>Item</Label>
               {(isLoadingCatalogo || loadingServicios) ? (
                 <div className="flex items-center gap-2 text-sm text-slate-500 py-2">
                   <Loader2 className="w-4 h-4 animate-spin" /> Cargando catálogo...
@@ -548,20 +545,27 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                     placeholder={`Selecciona un Registro`}
                     error={!!fieldErrors.selectedItemId}
                   />
-                  {fieldErrors.selectedItemId && <p className="text-xs text-red-500">{fieldErrors.selectedItemId}</p>}
+                  {fieldErrors.selectedItemId && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.selectedItemId}</p>}
                 </>
               )}
             </div>
 
             {selectedItemId && servicioSeleccionado && (
               <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="pt-2">
+                  <div className="flex items-center mb-3">
+                    <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider border-l-2 border-blue-500 pl-2 leading-none">
+                      CONFIGURACION
+                    </h3>
+                    <div className="flex-1 border-t border-blue-200 ml-3 mt-0.5"></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
                   {isEstandar ? (
                     <>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-sm font-medium">
+                      <div className="flex flex-col gap-1.5">
+                        <Label>
                           Cantidad
-                        </label>
+                        </Label>
                         <NumericInput
                           id="field-cantidad"
                           value={cantidad}
@@ -569,16 +573,16 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                           min="1"
                           isInteger={true}
                           className={cn(
-                            "flex h-8 w-full rounded-sm border bg-transparent px-2.5 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-50",
+                            "flex h-8 w-full rounded-sm border bg-transparent px-2.5 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-50",
                             fieldErrors.cantidad ? "border-red-500 focus-visible:ring-red-500" : "border-slate-200 focus-visible:ring-slate-950"
                           )}
                         />
-                        {fieldErrors.cantidad && <p className="text-xs text-red-500">{fieldErrors.cantidad}</p>}
+                        {fieldErrors.cantidad && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.cantidad}</p>}
                       </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-sm font-medium">
+                      <div className="flex flex-col gap-1.5">
+                        <Label>
                           Unidad Medida
-                        </label>
+                        </Label>
                         <input
                           type="text"
                           value={servicioSeleccionado?.unidad_medida || ''}
@@ -591,21 +595,21 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                   ) : (
                     <div className="col-span-2 grid grid-cols-12 gap-4">
                       <div className="col-span-4 flex flex-col gap-1">
-                        <label className="text-sm font-medium">
+                        <Label>
                           Cant. Turnos
-                        </label>
+                        </Label>
                         <NumericInput
                           value={cantidadTurnos}
                           onChange={(val: number | undefined) => setCantidadTurnos(val || 1)}
                           min="1"
                           isInteger={true}
-                          className="flex h-8 w-full rounded-sm border border-slate-200 bg-transparent px-2.5 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="flex h-8 w-full rounded-sm border border-slate-200 bg-transparent px-2.5 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
                         />
                       </div>
                       <div className="col-span-8 flex flex-col gap-1">
-                        <label className="text-sm font-medium">
+                        <Label>
                           Turno {loadingTurnos && <span className="text-xs text-slate-400">(cargando...)</span>}
-                        </label>
+                        </Label>
                         <SearchableSelect
                           id="field-turnoCodigo"
                           options={turnos.map(t => ({ value: String(t.codigo), label: t.descripcion }))}
@@ -615,7 +619,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                           placeholder="Seleccione..."
                           error={!!fieldErrors.turnoCodigo}
                         />
-                        {fieldErrors.turnoCodigo && <p className="text-xs text-red-500">{fieldErrors.turnoCodigo}</p>}
+                        {fieldErrors.turnoCodigo && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.turnoCodigo}</p>}
                       </div>
                     </div>
                   )}
@@ -628,9 +632,9 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                   {!isEstandar && (
                     <>
                       <div className="col-span-1 flex flex-col gap-1">
-                        <label className="text-sm font-medium">
+                        <Label>
                           Cubre Descanso
-                        </label>
+                        </Label>
                         <SearchableSelect
                           id="field-cubreDescanso"
                           options={OPCIONES_CUBRE_DESCANSO}
@@ -640,13 +644,13 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                           placeholder="Seleccione..."
                           error={!!fieldErrors.cubreDescanso}
                         />
-                        {fieldErrors.cubreDescanso && <p className="text-xs text-red-500">{fieldErrors.cubreDescanso}</p>}
+                        {fieldErrors.cubreDescanso && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.cubreDescanso}</p>}
                       </div>
   
                       <div className="col-span-1 flex flex-col gap-1">
-                        <label className="text-sm font-medium">
+                        <Label>
                           Uniforme {loadingUniformes && <span className="text-xs text-slate-400">(cargando...)</span>}
-                        </label>
+                        </Label>
                         <SearchableSelect
                           id="field-uniformeCodigo"
                           options={uniformes.map(u => ({ value: u.codigo, label: u.descripcion }))}
@@ -656,25 +660,36 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                           placeholder="Seleccione..."
                           error={!!fieldErrors.uniformeCodigo}
                         />
-                        {fieldErrors.uniformeCodigo && <p className="text-xs text-red-500">{fieldErrors.uniformeCodigo}</p>}
+                        {fieldErrors.uniformeCodigo && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.uniformeCodigo}</p>}
                       </div>
                     </>
                   )}
-                  <div className="col-span-1 flex flex-col gap-1">
-                    <label className="text-sm font-medium">
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <div className="flex items-center mb-3">
+                    <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider border-l-2 border-blue-500 pl-2 leading-none">
+                      FINANCIERO
+                    </h3>
+                    <div className="flex-1 border-t border-blue-200 ml-3 mt-0.5"></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-1 flex flex-col gap-1.5">
+                    <Label>
                       Precio Venta ({proyecto?.moneda || 'Q'})
-                    </label>
+                    </Label>
                     <NumericInput
                       id="field-precioVenta"
                       value={precioVenta ?? 0}
                       onChange={(val: number | undefined) => { setPrecioVenta(val); setFieldErrors(prev => ({ ...prev, precioVenta: '' })); }}
                       min="0"
                       className={cn(
-                        "flex h-8 w-full rounded-sm border bg-transparent px-2.5 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-50",
+                        "flex h-8 w-full rounded-sm border bg-transparent px-2.5 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-50",
                         fieldErrors.precioVenta ? "border-red-500 focus-visible:ring-red-500" : "border-slate-200 focus-visible:ring-slate-950"
                       )}
                     />
-                    {fieldErrors.precioVenta && <p className="text-xs text-red-500">{fieldErrors.precioVenta}</p>}
+                    {fieldErrors.precioVenta && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.precioVenta}</p>}
                     {!isEstandar && (
                       <p className="text-xs text-slate-500 italic">
                         * Por Persona
@@ -682,9 +697,9 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                     )}
                   </div>
                   <div className="col-span-1 flex flex-col gap-1">
-                    <label className="text-sm font-medium">
+                    <Label>
                       Total Venta ({proyecto?.moneda || 'Q'})
-                    </label>
+                    </Label>
                     <input
                       type="text"
                       value={(() => {
@@ -699,12 +714,13 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                       })()}
                       readOnly
                       tabIndex={-1}
-                      className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 font-bold text-blue-700 px-2.5 py-1 text-sm shadow-sm outline-none cursor-not-allowed"
+                      className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 font-bold text-blue-700 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
                     />
                   </div>
                 </div>
               </div>
-            )}
+            </div>
+          )}
           </div>
         </div>
 

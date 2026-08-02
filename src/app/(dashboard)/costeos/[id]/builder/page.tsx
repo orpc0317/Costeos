@@ -73,6 +73,11 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
           costoUnitario: Number(r.costoUnitarioErp || 0),
           precioVentaUnitario: r.precioVenta ? Number(r.precioVenta) : undefined,
           precioVentaOrigen: r.precioVentaOrigen as 'LISTA' | 'MANUAL',
+          turnoCodigo: r.turnoCodigo ?? undefined,
+          uniformeCodigo: r.uniformeCodigo ?? undefined,
+          cubreDescanso: r.cubreDescanso || 0,
+          personas: r.personas || 1,
+          horasSemana: r.horasSemana || 0,
           recetas: [],
         })),
         nodos: buildNodoTree(n.id)
@@ -93,6 +98,11 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
     costoUnitario: Number(r.costoUnitarioErp || 0),
     precioVentaUnitario: r.precioVenta ? Number(r.precioVenta) : undefined,
     precioVentaOrigen: r.precioVentaOrigen as 'LISTA' | 'MANUAL',
+    turnoCodigo: r.turnoCodigo ?? undefined,
+    uniformeCodigo: r.uniformeCodigo ?? undefined,
+    cubreDescanso: r.cubreDescanso || 0,
+    personas: r.personas || 1,
+    horasSemana: r.horasSemana || 0,
     recetas: [],
   })) : [];
 
@@ -118,6 +128,8 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
       nombre: costeo.tipoCosteo.nombre,
       cantidadNiveles: costeo.tipoCosteo.cantidadNiveles,
       etiquetasNiveles: costeo.tipoCosteo.etiquetasNiveles,
+      coloresNiveles: costeo.tipoCosteo.coloresNiveles,
+      iconosNiveles: costeo.tipoCosteo.iconosNiveles,
       nivelConDireccion: costeo.tipoCosteo.nivelConDireccion,
       lineaEtiqueta: costeo.tipoCosteo.lineaEtiqueta,
       baseEvaluacion: costeo.tipoCosteo.baseEvaluacion as 'MENSUAL' | 'GLOBAL',
