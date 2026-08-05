@@ -15,7 +15,9 @@ export type CosteoAction =
   | { type: 'UPDATE_RECURSO'; payload: { recursoId: string; data: Partial<RecursoCosteo> } }
   | { type: 'REMOVE_RECURSO'; payload: { recursoId: string } }
   | { type: 'SELECT_NODE'; payload: { type: 'NODO' | 'RECURSO' | 'PROYECTO'; id: string } }
-  | { type: 'REPLACE_IDS'; payload: { nodos: Record<string, string>; recursos: Record<string, string> } };
+  | { type: 'REPLACE_IDS'; payload: { nodos: Record<string, string>; recursos: Record<string, string> } }
+  | { type: 'MOVE_NODO'; payload: { id: string; newParentId: string | null } }
+  | { type: 'MOVE_RECURSO'; payload: { id: string; newParentId: string | null } };
 
 interface CosteoState {
   proyecto: ProyectoCosteo | null;
@@ -35,6 +37,31 @@ function mapNodos(nodos: NodoCosteo[], mapFn: (n: NodoCosteo) => NodoCosteo): No
     const updated = mapFn(n);
     return { ...updated, nodos: mapNodos(updated.nodos, mapFn) };
   });
+}
+
+function findNodo(nodos: NodoCosteo[], id: string): NodoCosteo | undefined {
+  for (const n of nodos) {
+    if (n.id === id) return n;
+    const child = findNodo(n.nodos, id);
+    if (child) return child;
+  }
+  return undefined;
+}
+
+function findRecurso(proyecto: ProyectoCosteo, id: string): RecursoCosteo | undefined {
+  const rootR = proyecto.recursos.find(r => r.id === id);
+  if (rootR) return rootR;
+  
+  const searchNodos = (nodos: NodoCosteo[]): RecursoCosteo | undefined => {
+    for (const n of nodos) {
+      const r = n.recursos.find(r => r.id === id);
+      if (r) return r;
+      const child = searchNodos(n.nodos);
+      if (child) return child;
+    }
+    return undefined;
+  };
+  return searchNodos(proyecto.nodos);
 }
 
 function costeoReducer(state: CosteoState, action: CosteoAction): CosteoState {
@@ -205,6 +232,89 @@ function costeoReducer(state: CosteoState, action: CosteoAction): CosteoState {
         ...state,
         proyecto: proyectoMod,
         selectedNode: newSelectedNode,
+      };
+    }
+    case 'MOVE_NODO': {
+      if (!state.proyecto) return state;
+      const { id, newParentId } = action.payload;
+      
+      const nodoToMove = findNodo(state.proyecto.nodos, id);
+      if (!nodoToMove) return state;
+      
+      // 1. Remove from old place
+      const rootFilter = state.proyecto.nodos.filter(n => n.id !== id);
+      const cleanNodos = mapNodos(rootFilter, n => {
+        return { ...n, nodos: n.nodos.filter(child => child.id !== id) };
+      });
+      
+      // 2. Adjust level
+      let nuevoNivel = 1;
+      if (newParentId) {
+         const newParent = findNodo(cleanNodos, newParentId);
+         if (newParent) nuevoNivel = newParent.nivel + 1;
+      }
+      
+      const updateNiveles = (n: NodoCosteo, currentNivel: number): NodoCosteo => {
+        return {
+          ...n,
+          nivel: currentNivel,
+          nodos: n.nodos.map(child => updateNiveles(child, currentNivel + 1))
+        };
+      };
+      
+      const movedNodo = updateNiveles(nodoToMove, nuevoNivel);
+      
+      // 3. Add to new place
+      let finalNodos = cleanNodos;
+      if (!newParentId) {
+        finalNodos = [...cleanNodos, movedNodo];
+      } else {
+        finalNodos = mapNodos(cleanNodos, n => {
+          if (n.id === newParentId) {
+            return { ...n, nodos: [...n.nodos, movedNodo] };
+          }
+          return n;
+        });
+      }
+      
+      const proyectoMod = { ...state.proyecto, nodos: finalNodos };
+      return {
+        ...state,
+        proyecto: proyectoMod,
+        resumen: calcularResumenFinanciero(proyectoMod),
+      };
+    }
+    case 'MOVE_RECURSO': {
+      if (!state.proyecto) return state;
+      const { id, newParentId } = action.payload;
+      
+      const recursoToMove = findRecurso(state.proyecto, id);
+      if (!recursoToMove) return state;
+      
+      // 1. Remove
+      let proyectoMod = { ...state.proyecto };
+      const filterRecursos = (recursos: RecursoCosteo[]) => recursos.filter(r => r.id !== id);
+      proyectoMod.recursos = filterRecursos(proyectoMod.recursos);
+      proyectoMod.nodos = mapNodos(proyectoMod.nodos, n => {
+        return { ...n, recursos: filterRecursos(n.recursos) };
+      });
+      
+      // 2. Add
+      if (!newParentId) {
+        proyectoMod.recursos = [...proyectoMod.recursos, recursoToMove];
+      } else {
+        proyectoMod.nodos = mapNodos(proyectoMod.nodos, n => {
+          if (n.id === newParentId) {
+            return { ...n, recursos: [...n.recursos, recursoToMove] };
+          }
+          return n;
+        });
+      }
+      
+      return {
+        ...state,
+        proyecto: proyectoMod,
+        resumen: calcularResumenFinanciero(proyectoMod),
       };
     }
     default:

@@ -180,6 +180,7 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
               cubreDescanso: rFront.cubreDescanso || 0,
               personas: rFront.personas || 1,
               horasSemana: rFront.horasSemana || 0,
+              bonos: (rFront.bonos && rFront.bonos.length > 0) ? JSON.stringify(rFront.bonos) : null,
             }
           });
           idMap.recursos[rFront.id] = nuevoR.id.toString();
@@ -197,6 +198,7 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
               cubreDescanso: rFront.cubreDescanso || 0,
               personas: rFront.personas || 1,
               horasSemana: rFront.horasSemana || 0,
+              bonos: (rFront.bonos && rFront.bonos.length > 0) ? JSON.stringify(rFront.bonos) : null,
             }
           });
         }

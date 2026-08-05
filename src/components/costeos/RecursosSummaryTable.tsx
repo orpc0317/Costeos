@@ -44,16 +44,41 @@ export function RecursosSummaryTable({ recursos }: { recursos: RecursoSummaryIte
   const recursosAgrupados = useMemo(() => {
     const grupos: Record<string, any> = {};
     (recursos || []).forEach((r) => {
-      const pathStr = (r._path || []).join(' > ');
-      const key = `${pathStr}-${r.erpItemId}-${r.turnoCodigo || 'NA'}-${r.uniformeCodigo || 'NA'}-${r.cubreDescanso || 0}-${r.precioVentaUnitario || 0}`;
+      // Calcular totales individuales del recurso para acumularlos correctamente
+      const factor = r.categoria === 'RECURSO_HUMANO' ? ((r.cantidad || 1) * (r.personas || 1)) : (r.cantidad || 1);
+      let costo = (r.costoUnitario || 0) * factor;
+      let venta = (r.precioVentaUnitario || 0) * factor;
+
+      if (r.bonos && r.bonos.length > 0) {
+        const bonosCosto = r.bonos.reduce((sum: number, b: any) => sum + (Number(b.costoUnitario) || 0), 0) * factor;
+        const bonosVenta = r.bonos.reduce((sum: number, b: any) => sum + (Number(b.precioVentaUnitario) || 0), 0) * factor;
+        costo += bonosCosto;
+        venta += bonosVenta;
+      }
+
+      const calcReceta = (receta: any, pCant: number) => {
+        receta.items?.forEach((item: any) => {
+          const qty = item.cantidad * pCant;
+          costo += item.costoUnitario * qty;
+          if (item.subRecetas) item.subRecetas.forEach((sr: any) => calcReceta(sr, qty));
+        });
+      };
+      if (r.recetas) r.recetas.forEach((receta: any) => calcReceta(receta, r.cantidad || 1));
+
+      // La llave ya no incluye el pathStr ni el precioVentaUnitario
+      const key = `${r.erpItemId}-${r.turnoCodigo || 'NA'}-${r.uniformeCodigo || 'NA'}-${r.cubreDescanso || 0}-${r.personas || 1}`;
+      
       if (!grupos[key]) {
         grupos[key] = {
           ...r,
-          _pathStr: pathStr,
           cantidadTotal: 0,
+          costoAcumulado: 0,
+          ventaAcumulada: 0,
         };
       }
       grupos[key].cantidadTotal += r.cantidad || 1;
+      grupos[key].costoAcumulado += costo;
+      grupos[key].ventaAcumulada += venta;
     });
     return Object.values(grupos);
   }, [recursos]);
@@ -66,7 +91,7 @@ export function RecursosSummaryTable({ recursos }: { recursos: RecursoSummaryIte
     }
   };
 
-  const showPath = (recursos || []).some(r => r._path && r._path.length > 0);
+
 
   return (
     <div className="mt-4 border rounded-md overflow-hidden bg-white shadow-sm">
@@ -79,41 +104,67 @@ export function RecursosSummaryTable({ recursos }: { recursos: RecursoSummaryIte
           No hay recursos asignados.
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full min-w-[900px] text-sm text-left whitespace-nowrap">
             <thead className="bg-slate-50 text-slate-500 border-b">
               <tr>
-                {showPath && <th className="py-2 px-3 font-medium">Ubicación</th>}
                 <th className="py-2 px-3 font-medium">Item / Descripción</th>
                 <th className="py-2 px-3 font-medium text-center">Cant.</th>
                 <th className="py-2 px-3 font-medium">Turno</th>
                 <th className="py-2 px-3 font-medium">Uniforme</th>
+                <th className="py-2 px-3 font-medium text-center">Personas</th>
                 <th className="py-2 px-3 font-medium">Descanso</th>
-                <th className="py-2 px-3 font-medium text-right">Precio Un.</th>
-                <th className="py-2 px-3 font-medium text-right">Total</th>
+                <th className="py-2 px-3 font-medium text-right">Venta ({proyecto?.moneda || 'Q'})</th>
+                <th className="py-2 px-3 font-medium text-right">Costo ({proyecto?.moneda || 'Q'})</th>
+                <th className="py-2 px-3 font-medium text-right">Margen ({proyecto?.moneda || 'Q'})</th>
               </tr>
             </thead>
             <tbody>
               {recursosAgrupados.map((g: any, i: number) => {
                 const turnoDesc = turnos.find(t => t.codigo === g.turnoCodigo)?.descripcion || '-';
                 const uniformeDesc = uniformes.find(u => u.codigo === g.uniformeCodigo)?.descripcion || '-';
-                const descansoDesc = OPCIONES_CUBRE_DESCANSO.find(o => o.value === (g.cubreDescanso || 0))?.label || '-';
-                const total = (g.cantidadTotal || 0) * (g.precioVentaUnitario || 0);
+                
+                const descansoFull = OPCIONES_CUBRE_DESCANSO.find(o => o.value === (g.cubreDescanso || 0))?.label || '-';
+                const descansoDesc = descansoFull.includes(' - ') ? descansoFull.split(' - ')[1] : descansoFull;
+
+                const costoTotal = g.costoAcumulado || 0;
+                const ventaTotal = g.ventaAcumulada || 0;
+                const margenTotal = ventaTotal - costoTotal;
+                const factor = g.categoria === 'RECURSO_HUMANO' ? ((g.cantidadTotal || 1) * (g.personas || 1)) : (g.cantidadTotal || 1);
 
                 return (
                   <tr key={i} className="border-b last:border-0 hover:bg-slate-50">
-                    {showPath && <td className="py-2 px-3 text-slate-600 text-xs">{g._pathStr || '-'}</td>}
                     <td className="py-2 px-3 font-medium text-slate-700">{g.nombre}</td>
                     <td className="py-2 px-3 text-center">{g.cantidadTotal}</td>
                     <td className="py-2 px-3 text-slate-600 text-xs">{turnoDesc}</td>
                     <td className="py-2 px-3 text-slate-600 text-xs">{uniformeDesc}</td>
+                    <td className="py-2 px-3 text-center">{g.categoria === 'RECURSO_HUMANO' ? factor : '-'}</td>
                     <td className="py-2 px-3 text-slate-600 text-xs">{descansoDesc}</td>
-                    <td className="py-2 px-3 text-right text-emerald-600">{proyecto?.moneda === 'GTQ' ? 'Q' : '$'} {formatCurrency(g.precioVentaUnitario || 0)}</td>
-                    <td className="py-2 px-3 text-right font-medium text-slate-800">{proyecto?.moneda === 'GTQ' ? 'Q' : '$'} {formatCurrency(total)}</td>
+                    <td className="py-2 px-3 text-right font-medium text-slate-800">{formatCurrency(ventaTotal)}</td>
+                    <td className="py-2 px-3 text-right font-medium text-slate-800">{formatCurrency(costoTotal)}</td>
+                    <td className="py-2 px-3 text-right font-medium text-emerald-600">{formatCurrency(margenTotal)}</td>
                   </tr>
                 );
               })}
             </tbody>
+            <tfoot className="bg-slate-100 border-t font-semibold text-slate-800">
+              <tr>
+                <td colSpan={4} className="py-2 px-3 text-right">Totales:</td>
+                <td className="py-2 px-3 text-center">
+                  {recursosAgrupados.reduce((sum, g) => sum + (g.categoria === 'RECURSO_HUMANO' ? ((g.cantidadTotal || 1) * (g.personas || 1)) : 0), 0)}
+                </td>
+                <td className="py-2 px-3"></td>
+                <td className="py-2 px-3 text-right">
+                  {formatCurrency(recursosAgrupados.reduce((sum, g) => sum + (g.ventaAcumulada || 0), 0))}
+                </td>
+                <td className="py-2 px-3 text-right">
+                  {formatCurrency(recursosAgrupados.reduce((sum, g) => sum + (g.costoAcumulado || 0), 0))}
+                </td>
+                <td className="py-2 px-3 text-right text-emerald-700">
+                  {formatCurrency(recursosAgrupados.reduce((sum, g) => sum + ((g.ventaAcumulada || 0) - (g.costoAcumulado || 0)), 0))}
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       )}

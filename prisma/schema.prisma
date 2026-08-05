@@ -159,6 +159,7 @@ model NodoRecurso {
 
   congeladoEn       DateTime? @map("congelado_en") // null en BORRADOR
   orden             Int       @default(0)
+  bonos             Json?     @map("bonos")
 
   nodo       Nodo         @relation(fields: [nodoId], references: [id], onDelete: Cascade)
   recetaSnap RecetaSnap[]

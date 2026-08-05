@@ -60,8 +60,17 @@ export function calcularResumenFinanciero(proyecto: ProyectoCosteo, selectedNode
   };
 
   const procesarRecurso = (recurso: RecursoCosteo) => {
-    const costoTotal = recurso.costoUnitario * recurso.cantidad;
-    const ventaTotal = (recurso.precioVentaUnitario || 0) * recurso.cantidad;
+    const factor = recurso.categoria === 'RECURSO_HUMANO' ? ((recurso.cantidad || 1) * (recurso.personas || 1)) : (recurso.cantidad || 1);
+    
+    let costoTotal = (recurso.costoUnitario || 0) * factor;
+    let ventaTotal = (recurso.precioVentaUnitario || 0) * factor;
+
+    if (recurso.bonos && recurso.bonos.length > 0) {
+      const bonosCosto = recurso.bonos.reduce((sum, b) => sum + (b.costoUnitario || 0), 0) * factor;
+      const bonosVenta = recurso.bonos.reduce((sum, b) => sum + (b.precioVentaUnitario || 0), 0) * factor;
+      costoTotal += bonosCosto;
+      ventaTotal += bonosVenta;
+    }
 
     if (recurso.tipoCosto === 'MENSUAL') {
       resumen.totalCostoMensual += costoTotal;

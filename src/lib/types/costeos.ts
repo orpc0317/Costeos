@@ -60,6 +60,15 @@ export interface RecetaCosteo {
   items: ItemRecetaCosteo[];
 }
 
+// Nivel 4 (Opcional): Bonos asociados a un Recurso
+export interface BonoCosteo {
+  id: string; // ID único interno en el árbol
+  erpBonoId: string; // ID del catálogo de ERP
+  nombre: string;
+  costoUnitario: number;
+  precioVentaUnitario?: number;
+}
+
 // Nivel 3: Recurso asignado a un Puesto
 export interface RecursoCosteo {
   id: string;
@@ -80,6 +89,8 @@ export interface RecursoCosteo {
   personas?: number;
   horasSemana?: number;
   cubreDescanso?: number;
+  
+  bonos?: BonoCosteo[];
 
 }
 
@@ -90,6 +101,7 @@ export interface NodoCosteo {
   
   // Ubicación (opcional)
   direccion?: string;
+  direccionSecuencia?: number; // Para indicar si se seleccionó una dirección operativa existente
   pais?: string;
   departamento?: string;
   municipio?: string;

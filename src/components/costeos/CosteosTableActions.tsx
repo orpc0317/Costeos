@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { useRouter } from 'next/navigation'
-import { Search } from 'lucide-react'
+import { Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export function CosteosTableActions({ costeoId, estado }: { costeoId: number, estado: string }) {
@@ -15,7 +15,7 @@ export function CosteosTableActions({ costeoId, estado }: { costeoId: number, es
       title={estado === 'BORRADOR' ? 'Editar' : 'Ver detalles'}
       onClick={() => router.push(`/costeos/${costeoId}/builder`)}
     >
-      <Search className="h-4 w-4 text-blue-600" />
+      <Eye className="h-4 w-4 text-blue-600" />
     </Button>
   )
 }

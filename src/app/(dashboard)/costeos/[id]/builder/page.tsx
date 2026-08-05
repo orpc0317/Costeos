@@ -79,6 +79,7 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
           personas: r.personas || 1,
           horasSemana: r.horasSemana || 0,
           recetas: [],
+          bonos: r.bonos ? (typeof r.bonos === 'string' ? JSON.parse(r.bonos) : r.bonos) : [],
         })),
         nodos: buildNodoTree(n.id)
       }));
@@ -104,6 +105,7 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
     personas: r.personas || 1,
     horasSemana: r.horasSemana || 0,
     recetas: [],
+    bonos: r.bonos ? (typeof r.bonos === 'string' ? JSON.parse(r.bonos) : r.bonos) : [],
   })) : [];
 
   const dbProyecto: ProyectoCosteo = {
@@ -111,6 +113,7 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
     empresaId: costeo.contrato.empresaId,
     cliente: {
       id: costeo.contrato.cliente.id.toString(),
+      codigo: costeo.contrato.cliente.erpClienteId?.toString(),
       razonSocial: costeo.contrato.cliente.razonSocial,
       nit: costeo.contrato.cliente.nit,
       direccionFiscal: costeo.contrato.cliente.direccionFiscal || '',

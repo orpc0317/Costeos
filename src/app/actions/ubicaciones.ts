@@ -47,3 +47,44 @@ export async function getMunicipios(paisCodigo: string, deptoCodigo: string): Pr
     return []
   }
 }
+
+export interface DireccionOperativa {
+  empresa: number;
+  cliente: number;
+  secuencia: number;
+  nombre: string;
+  direccion: string;
+  pais: string;
+  departamento: string;
+  municipio: string;
+  departamentoNombre?: string;
+  municipioNombre?: string;
+}
+
+export async function getClienteDireccionesOperativas(empresaId: number, clienteId: number): Promise<DireccionOperativa[]> {
+  try {
+    const pool = await getErpDbConnection();
+    const request = pool.request();
+    
+    request.input('PrmEmpresa', empresaId);
+    request.input('PrmCliente', clienteId);
+    
+    const result = await request.execute('sp_buscar_cliente_direccion');
+    
+    return result.recordset.map(row => ({
+      empresa: row.empresa || row.Empresa,
+      cliente: row.cliente || row.Cliente,
+      secuencia: row.secuencia || row.Secuencia,
+      nombre: row.nombre || row.Nombre,
+      direccion: row.direccion_nombre || row.direccion || row.Direccion,
+      pais: row.pais || row.Pais,
+      departamento: String(row.departamento || row.Departamento),
+      municipio: String(row.municipio || row.Municipio),
+      departamentoNombre: row.departamento_nombre || '',
+      municipioNombre: row.municipio_nombre || ''
+    }));
+  } catch (error) {
+    console.error('Error fetching cliente direcciones operativas:', error);
+    return [];
+  }
+}

@@ -142,3 +142,8 @@ Ejemplo correcto:
   {/* TabsContent ... */}
 </Tabs>
 ```
+
+## 7. Acciones de Fila (Row Actions)
+
+Al definir las acciones para cada fila en las tablas CRUD, se deben seguir estos lineamientos para mantener la consistencia visual en toda la aplicación:
+- **Ícono "Ver detalles" o "Ver/Editar"**: Se debe utilizar siempre el ícono `Eye` de `lucide-react` para la acción principal de visualizar o editar en detalle un registro (ej. `<Eye className="h-4 w-4 text-blue-600" />`). Evitar utilizar `Search` u otros íconos para este propósito.

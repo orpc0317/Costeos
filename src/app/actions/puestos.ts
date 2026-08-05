@@ -27,6 +27,13 @@ export interface UniformeItem {
   descripcion: string;
 }
 
+export interface BonoItem {
+  codigo: string;
+  descripcion: string;
+  costo: number;
+  precioVenta?: number;
+}
+
 export async function getTurnos(empresaId: number): Promise<TurnoItem[]> {
   try {
     const pool = await getErpDbConnection()
@@ -120,3 +127,28 @@ export async function getServiciosVenta(empresaId: number, searchText: string = 
   }
 }
 
+export async function getBonos(): Promise<BonoItem[]> {
+  // Simulando retardo de red
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
+  return [
+    {
+      codigo: 'BONO-PROD',
+      descripcion: 'Bono de Productividad',
+      costo: 150.00,
+      precioVenta: 200.00
+    },
+    {
+      codigo: 'BONO-NOCT',
+      descripcion: 'Bono Nocturno',
+      costo: 300.00,
+      precioVenta: 350.00
+    },
+    {
+      codigo: 'BONO-RIESGO',
+      descripcion: 'Bono de Riesgo',
+      costo: 500.00
+      // sin precioVenta para probar escenarios donde solo hay costo
+    }
+  ];
+}

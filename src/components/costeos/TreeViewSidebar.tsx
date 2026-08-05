@@ -4,7 +4,8 @@ import React from 'react';
 import { useCosteo } from '@/lib/context/CosteoContext';
 import { 
   MapPin, Briefcase, User, Box, Shield, Monitor, FileText, AlertTriangle,
-  Building, Users, Layers, Component, Folder, ListTree, Tags, Network, Hash
+  Building, Users, Layers, Component, Folder, ListTree, Tags, Network, Hash,
+  ChevronRight, ChevronDown
 } from 'lucide-react';
 import { CategoriaItem, NodoCosteo, RecursoCosteo } from '@/lib/types/costeos';
 
@@ -17,6 +18,7 @@ import { isNodeValid } from '@/lib/utils/validation';
 
 export default function TreeViewSidebar() {
   const { proyecto, selectedNode, dispatch } = useCosteo();
+  const [expandedNodes, setExpandedNodes] = React.useState<Record<string, boolean>>({});
 
   if (!proyecto) return null;
 
@@ -30,6 +32,13 @@ export default function TreeViewSidebar() {
   const handleSelectNode = (type: 'NODO' | 'RECURSO' | 'PROYECTO', id: string) => {
     dispatch({ type: 'SELECT_NODE', payload: { type, id } });
   };
+
+  const toggleExpand = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setExpandedNodes(prev => ({ ...prev, [id]: prev[id] === false ? true : false }));
+  };
+
+  const isExpanded = (id: string) => expandedNodes[id] !== false;
 
   const getIconForCategory = (categoria: CategoriaItem) => {
     switch (categoria) {
@@ -85,39 +94,53 @@ export default function TreeViewSidebar() {
     // Sort nodes by creation order or id (if needed, here we just map)
     return (
       <div className="ml-3 border-l border-slate-200 pl-2 space-y-1">
-        {nodos.map(nodo => (
-          <div key={nodo.id} className="space-y-1">
-            <div 
-              className={`flex items-center justify-between px-2 py-1 rounded-md cursor-pointer group ${selectedNode?.id === nodo.id ? `${colorClass} font-medium` : 'hover:bg-slate-100 text-slate-600'}`}
-              onClick={() => handleSelectNode('NODO', nodo.id)}
-            >
-              <div className="flex items-center gap-1.5 overflow-hidden">
-                <IconComponent className={`w-3.5 h-3.5 shrink-0 ${selectedNode?.id === nodo.id ? 'opacity-100' : textColor}`} />
-                <span className="truncate text-[13px]">{nodo.nombre || `Nuevo ${etiquetas[idx] || `Nivel ${nivelActual}`}`}</span>
+        {nodos.map(nodo => {
+          const hasChildren = (nodo.nodos && nodo.nodos.length > 0) || (nodo.recursos && nodo.recursos.length > 0);
+          const expanded = isExpanded(nodo.id);
+          
+          return (
+            <div key={nodo.id} className="space-y-1">
+              <div 
+                className={`flex items-center justify-between px-2 py-1 rounded-md cursor-pointer group ${selectedNode?.id === nodo.id ? `${colorClass} font-medium` : 'hover:bg-slate-100 text-slate-600'}`}
+                onClick={() => handleSelectNode('NODO', nodo.id)}
+              >
+                <div className="flex items-center gap-1.5 overflow-hidden">
+                  {hasChildren ? (
+                    <div onClick={(e) => toggleExpand(e, nodo.id)} className="p-0.5 hover:bg-slate-200 rounded text-slate-400">
+                      {expanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                    </div>
+                  ) : (
+                    <div className="w-[18px] h-[18px] flex-shrink-0" />
+                  )}
+                  <IconComponent className={`w-3.5 h-3.5 shrink-0 ${selectedNode?.id === nodo.id ? 'opacity-100' : textColor}`} />
+                  <span className="truncate text-[13px]">{nodo.nombre || `Nuevo ${etiquetas[idx] || `Nivel ${nivelActual}`}`}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {!isNodeValid(nodo, 'NODO', { hasDireccion: tc?.nivelConDireccion === nivelActual }) && (
+                    <div title="Falta información requerida">
+                      <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                    </div>
+                  )}
+                  {/* Si estamos en el último nivel (maxNiveles), el siguiente es agregar un recurso (Línea) */}
+                  {/* Si no, agregamos un nodo de nivelActual + 1 */}
+                  <AddNodeDialog 
+                    level={nivelActual >= maxNiveles ? maxNiveles + 1 : nivelActual + 1} 
+                    parentId={nodo.id} 
+                    parentName={nodo.nombre} 
+                  />
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                {!isNodeValid(nodo, 'NODO', { hasDireccion: tc?.nivelConDireccion === nivelActual }) && (
-                  <div title="Falta información requerida">
-                    <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
-                  </div>
-                )}
-                {/* Si estamos en el último nivel (maxNiveles), el siguiente es agregar un recurso (Línea) */}
-                {/* Si no, agregamos un nodo de nivelActual + 1 */}
-                <AddNodeDialog 
-                  level={nivelActual >= maxNiveles ? maxNiveles + 1 : nivelActual + 1} 
-                  parentId={nodo.id} 
-                  parentName={nodo.nombre} 
-                />
-              </div>
+              
+              {/* Hijos */}
+              {expanded && (
+                <>
+                  {renderNodos(nodo.nodos, nivelActual + 1)}
+                  {renderRecursos(nodo.recursos)}
+                </>
+              )}
             </div>
-            
-            {/* Hijos Nodos */}
-            {renderNodos(nodo.nodos, nivelActual + 1)}
-            
-            {/* Hijos Recursos */}
-            {renderRecursos(nodo.recursos)}
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };
@@ -144,8 +167,7 @@ export default function TreeViewSidebar() {
                 <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
               </div>
             )}
-            {/* Agregar Nivel 1 (o recurso directo si maxNiveles = 0) */}
-            <AddNodeDialog level={maxNiveles === 0 ? 1 : 1} parentId={null} parentName={proyecto.nombreProyecto} />
+            <AddNodeDialog level={1} parentId={proyecto.id} parentName={proyecto.nombreProyecto} />
           </div>
         </div>
 
