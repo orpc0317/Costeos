@@ -11,7 +11,9 @@ import {
   ChevronRight,
   Building2,
   Calculator,
-  Network
+  Network,
+  Tags,
+  Package
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -43,6 +45,8 @@ const navItems = [
     icon: Settings,
     children: [
       { label: 'Tipos Costeo', href: '/dashboard/configuracion/tipos-costeo', icon: Network },
+      { label: 'Categorías', href: '/dashboard/configuracion/categorias', icon: Tags },
+      { label: 'Ítems', href: '/dashboard/configuracion/items', icon: Package },
       { label: 'Usuarios', href: '/dashboard/configuracion/usuarios', icon: Users },
     ],
   },

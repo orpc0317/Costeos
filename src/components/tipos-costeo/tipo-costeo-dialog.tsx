@@ -174,7 +174,8 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
 
     const formData = new FormData()
     if (!empresaId) {
-      setError('Debe seleccionar una empresa')
+      setFieldErrors({ empresaId: 'Requerido' })
+      setActiveTab('general')
       setLoading(false)
       return
     }

@@ -15,6 +15,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Manejo de Formularios y Errores:** Todos los formularios deben ser controlados (`useState` para cada campo) y enviar los datos interceptando el `onSubmit` (`e.preventDefault()`). NUNCA mostrar errores usando `toast`. Deben distinguirse 2 tipos de errores:
   1. **Errores de Campo (Validaciones / Missing):** Los mensajes relacionados con un input específico deben almacenarse en un estado (ej. `fieldErrors`) y mostrarse inmediatamente debajo del input utilizando EXCLUSIVAMENTE las clases: `<p className="text-xs text-red-500 !mt-0.5 leading-none">{error}</p>`.
   2. **Errores Globales (del Servidor / Try-Catch):** Aquellos mensajes genéricos que provienen de la API o servidor (ej. error 500) se deben almacenar en un estado y mostrarse "inline" al tope del formulario (ej. `<div className="text-red-500 text-sm">{error}</div>`), sin borrar los campos.
+- **Estructura de Modales (Acciones):** En modo vista, botones ("Historial" y "Editar") van agrupados a la derecha. En modo edición, el botón "Cancelar" debe resetear el estado a modo vista (sin cerrar el modal si es un registro existente).
+- **Campos Autogenerados:** Códigos/IDs autogenerados deben ocultarse al crear, y deshabilitarse *permanentemente* (`disabled={true}` + `bg-muted/50`) al editar un registro.
+- **Historial de Auditoría:** Utilizar SIEMPRE el componente `<HistorialDrawer tabla="nombre_tabla_db" />`. El nombre de la tabla debe coincidir exactamente con el esquema de Prisma para que cargue la bitácora.
 - **Puerto de Desarrollo:** El proyecto corre en el puerto **30001**. Siempre que se levante el servidor, se debe notificar al usuario que acceda a `http://localhost:30001`.
 
 Para más detalle, consultar `docs/conventions.md`.

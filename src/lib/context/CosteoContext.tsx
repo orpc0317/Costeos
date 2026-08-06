@@ -86,7 +86,7 @@ function costeoReducer(state: CosteoState, action: CosteoAction): CosteoState {
       if (!state.proyecto) return state;
       let nuevosNodos = state.proyecto.nodos;
       
-      if (!action.payload.parentId) {
+      if (!action.payload.parentId || action.payload.parentId === state.proyecto.id) {
         // Añadir a la raíz
         nuevosNodos = [...state.proyecto.nodos, action.payload.nodo];
       } else {

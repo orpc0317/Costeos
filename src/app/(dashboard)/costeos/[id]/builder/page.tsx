@@ -65,7 +65,7 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
         cubreDescanso: n.cubreDescanso || 0,
         recursos: n.recursos.map(r => ({
           id: r.id.toString(),
-          erpItemId: r.erpItemId,
+          itemId: r.itemId,
           nombre: r.itemNombre,
           categoria: r.itemTipo as any,
           tipoCosto: r.itemTipoCosto as any,
@@ -91,7 +91,7 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
   const defaultNodo = dbNodos.find(n => n.parentId === null && n.nombre === 'DEFAULT');
   const recursos = defaultNodo ? defaultNodo.recursos.map(r => ({
     id: r.id.toString(),
-    erpItemId: r.erpItemId,
+    itemId: r.itemId,
     nombre: r.itemNombre,
     categoria: r.itemTipo as any,
     tipoCosto: r.itemTipoCosto as any,

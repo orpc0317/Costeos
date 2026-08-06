@@ -296,7 +296,7 @@ export default function EditorPanel() {
             <div className="grid grid-cols-12 gap-3">
               <div className="col-span-4 flex flex-col gap-1.5">
                 <Label>Código</Label>
-                <Input type="text" className="bg-slate-100 text-slate-500 cursor-not-allowed font-mono text-sm h-8 py-1" value={nodeData.itemServicio?.codigo || nodeData.erpItemId || 'N/A'} readOnly title="Código ERP" />
+                <Input type="text" className="bg-slate-100 text-slate-500 cursor-not-allowed font-mono text-sm h-8 py-1" value={nodeData.itemServicio?.codigo || nodeData.itemId || 'N/A'} readOnly title="Código ERP" />
               </div>
               <div className="col-span-8 flex flex-col gap-1.5">
                 <Label>Descripción</Label>
@@ -340,13 +340,13 @@ export default function EditorPanel() {
                           handleChange({
                             turnoCodigo: code,
                             personas: t?.personas || 1,
-                            horasSemana: t?.totalHoras || 0
+                            horasSemana: t ? ((t.lunes === 1 ? t.lunes_horas : 0) + (t.martes === 1 ? t.martes_horas : 0) + (t.miercoles === 1 ? t.miercoles_horas : 0) + (t.jueves === 1 ? t.jueves_horas : 0) + (t.viernes === 1 ? t.viernes_horas : 0) + (t.sabado === 1 ? t.sabado_horas : 0) + (t.domingo === 1 ? t.domingo_horas : 0)) : 0
                           });
                         }}
                         placeholder="Seleccione..."
                       />
                     ) : (
-                      <Input value={turnos.find(t => t.codigo === nodeData.turnoCodigo)?.descripcion || turnos.find(t => t.codigo === nodeData.turnoCodigo)?.nombre || `Cód: ${nodeData.turnoCodigo}`} readOnly className="bg-slate-100 text-slate-500 cursor-not-allowed text-sm uppercase h-8 py-1 px-2.5" />
+                      <Input value={turnos.find(t => t.codigo === nodeData.turnoCodigo)?.descripcion || `Cód: ${nodeData.turnoCodigo}`} readOnly className="bg-slate-100 text-slate-500 cursor-not-allowed text-sm uppercase h-8 py-1 px-2.5" />
                     )}
                   </div>
                 </div>
@@ -385,7 +385,7 @@ export default function EditorPanel() {
                         placeholder="Seleccione..."
                       />
                     ) : (
-                      <Input value={uniformes.find(u => u.codigo === nodeData.uniformeCodigo)?.descripcion || uniformes.find(u => u.codigo === nodeData.uniformeCodigo)?.nombre || `Cód: ${nodeData.uniformeCodigo}`} readOnly className="bg-slate-100 text-slate-500 cursor-not-allowed text-sm uppercase h-8 py-1 px-2.5" />
+                      <Input value={uniformes.find(u => u.codigo === nodeData.uniformeCodigo)?.descripcion || `Cód: ${nodeData.uniformeCodigo}`} readOnly className="bg-slate-100 text-slate-500 cursor-not-allowed text-sm uppercase h-8 py-1 px-2.5" />
                     )}
                   </div>
                 </div>

@@ -162,7 +162,7 @@ export function UsuarioDialog({ open, onOpenChange, usuario }: UsuarioDialogProp
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-[480px] h-[85vh] sm:h-[450px] flex flex-col p-4 sm:p-6 overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users className="w-5 h-5 text-slate-500" />

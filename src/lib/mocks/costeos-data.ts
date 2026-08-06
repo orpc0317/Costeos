@@ -53,6 +53,8 @@ export const mockProyectoInicial: ProyectoCosteo = {
     nombre: 'Costeo Estandar',
     cantidadNiveles: 2,
     etiquetasNiveles: 'Sitio,Puesto',
+    coloresNiveles: 'bg-blue-100,bg-amber-100',
+    iconosNiveles: 'MapPin,User',
     nivelConDireccion: 1,
     lineaEtiqueta: 'Líneas',
     baseEvaluacion: 'GLOBAL',
@@ -77,7 +79,7 @@ export const mockProyectoInicial: ProyectoCosteo = {
           recursos: [
             {
               id: 'REC-001',
-              erpItemId: '10',
+              itemId: 10,
               nombre: 'Guardia Estándar 12h',
               categoria: 'RECURSO_HUMANO',
               tipoCosto: 'MENSUAL',
@@ -90,9 +92,9 @@ export const mockProyectoInicial: ProyectoCosteo = {
                   recetaCatalogoId: 'REC_UNIFORME',
                   nombre: 'Uniforme Estándar',
                   items: [
-                    { id: 'rec-1', erpItemId: '100', nombre: 'Guardia de Seguridad', categoria: 'RECURSO_HUMANO', tipoCosto: 'MENSUAL', cantidad: 2, costoUnitario: 12000 },
-                    { id: 'rec-2', erpItemId: '101', nombre: 'Supervisor', categoria: 'RECURSO_HUMANO', tipoCosto: 'MENSUAL', cantidad: 1, costoUnitario: 18000 },
-                    { id: 'rec-3', erpItemId: '102', nombre: 'Radios de Comunicación', categoria: 'EQUIPO', tipoCosto: 'MENSUAL', cantidad: 3, costoUnitario: 500 }
+                    { id: 'rec-1', itemId: 100, nombre: 'Guardia de Seguridad', categoria: 'RECURSO_HUMANO', tipoCosto: 'MENSUAL', cantidad: 2, costoUnitario: 12000 },
+                    { id: 'rec-2', itemId: 101, nombre: 'Supervisor', categoria: 'RECURSO_HUMANO', tipoCosto: 'MENSUAL', cantidad: 1, costoUnitario: 18000 },
+                    { id: 'rec-3', itemId: 102, nombre: 'Radios de Comunicación', categoria: 'EQUIPO', tipoCosto: 'MENSUAL', cantidad: 3, costoUnitario: 500 }
                   ]
                 }
               ]

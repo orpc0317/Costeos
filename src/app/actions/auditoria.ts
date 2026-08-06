@@ -27,6 +27,11 @@ const MAPA_CAMPOS: Record<string, string> = {
   baseEvaluacion: 'Base de Evaluación',
 }
 
+const CAMPOS_IGNORADOS = [
+  'id', 'creadoEn', 'actualizadoEn', 'creadoPor', 'registroVersion', 
+  'usuarioCreo', 'fechaCreo', 'usuarioModifico', 'fechaModifico'
+]
+
 function formatValor(valor: any, campo: string): string {
   if (valor === null || valor === undefined) return ''
   if (typeof valor === 'boolean') {
@@ -77,6 +82,8 @@ export async function obtenerHistorial(tabla: string, registroId: number): Promi
         
         cambios = []
         for (const key of Object.keys(despues)) {
+          if (CAMPOS_IGNORADOS.includes(key)) continue;
+          
           // Si el valor cambió
           if (JSON.stringify(antes[key]) !== JSON.stringify(despues[key])) {
             const nombreAmigable = MAPA_CAMPOS[key] || key
@@ -95,6 +102,8 @@ export async function obtenerHistorial(tabla: string, registroId: number): Promi
         const despues = JSON.parse(log.datosDespues)
         cambios = []
         for (const key of Object.keys(despues)) {
+          if (CAMPOS_IGNORADOS.includes(key)) continue;
+
           if (despues[key] !== null && despues[key] !== undefined && despues[key] !== '') {
             const nombreAmigable = MAPA_CAMPOS[key] || key
             cambios.push({

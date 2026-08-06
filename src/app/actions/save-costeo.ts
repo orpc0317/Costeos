@@ -166,7 +166,7 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
           const nuevoR = await tx.nodoRecurso.create({
             data: {
               nodo: { connect: { id: nDbId } },
-              erpItemId: rFront.erpItemId,
+              item: { connect: { id: rFront.itemId } },
               itemNombre: rFront.nombre,
               itemTipo: rFront.categoria,
               itemCategoria: 'N/A',
@@ -180,7 +180,7 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
               cubreDescanso: rFront.cubreDescanso || 0,
               personas: rFront.personas || 1,
               horasSemana: rFront.horasSemana || 0,
-              bonos: (rFront.bonos && rFront.bonos.length > 0) ? JSON.stringify(rFront.bonos) : null,
+              bonos: (rFront.bonos && rFront.bonos.length > 0) ? (rFront.bonos as any) : null,
             }
           });
           idMap.recursos[rFront.id] = nuevoR.id.toString();
@@ -198,7 +198,7 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
               cubreDescanso: rFront.cubreDescanso || 0,
               personas: rFront.personas || 1,
               horasSemana: rFront.horasSemana || 0,
-              bonos: (rFront.bonos && rFront.bonos.length > 0) ? JSON.stringify(rFront.bonos) : null,
+              bonos: (rFront.bonos && rFront.bonos.length > 0) ? (rFront.bonos as any) : null,
             }
           });
         }

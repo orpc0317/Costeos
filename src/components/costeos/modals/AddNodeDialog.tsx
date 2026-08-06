@@ -13,17 +13,17 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NumericInput } from '@/components/ui/numeric-input';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, Trash } from 'lucide-react';
 import { normalizeText } from '@/lib/utils/text';
 import { cn } from '@/lib/utils';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { getDepartamentos, getMunicipios, UbicacionItem, getClienteDireccionesOperativas, DireccionOperativa } from '@/app/actions/ubicaciones';
-import { getCatalogoItems, getRecetaDeItem } from '@/app/actions/erp';
 import { getTurnos, getUniformes, TurnoItem, UniformeItem, getServiciosVenta, ServicioVentaItem, getBonos, BonoItem } from '@/app/actions/puestos';
 import { AddressLookupModal } from './AddressLookupModal';
 import { Search } from 'lucide-react';
 import { TurnoCard } from '../TurnoCard';
-import { ErpItem } from '@/lib/erp/types';
+import { listarItems } from '@/app/actions/items';
+import { ItemRow } from '@/lib/types/items';
 
 export interface AddNodeDialogProps {
   level: number;
@@ -52,8 +52,8 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
   const [isNewAddress, setIsNewAddress] = useState<boolean>(false);
   const [showAddressLookup, setShowAddressLookup] = useState<boolean>(false);
 
-  // Estado para LÃ­nea (CatÃ¡logo ERP)
-  const [items, setItems] = useState<ErpItem[]>([]);
+  // Estado para Línea (Catálogo local)
+  const [items, setItems] = useState<ItemRow[]>([]);
   const [servicios, setServicios] = useState<ServicioVentaItem[]>([]);
   const [turnos, setTurnos] = useState<TurnoItem[]>([]);
   const [uniformes, setUniformes] = useState<UniformeItem[]>([]);
@@ -65,7 +65,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
 
   const [selectedItemId, setSelectedItemId] = useState<string>('');
   
-  // Dynamic Fields for LÃ­nea
+  // Dynamic Fields for Línea
   const [cantidad, setCantidad] = useState<number>(1);
   const [precioVenta, setPrecioVenta] = useState<number | undefined>();
   const [turnoCodigo, setTurnoCodigo] = useState<number | undefined>();
@@ -86,7 +86,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
   const maxNiveles = tc?.cantidadNiveles ?? 2;
   const etiquetas = tc?.etiquetasNiveles ? tc.etiquetasNiveles.split(',') : [];
   const lblN = etiquetas[level - 1] || `Nivel ${level}`;
-  const lblR = tc?.lineaEtiqueta || 'LÃ­nea';
+  const lblR = tc?.lineaEtiqueta || 'Línea';
   
   const isLineLevel = level > maxNiveles;
   const hasDireccion = tc?.nivelConDireccion === level;
@@ -132,7 +132,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
         setLoadingServicios(true);
         
         Promise.all([
-          getCatalogoItems(proyecto.empresaId),
+          listarItems(),
           getServiciosVenta(proyecto.empresaId),
           getTurnos(proyecto.empresaId),
           getUniformes(proyecto.empresaId),
@@ -227,7 +227,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
   const handleSelectDireccion = (secuenciaStr: string) => {
     const secuencia = parseInt(secuenciaStr, 10);
     if (isDireccionEnUso(secuencia)) {
-      alert('Esta direcciÃ³n ya estÃ¡ en uso en otro nivel del costeo.');
+      alert('Esta dirección ya está en uso en otro nivel del costeo.');
       return;
     }
     
@@ -288,7 +288,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
         setError(`Debe ingresar el Nombre para crear un ${lblN} o seleccionar un Item para agregarlo directo.`);
         return;
       } else {
-        newFieldErrors.selectedItemId = `Debe realizar la SelecciÃ³n Item.`;
+        newFieldErrors.selectedItemId = `Debe realizar la Selección Item.`;
         hasFieldErrors = true;
       }
     }
@@ -300,11 +300,11 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
       }
       if (hasDireccion) {
         if (!isNewAddress && !direccionSecuencia) {
-          newFieldErrors.direccion = `Debe seleccionar una direcciÃ³n o crear una nueva.`;
+          newFieldErrors.direccion = `Debe seleccionar una dirección o crear una nueva.`;
           hasFieldErrors = true;
         } else {
           if (!cleanDireccion) {
-            newFieldErrors.direccion = `La direcciÃ³n es obligatoria.`;
+            newFieldErrors.direccion = `La dirección es obligatoria.`;
             hasFieldErrors = true;
           }
           if (!departamento) {
@@ -321,7 +321,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
     
     if (hasLineaInfo) {
       if (!servicioSeleccionado || !erpItem) {
-        newFieldErrors.selectedItemId = "Item no vÃ¡lido.";
+        newFieldErrors.selectedItemId = "Item no válido.";
         hasFieldErrors = true;
       } else {
         if (precioVenta === undefined) {
@@ -343,7 +343,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
             hasFieldErrors = true;
           }
           if (trabaja7Dias && cubreDescanso === 0) {
-            newFieldErrors.cubreDescanso = "Debe seleccionar una opciÃ³n vÃ¡lida para Cubre Descanso.";
+            newFieldErrors.cubreDescanso = "Debe seleccionar una opción válida para Cubre Descanso.";
             hasFieldErrors = true;
           }
         }
@@ -366,24 +366,14 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
 
       if (hasLineaInfo && servicioSeleccionado && erpItem) {
         let recetasDelRecurso: any[] = [];
-        if (erpItem.tieneReceta) {
-          const componentes = await getRecetaDeItem(erpItem.id);
-          if (componentes.length > 0) {
-            recetasDelRecurso.push({
-              id: `RECC-${Date.now()}`,
-              recetaCatalogoId: `ERP-${erpItem.id}`,
-              nombre: `Componentes de ${erpItem.nombre}`,
-              items: componentes.map(comp => ({
-                id: `ITR-${Date.now()}-${Math.random()}`,
-                erpItemId: comp.itemId,
-                nombre: comp.itemNombre,
-                categoria: comp.itemCategoria as any,
-                tipoCosto: comp.itemTipoCosto as any,
-                cantidad: comp.cantidad,
-                costoUnitario: comp.costoUnitario,
-              }))
-            });
-          }
+        
+        // Determinar categoría basada en tipoItem y tipoServicio
+        // 1 Producto -> ARTICULO, 2 Servicio -> SERVICIO/RECURSO_HUMANO, 3 Equipo -> EQUIPO, 4 Financiero -> SERVICIO
+        let catStr = 'SERVICIO';
+        if (erpItem.tipoItem === 1) catStr = 'ARTICULO';
+        if (erpItem.tipoItem === 3) catStr = 'EQUIPO';
+        if (erpItem.tipoItem === 2) {
+          catStr = erpItem.tipoServicio === 1 ? 'RECURSO_HUMANO' : 'SERVICIO';
         }
 
         if (isEstandar) {
@@ -392,12 +382,12 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
             for(let i = 0; i < cantidad; i++) {
               recursosNuevos.push({
                 id: `REC-${Date.now()}-${i}`,
-                erpItemId: erpItem.id,
-                nombre: erpItem.nombre,
-                categoria: erpItem.tipo as any,
-                tipoCosto: erpItem.tipoCosto as any,
+                itemId: erpItem.id,
+                nombre: erpItem.descripcion,
+                categoria: catStr as any,
+                tipoCosto: 'MENSUAL',
                 cantidad: 1,
-                costoUnitario: erpItem.costoUnitario,
+                costoUnitario: 0,
                 precioVentaUnitario: precioVenta,
                 precioVentaOrigen: 'MANUAL',
                 itemServicio: servicioSeleccionado,
@@ -405,15 +395,15 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
               });
             }
           } else {
-            // EstÃ¡ndar u otros: 1 recurso de cantidad N
+            // Estándar u otros: 1 recurso de cantidad N
             recursosNuevos.push({
               id: `REC-${Date.now()}`,
-              erpItemId: erpItem.id,
-              nombre: erpItem.nombre,
-              categoria: erpItem.tipo as any,
-              tipoCosto: erpItem.tipoCosto as any,
+              itemId: erpItem.id,
+              nombre: erpItem.descripcion,
+              categoria: catStr as any,
+              tipoCosto: 'MENSUAL',
               cantidad: cantidad,
-              costoUnitario: erpItem.costoUnitario,
+              costoUnitario: 0,
               precioVentaUnitario: precioVenta,
               precioVentaOrigen: 'MANUAL',
               itemServicio: servicioSeleccionado,
@@ -438,12 +428,12 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
 
           recursosNuevos.push({
             id: `REC-${Date.now()}`,
-            erpItemId: erpItem.id,
-            nombre: erpItem.nombre,
+            itemId: erpItem.id,
+            nombre: erpItem.descripcion,
             categoria: 'RECURSO_HUMANO',
-            tipoCosto: erpItem.tipoCosto as any,
+            tipoCosto: 'MENSUAL',
             cantidad: cantidadTurnos,
-            costoUnitario: erpItem.costoUnitario,
+            costoUnitario: 0,
             precioVentaUnitario: precioVenta,
             precioVentaOrigen: 'MANUAL',
             itemServicio: servicioSeleccionado,
@@ -459,7 +449,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
       }
 
       if (creatingNode) {
-        // OpciÃ³n: Crear Nodo (y asignarle los recursos si los hay)
+        // Opción: Crear Nodo (y asignarle los recursos si los hay)
         const nuevoNodo: NodoCosteo = {
           id: `NOD-${Date.now()}`,
           nivel: level,
@@ -475,7 +465,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
         dispatch({ type: 'ADD_NODO', payload: { parentId, nodo: nuevoNodo } });
         dispatch({ type: 'SELECT_NODE', payload: { type: 'NODO', id: nuevoNodo.id } });
       } else {
-        // OpciÃ³n: Agregar recursos directos a parentId (el nodo actual)
+        // Opción: Agregar recursos directos a parentId (el nodo actual)
         recursosNuevos.forEach((recurso, idx) => {
           dispatch({ type: 'ADD_RECURSO', payload: { nodoId: parentId, recurso } });
           if (idx === 0) dispatch({ type: 'SELECT_NODE', payload: { type: 'RECURSO', id: recurso.id } });
@@ -485,7 +475,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
       setOpen(false);
     } catch (err) {
       console.error(err);
-      setError("OcurriÃ³ un error al procesar la solicitud.");
+      setError("Ocurrió un error al procesar la solicitud.");
     } finally {
       setIsAdding(false);
     }
@@ -542,10 +532,11 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
             <thead className="bg-slate-50 text-slate-500 font-medium border-b">
               <tr>
                 <th className="px-3 py-2">Bono</th>
-                <th className="px-3 py-2 text-right">Costo Un.</th>
-                <th className="px-3 py-2 text-right text-slate-700 font-semibold bg-slate-100">SubTotal Costo</th>
-                <th className="px-3 py-2 text-right">Venta Un.</th>
-                <th className="px-3 py-2 text-right text-blue-700 font-semibold bg-blue-50/50">SubTotal Venta</th>
+                <th className="px-3 py-2 text-center">Personas</th>
+                <th className="px-3 py-2 text-right">Costo</th>
+                <th className="px-3 py-2 text-right text-slate-700 font-semibold bg-slate-100">Total Costo</th>
+                <th className="px-3 py-2 text-right">Precio</th>
+                <th className="px-3 py-2 text-right text-blue-700 font-semibold bg-blue-50/50">Total Venta</th>
                 <th className="px-3 py-2 w-10"></th>
               </tr>
             </thead>
@@ -557,6 +548,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                 return (
                   <tr key={idx} className="bg-white hover:bg-slate-50">
                     <td className="px-3 py-2">{b.nombre}</td>
+                    <td className="px-3 py-2 text-center text-slate-500">{factor}</td>
                     <td className="px-3 py-2 text-right text-slate-500">{b.costoUnitario.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
                     <td className="px-3 py-2 text-right text-slate-700 font-semibold bg-slate-100">{costoTotal.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
                     <td className="px-3 py-2 text-right text-slate-500">{(b.precioVentaUnitario || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</td>
@@ -585,7 +577,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
       <DialogTrigger render={<button className="p-1 hover:bg-slate-200 rounded text-slate-500" title={level === 1 ? `Agregar a Proyecto` : `Agregar a ${parentName || 'Nodo'}`} />}>
         <Plus className="w-4 h-4" />
       </DialogTrigger>
-      <DialogContent className={cn(!isLineLevel ? "sm:max-w-[950px] w-[95vw]" : "sm:max-w-[800px] w-[90vw]", "h-[90vh] sm:h-[600px] flex flex-col")}>
+      <DialogContent className={cn(!isLineLevel ? "sm:max-w-[1200px] w-[95vw]" : "sm:max-w-[1000px] w-[95vw]", "h-[90vh] sm:h-[600px] flex flex-col")}>
         <DialogHeader className="shrink-0">
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
@@ -596,7 +588,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
           </div>
         )}
         
-        <div className={cn(!isLineLevel ? "grid grid-cols-2 gap-0" : "", "flex-1 overflow-y-auto pr-2 py-2")}>
+        <div className={cn(!isLineLevel ? "grid grid-cols-[3.5fr_6.5fr] gap-0" : "", "flex-1 overflow-y-auto pr-2 py-2")}>
           {!isLineLevel && (
             <div className="space-y-2 pr-6 border-r border-slate-200">
               <div className="flex flex-col gap-1.5">
@@ -614,7 +606,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                   aria-invalid={!!fieldErrors.nombre}
                   maxLength={hasDireccion ? 20 : undefined}
                   readOnly={hasDireccion && !isNewAddress && !!direccionSecuencia}
-                  title={hasDireccion && !isNewAddress && !!direccionSecuencia ? "El nombre proviene de la direcciÃ³n operativa seleccionada" : undefined}
+                  title={hasDireccion && !isNewAddress && !!direccionSecuencia ? "El nombre proviene de la dirección operativa seleccionada" : undefined}
                 />
 
                 {fieldErrors.nombre && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.nombre}</p>}
@@ -628,7 +620,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                     </h3>
                     <div className="flex-1 border-t border-blue-200 mx-3 mt-0.5"></div>
                     {!isNewAddress ? (
-                      <Button type="button" variant="ghost" size="sm" onClick={() => { setIsNewAddress(true); setDireccionSecuencia(undefined); setNombre(''); setDireccion(''); setDepartamento(''); setMunicipio(''); }} className="text-blue-600 h-6 text-xs px-2">
+                      <Button type="button" variant="ghost" size="sm" onClick={() => { setIsNewAddress(true); setDireccionSecuencia(undefined); setDireccion(''); setDepartamento(''); setMunicipio(''); }} className="text-blue-600 h-6 text-xs px-2">
                         + Crear Nueva
                       </Button>
                     ) : (
@@ -641,7 +633,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                   <div className="space-y-2">
                     {!isNewAddress && (
                       <div className="flex flex-col gap-1.5">
-                        <Label>Seleccionar DirecciÃ³n</Label>
+                        <Label>Seleccionar Dirección</Label>
                         <div className="flex items-center gap-2">
                           {(() => {
                             const selectedAddr = direccionesOperativas.find(d => d.secuencia === direccionSecuencia);
@@ -654,7 +646,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                                 onClick={() => setShowAddressLookup(true)}
                               >
                                 <Search className="mr-2 h-4 w-4" />
-                                {loadingDirecciones ? "Cargando direcciones..." : selectedAddr ? selectedAddr.nombre : "Buscar direcciÃ³n..."}
+                                {loadingDirecciones ? "Cargando direcciones..." : selectedAddr ? selectedAddr.nombre : "Buscar dirección..."}
                               </Button>
                             );
                           })()}
@@ -663,7 +655,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                     )}
 
                     <div className="flex flex-col gap-1.5">
-                    <Label>DirecciÃ³n</Label>
+                    <Label>Dirección</Label>
                     <Input 
                       id="field-direccion"
                       value={direccion} 
@@ -681,7 +673,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                   </div>
     
                   <div className="flex flex-col gap-1.5">
-                    <Label>PaÃ­s</Label>
+                    <Label>País</Label>
                     <SearchableSelect
                       options={[{ value: 'GT', label: 'GUATEMALA' }]}
                       value="GT"
@@ -735,13 +727,13 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
             </div>
           )}
 
-          <div className={cn("space-y-2", !isLineLevel ? "pl-6" : "")}>
-
-            <div className="flex flex-col gap-1.5">
-              <Label>Item</Label>
+          <div className={cn("space-y-4", !isLineLevel ? "pl-6" : "")}>
+            <div className="w-full lg:w-[60%]">
+              <div className="flex flex-col gap-1.5">
+                <Label>Item</Label>
               {(isLoadingCatalogo || loadingServicios) ? (
                 <div className="flex items-center gap-2 text-sm text-slate-500 py-2">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Cargando catÃ¡logo...
+                  <Loader2 className="w-4 h-4 animate-spin" /> Cargando catálogo...
                 </div>
               ) : (
                 <>
@@ -749,7 +741,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                     id="field-selectedItemId"
                     options={items.map(item => ({
                       value: item.id.toString(),
-                      label: `${item.codigo} - ${item.nombre} ${item.tieneReceta ? '(Con Receta)' : ''}`
+                      label: `${item.codigoErp || item.id} - ${item.descripcion}`
                     }))}
                     value={selectedItemId}
                     onChange={(val) => {
@@ -763,12 +755,14 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                   {fieldErrors.selectedItemId && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.selectedItemId}</p>}
                 </>
               )}
+              </div>
             </div>
 
             {selectedItemId && servicioSeleccionado && (() => {
               const generalContent = (
-                <div className="space-y-2 animate-in fade-in slide-in-from-top-2 pr-2">
-                  <div className="pt-2">
+                <div className="space-y-4 animate-in fade-in slide-in-from-top-2 pr-2">
+                  <div className="w-full lg:w-[60%]">
+                    <div className="pt-2">
                   <div className="flex items-center mb-3 min-h-[24px]">
                     <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider border-l-2 border-blue-500 pl-2 leading-none">
                       CONFIGURACION
@@ -882,6 +876,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                   )}
                   </div>
                 </div>
+                  </div>
 
                 <div className="pt-2">
                   <div className="flex items-center mb-3 min-h-[24px]">
@@ -952,7 +947,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                       <Label>Costo Un. ({proyecto?.moneda || 'Q'})</Label>
                       <input
                         type="text"
-                        value={(erpItem?.costoUnitario || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        value={(0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                         readOnly tabIndex={-1}
                         className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
                       />
@@ -963,7 +958,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                         type="text"
                         value={(() => {
                           const factor = isEstandar ? (cantidad || 1) : ((cantidadTurnos || 1) * (turnoSeleccionado?.personas || 1));
-                          return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factor * (erpItem?.costoUnitario || 0));
+                          return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factor * 0);
                         })()}
                         readOnly tabIndex={-1}
                         className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
@@ -988,7 +983,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                         type="text"
                         value={(() => {
                           const factor = isEstandar ? (cantidad || 1) : ((cantidadTurnos || 1) * (turnoSeleccionado?.personas || 1));
-                          const subtotal = factor * (erpItem?.costoUnitario || 0);
+                          const subtotal = factor * 0;
                           const bonosTotal = factor * bonosAgregados.reduce((sum, b) => sum + (b.costoUnitario || 0), 0);
                           return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(subtotal + bonosTotal);
                         })()}
@@ -1010,16 +1005,16 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                         Bonos {bonosAgregados.length > 0 && `(${bonosAgregados.length})`}
                       </TabsTrigger>
                     </TabsList>
-                    <TabsContent value="general" className="flex-1 overflow-y-auto outline-none">
+                    <TabsContent value="general" className="flex-1 overflow-visible outline-none">
                       {generalContent}
                     </TabsContent>
-                    <TabsContent value="bonos" className="flex-1 overflow-y-auto outline-none">
+                    <TabsContent value="bonos" className="flex-1 overflow-visible outline-none">
                       {renderBonosContent()}
                     </TabsContent>
                   </Tabs>
                 </div>
               ) : (
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-visible">
                   {generalContent}
                 </div>
               );

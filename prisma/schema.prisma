@@ -140,7 +140,8 @@ model Nodo {
 model NodoRecurso {
   id                Int       @id @default(autoincrement())
   nodoId            Int       @map("nodo_id")
-  erpItemId         String    @map("erp_item_id") @db.VarChar(50) // ID o Código del item en ERP
+  itemId            Int       @map("item_id")
+  item              Item      @relation(fields: [itemId], references: [id])
   itemNombre        String    @map("item_nombre") @db.VarChar(200) // snapshot
   itemTipo          String    @map("item_tipo") @db.VarChar(30)
   itemCategoria     String    @map("item_categoria") @db.VarChar(100) // ej: "SALARIOS"
@@ -179,7 +180,8 @@ model RecetaSnap {
   id              Int     @id @default(autoincrement())
   nodoRecursoId   Int     @map("nodo_recurso_id")
   nivel           Int // 1, 2, 3, 4 (profundidad dentro de la receta)
-  erpItemId       String  @map("erp_item_id") @db.VarChar(50)
+  itemId          Int     @map("item_id")
+  item            Item    @relation(fields: [itemId], references: [id])
   itemNombre      String  @map("item_nombre") @db.VarChar(200)
   itemCategoria   String  @map("item_categoria") @db.VarChar(100)
   itemTipoCosto   String  @map("item_tipo_costo") @db.VarChar(10) // MENSUAL | UNICO
@@ -341,4 +343,43 @@ model HistorialAutoGuardado {
   usuario     Usuario  @relation(fields: [usuarioId], references: [id])
 
   @@map("costeos_historial_autoguardado")
+}
+
+// ─── CATEGORIAS E ITEMS (INDEPENDIENTES DEL ERP) ──────────────────────────────
+
+model CategoriaItem {
+  id              Int      @id @default(autoincrement())
+  empresa         Int
+  codigo          Int      @unique
+  nombre          String   @db.VarChar(100)
+  activo          Boolean  @default(true)
+  usuarioCreo     Int      @map("usuario_creo")
+  fechaCreo       DateTime @default(now()) @map("fecha_creo")
+  registroVersion Int      @default(1) @map("registro_version")
+
+  items           Item[]
+
+  @@map("costeos_categoria_item")
+}
+
+model Item {
+  id                Int      @id @default(autoincrement())
+  empresa           Int
+  descripcion       String   @db.VarChar(100)
+  unidadMedida      String   @map("unidad_medida") @db.VarChar(10)
+  tipoItem          Int      @map("tipo_item") @db.TinyInt // 1 Producto, 2 Servicio, 3 Equipo, 4 Financiero
+  tipoServicio      Int      @default(0) @map("tipo_servicio") @db.TinyInt // 0 Estandar, 1 Personal
+  codigoErp         String?  @map("codigo_erp") @db.VarChar(15)
+  categoriaId       Int      @map("categoria_id")
+  nodoRecursos      NodoRecurso[]
+  recetaSnaps       RecetaSnap[]
+  precioVentaCero   Boolean  @default(false) @map("precio_venta_cero")
+  activo            Boolean  @default(true)
+  usuarioCreo       Int      @map("usuario_creo")
+  fechaCreo         DateTime @default(now()) @map("fecha_creo")
+  registroVersion   Int      @default(1) @map("registro_version")
+
+  categoria         CategoriaItem @relation(fields: [categoriaId], references: [id])
+
+  @@map("costeos_item")
 }
