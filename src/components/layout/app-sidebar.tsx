@@ -44,6 +44,7 @@ const navItems = [
     href: '/dashboard/configuracion',
     icon: Settings,
     children: [
+      { label: 'Empresas', href: '/dashboard/configuracion/empresas', icon: Building2 },
       { label: 'Tipos Costeo', href: '/dashboard/configuracion/tipos-costeo', icon: Network },
       { label: 'Categorías', href: '/dashboard/configuracion/categorias', icon: Tags },
       { label: 'Ítems', href: '/dashboard/configuracion/items', icon: Package },

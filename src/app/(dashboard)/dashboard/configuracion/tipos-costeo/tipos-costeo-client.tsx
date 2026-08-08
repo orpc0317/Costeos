@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { DataTable } from '@/components/ui/data-table'
 import { NuevoTipoCosteoButton } from '@/components/tipos-costeo/nuevo-tipo-costeo-button'
 import { TipoCosteoAcciones } from '@/components/tipos-costeo/tipo-costeo-acciones'
-import { Hash } from 'lucide-react'
+import { Network } from 'lucide-react'
 import type { TipoCosteoRow } from '@/lib/types/tipos-costeo'
 
 export function TiposCosteoClient({ tiposCosteo }: { tiposCosteo: TipoCosteoRow[] }) {
@@ -90,7 +90,7 @@ export function TiposCosteoClient({ tiposCosteo }: { tiposCosteo: TipoCosteoRow[
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2 text-indigo-900">
-            <Hash className="h-6 w-6" />
+            <Network className="h-6 w-6" />
             <h1 className="text-2xl font-bold tracking-tight">Tipos Costeos</h1>
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">

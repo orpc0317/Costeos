@@ -15,9 +15,9 @@ export function ItemsClient({ data, categorias }: { data: ItemRow[], categorias:
     () => [
 
       {
-        accessorKey: 'empresa',
+        accessorKey: 'empresaId',
         header: 'Empresa',
-        cell: ({ row }) => <span className="text-muted-foreground">{row.original.empresaNombre || row.original.empresa}</span>,
+        cell: ({ row }) => <span className="text-muted-foreground">{row.original.empresaNombre || row.original.empresaId}</span>,
       },
       {
         accessorKey: 'descripcion',

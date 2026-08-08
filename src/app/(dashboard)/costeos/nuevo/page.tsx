@@ -13,13 +13,13 @@ export default async function NuevoCosteoPage() {
   const usuarioErp = 'ALGO' // TODO: Cambiar por el usuario_erp de la sesión real. Asumiendo "ALGO" para testing si ese es el default, u "oscar"
 
   // Fetch inicial
-  const resTipos = await getTiposCosteoActivosAction()
+  const tiposCosteo = await getTiposCosteoActivosAction()
 
   return (
     <div className="mx-auto max-w-4xl py-8">
       <h1 className="text-2xl font-bold tracking-tight text-slate-900 mb-6">Nuevo Costeo</h1>
       
-      <WizardCosteo tiposCosteo={resTipos.data || []} />
+      <WizardCosteo tiposCosteo={tiposCosteo} />
     </div>
   )
 }

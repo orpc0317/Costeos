@@ -46,4 +46,8 @@ export type {
   ErpEmpresa,
   ErpDepartamento,
   ErpMunicipio,
+  ErpTurno,
+  ErpUniforme,
+  ErpServicioVenta,
+  ErpDireccionOperativa,
 } from './types'

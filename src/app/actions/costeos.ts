@@ -41,13 +41,13 @@ export async function createCosteo(formData: FormData) {
       })
     } else {
       clienteLocal = await tx.cliente.findFirst({
-        where: { erpClienteId: erpCliente.id }
+        where: { codigoErp: parseInt(erpCliente.id, 10) || 0 }
       })
 
       if (!clienteLocal) {
         clienteLocal = await tx.cliente.create({
           data: {
-            erpClienteId: erpCliente.id,
+            codigoErp: parseInt(erpCliente.id, 10) || 0,
             nit: erpCliente.nit,
             razonSocial: erpCliente.razonSocial,
             direccionFiscal: erpCliente.direccion,

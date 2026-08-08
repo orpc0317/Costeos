@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const itemSchema = z.object({
-  empresa: z.coerce.number().min(1, 'Empresa es requerida'),
+  empresaId: z.coerce.number().min(1, 'Empresa es requerida'),
   descripcion: z.string().min(1, 'Descripción es requerida').max(100),
   unidadMedida: z.string().min(1, 'Unidad es requerida').max(10),
   tipoItem: z.coerce.number().min(1).max(4),
@@ -16,7 +16,7 @@ export type ItemInput = z.infer<typeof itemSchema>
 
 export type ItemRow = {
   id: number
-  empresa: number
+  empresaId: number
   empresaNombre?: string
   descripcion: string
   unidadMedida: string

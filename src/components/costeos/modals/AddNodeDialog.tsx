@@ -17,8 +17,8 @@ import { Plus, Loader2, Trash } from 'lucide-react';
 import { normalizeText } from '@/lib/utils/text';
 import { cn } from '@/lib/utils';
 import { SearchableSelect } from '@/components/ui/searchable-select';
-import { getDepartamentos, getMunicipios, UbicacionItem, getClienteDireccionesOperativas, DireccionOperativa } from '@/app/actions/ubicaciones';
-import { getTurnos, getUniformes, TurnoItem, UniformeItem, getServiciosVenta, ServicioVentaItem, getBonos, BonoItem } from '@/app/actions/puestos';
+import { getDepartamentosERP, getMunicipiosERP, getTurnosERP, getUniformesERP, getServiciosVentaERP, getClienteDireccionesERP } from '@/app/actions/erp';
+import type { ErpTurno, ErpUniforme, ErpServicioVenta, ErpDireccionOperativa } from '@/lib/erp';
 import { AddressLookupModal } from './AddressLookupModal';
 import { Search } from 'lucide-react';
 import { TurnoCard } from '../TurnoCard';
@@ -41,12 +41,12 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
   const [departamento, setDepartamento] = useState('');
   const [municipio, setMunicipio] = useState('');
   
-  const [departamentos, setDepartamentos] = useState<UbicacionItem[]>([]);
-  const [municipios, setMunicipios] = useState<UbicacionItem[]>([]);
+  const [departamentos, setDepartamentos] = useState<import('@/lib/erp').ErpDepartamento[]>([]);
+  const [municipios, setMunicipios] = useState<import('@/lib/erp').ErpMunicipio[]>([]);;
   const [loadingDeptos, setLoadingDeptos] = useState(false);
   const [loadingMunis, setLoadingMunis] = useState(false);
 
-  const [direccionesOperativas, setDireccionesOperativas] = useState<DireccionOperativa[]>([]);
+  const [direccionesOperativas, setDireccionesOperativas] = useState<ErpDireccionOperativa[]>([]);
   const [loadingDirecciones, setLoadingDirecciones] = useState(false);
   const [direccionSecuencia, setDireccionSecuencia] = useState<number | undefined>(undefined);
   const [isNewAddress, setIsNewAddress] = useState<boolean>(false);
@@ -54,9 +54,9 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
 
   // Estado para Línea (Catálogo local)
   const [items, setItems] = useState<ItemRow[]>([]);
-  const [servicios, setServicios] = useState<ServicioVentaItem[]>([]);
-  const [turnos, setTurnos] = useState<TurnoItem[]>([]);
-  const [uniformes, setUniformes] = useState<UniformeItem[]>([]);
+  const [servicios, setServicios] = useState<ErpServicioVenta[]>([]);
+  const [turnos, setTurnos] = useState<ErpTurno[]>([]);
+  const [uniformes, setUniformes] = useState<ErpUniforme[]>([]);
   
   const [isLoadingCatalogo, setIsLoadingCatalogo] = useState(false);
   const [loadingTurnos, setLoadingTurnos] = useState(false);
@@ -72,7 +72,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
   const [uniformeCodigo, setUniformeCodigo] = useState('');
   const [cubreDescanso, setCubreDescanso] = useState<number>(0);
   
-  const [bonosDisponibles, setBonosDisponibles] = useState<BonoItem[]>([]);
+  const [bonosDisponibles, setBonosDisponibles] = useState<{ codigo: string; descripcion: string; costo: number }[]>([]);
   const [bonosAgregados, setBonosAgregados] = useState<BonoCosteo[]>([]);
   const [selectedBonoId, setSelectedBonoId] = useState<string>('');
   const [selectedBonoPrecio, setSelectedBonoPrecio] = useState<number>(0);
@@ -105,18 +105,18 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
     if (open) {
       if (hasDireccion) {
         setLoadingDeptos(true);
-        getDepartamentos('GT').then(data => {
+        getDepartamentosERP().then(data => {
           if (active) {
             setDepartamentos(data);
             setLoadingDeptos(false);
-            if (data.length > 0 && !departamento) setDepartamento(data[0].codigo);
+            if (data.length > 0 && !departamento) setDepartamento(String(data[0].codigo));
           }
         });
 
         if (proyecto?.empresaId && proyecto?.cliente?.id) {
           setLoadingDirecciones(true);
           const clienteErpId = parseInt(proyecto.cliente.codigo || proyecto.cliente.id, 10);
-          getClienteDireccionesOperativas(proyecto.empresaId, clienteErpId).then(dirs => {
+          getClienteDireccionesERP(proyecto.empresaId, clienteErpId).then(dirs => {
             if (active) {
               setDireccionesOperativas(dirs);
               setLoadingDirecciones(false);
@@ -133,17 +133,15 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
         
         Promise.all([
           listarItems(),
-          getServiciosVenta(proyecto.empresaId),
-          getTurnos(proyecto.empresaId),
-          getUniformes(proyecto.empresaId),
-          getBonos()
-        ]).then(([itemsData, serviciosData, turnosData, uniformesData, bonosData]) => {
+          getServiciosVentaERP(proyecto.empresaId),
+          getTurnosERP(proyecto.empresaId),
+          getUniformesERP(proyecto.empresaId),
+        ]).then(([itemsData, serviciosData, turnosData, uniformesData]) => {
           if (active) {
             setItems(itemsData);
             setServicios(serviciosData);
             setTurnos(turnosData);
             setUniformes(uniformesData);
-            setBonosDisponibles(bonosData);
             setIsLoadingCatalogo(false);
             setLoadingServicios(false);
             setLoadingTurnos(false);
@@ -186,7 +184,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
     let active = true;
     if (open && departamento && hasDireccion) {
       setLoadingMunis(true);
-      getMunicipios('GT', departamento).then(data => {
+      getMunicipiosERP(Number(departamento)).then(data => {
         if (active) {
           setMunicipios(data);
           setLoadingMunis(false);
@@ -246,7 +244,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
 
   const servicioSeleccionado = servicios.find(s => s.codigo === selectedItemId);
   const erpItem = items.find(i => i.id.toString() === selectedItemId);
-  const isEstandar = servicioSeleccionado?.item_registro !== 1; // 0 o 2 (no RRHH)
+  const isEstandar = servicioSeleccionado?.itemRegistro !== 1; // 0 o 2 (no RRHH)
 
   const turnoSeleccionado = turnos.find(t => t.codigo === turnoCodigo);
   const diasTrabajo = turnoSeleccionado 
@@ -263,7 +261,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
   // Si cambia el item seleccionado, resetear precio si es 0 por defecto
   useEffect(() => {
     if (servicioSeleccionado) {
-      if (servicioSeleccionado.precio_venta_cero === 1) {
+      if (servicioSeleccionado.precioVentaCero === 1) {
         setPrecioVenta(0);
       } else {
         setPrecioVenta(undefined); // Obligamos a que lo pongan si no es 0
@@ -377,7 +375,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
         }
 
         if (isEstandar) {
-          if (servicioSeleccionado.item_registro === 2) {
+          if (servicioSeleccionado.itemRegistro === 2) {
             // Activo: N recursos de cantidad 1
             for(let i = 0; i < cantidad; i++) {
               recursosNuevos.push({
@@ -417,13 +415,13 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
           if (turnoSeleccionado) {
             personas = turnoSeleccionado.personas;
             horasSemana = 
-              (turnoSeleccionado.lunes === 1 ? turnoSeleccionado.lunes_horas : 0) +
-              (turnoSeleccionado.martes === 1 ? turnoSeleccionado.martes_horas : 0) +
-              (turnoSeleccionado.miercoles === 1 ? turnoSeleccionado.miercoles_horas : 0) +
-              (turnoSeleccionado.jueves === 1 ? turnoSeleccionado.jueves_horas : 0) +
-              (turnoSeleccionado.viernes === 1 ? turnoSeleccionado.viernes_horas : 0) +
-              (turnoSeleccionado.sabado === 1 ? turnoSeleccionado.sabado_horas : 0) +
-              (turnoSeleccionado.domingo === 1 ? turnoSeleccionado.domingo_horas : 0);
+              (turnoSeleccionado.lunes === 1 ? turnoSeleccionado.lunesHoras : 0) +
+              (turnoSeleccionado.martes === 1 ? turnoSeleccionado.martesHoras : 0) +
+              (turnoSeleccionado.miercoles === 1 ? turnoSeleccionado.miercolesHoras : 0) +
+              (turnoSeleccionado.jueves === 1 ? turnoSeleccionado.juevesHoras : 0) +
+              (turnoSeleccionado.viernes === 1 ? turnoSeleccionado.viernesHoras : 0) +
+              (turnoSeleccionado.sabado === 1 ? turnoSeleccionado.sabadoHoras : 0) +
+              (turnoSeleccionado.domingo === 1 ? turnoSeleccionado.domingoHoras : 0);
           }
 
           recursosNuevos.push({
@@ -507,13 +505,13 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
           variant="secondary"
           onClick={() => {
             if (!selectedBonoId) return;
-            const bonoItem = bonosDisponibles.find(b => b.codigo === selectedBonoId);
-            if (bonoItem) {
+            const never = bonosDisponibles.find(b => b.codigo === selectedBonoId);
+            if (never) {
               setBonosAgregados(prev => [...prev, {
                 id: crypto.randomUUID(),
-                erpBonoId: bonoItem.codigo,
-                nombre: bonoItem.descripcion,
-                costoUnitario: bonoItem.costo,
+                erpBonoId: never.codigo,
+                nombre: never.descripcion,
+                costoUnitario: never.costo,
                 precioVentaUnitario: selectedBonoPrecio
               }]);
               setSelectedBonoId('');
@@ -688,7 +686,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                     </Label>
                     <SearchableSelect
                       id="field-departamento"
-                      options={departamentos.map(d => ({ value: d.codigo, label: d.nombre }))}
+                      options={departamentos.map(d => ({ value: String(d.codigo), label: d.nombre }))}
                       value={departamento}
                       onChange={val => {
                         setDepartamento(val);
@@ -708,7 +706,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                     </Label>
                     <SearchableSelect
                       id="field-municipio"
-                      options={municipios.map(m => ({ value: m.codigo, label: m.nombre }))}
+                      options={municipios.map(m => ({ value: String(m.codigo), label: m.nombre }))}
                       value={municipio}
                       onChange={val => {
                         setMunicipio(val);
@@ -795,7 +793,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                         </Label>
                         <input
                           type="text"
-                          value={servicioSeleccionado?.unidad_medida || ''}
+                          value={servicioSeleccionado?.unidadMedida || ''}
                           readOnly
                           tabIndex={-1}
                           className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm shadow-sm outline-none cursor-not-allowed uppercase"

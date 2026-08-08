@@ -113,7 +113,7 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
     empresaId: costeo.contrato.empresaId,
     cliente: {
       id: costeo.contrato.cliente.id.toString(),
-      codigo: costeo.contrato.cliente.erpClienteId?.toString(),
+      codigo: costeo.contrato.cliente.codigoErp?.toString(),
       razonSocial: costeo.contrato.cliente.razonSocial,
       nit: costeo.contrato.cliente.nit,
       direccionFiscal: costeo.contrato.cliente.direccionFiscal || '',

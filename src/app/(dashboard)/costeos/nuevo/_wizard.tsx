@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import type { ErpCliente } from '@/lib/erp'
-import { getClientesAction } from '@/app/actions/erp-actions'
+import { searchClientes } from '@/app/actions/erp'
 import { getEmpresasForUser } from '@/app/actions/erp'
 import { normalizeText } from '@/lib/utils/text'
 import { Button } from '@/components/ui/button'
@@ -71,12 +71,8 @@ export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
 
     setIsLoading(true)
     setSearched(true)
-    const res = await getClientesAction(Number(empresaId), busquedaNormalizada)
-    if (res.data) {
-      setClientes(res.data)
-    } else {
-      setClientes([])
-    }
+    const clientes = await searchClientes(Number(empresaId), busquedaNormalizada)
+    setClientes(clientes)
     setIsLoading(false)
   }
 

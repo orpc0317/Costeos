@@ -112,12 +112,65 @@ export type ErpEmpresa = {
 
 export type ErpDepartamento = {
   id: number
+  codigo: number
+  nombre: string
+}
+
+export type ErpCategoria = {
+  id: string
+  codigo: string
   nombre: string
 }
 
 export type ErpMunicipio = {
   id: number
+  codigo: number
   nombre: string
+}
+
+export type ErpTurno = {
+  codigo: number
+  descripcion: string
+  personas: number
+  lunes: number; lunesHoras: number
+  martes: number; martesHoras: number
+  miercoles: number; miercolesHoras: number
+  jueves: number; juevesHoras: number
+  viernes: number; viernesHoras: number
+  sabado: number; sabadoHoras: number
+  domingo: number; domingoHoras: number
+}
+
+export type ErpUniforme = {
+  codigo: string
+  descripcion: string
+}
+
+export type ErpServicioVenta = {
+  codigo: string
+  descripcion: string
+  unidadMedida: string
+  tipoBien: number
+  tipoItem: number
+  itemRegistro: number
+  recurrente: number
+  requiereDireccion: number
+  precioVentaCero: number
+  perfil: number
+  manejoCostos: number
+}
+
+export type ErpDireccionOperativa = {
+  empresa: number
+  cliente: number
+  secuencia: number
+  nombre: string
+  direccion: string
+  pais: string
+  departamento: string
+  municipio: string
+  departamentoNombre: string
+  municipioNombre: string
 }
 // ─── Payload para push al ERP (al aprobar el Contrato) ──────────────────────
 
@@ -262,4 +315,49 @@ export interface ErpRepository {
    * La respuesta incluye erpClienteId (si cliente nuevo) y erpContratoId.
    */
   pushContratoAprobado(payload: ContratoAprobadoPayload): Promise<ErpPushResult>
+
+  // ── Sincronización de Catálogos (Fase de Mantenimiento) ────────────────────
+
+  /**
+   * Busca categorías en el ERP mediante fuzzy match parcial (ej. LIKE).
+   */
+  buscarCategorias(empresaId: number, busqueda: string): Promise<ErpCategoria[]>
+
+  /**
+   * Crea una categoría en el ERP y devuelve el código generado.
+   */
+  crearCategoria(empresaId: number, nombre: string): Promise<{ codigoErp: string }>
+
+  /**
+   * Crea un ítem en el ERP y devuelve el código generado.
+   */
+  crearItem(empresaId: number, payload: Partial<ErpItem>): Promise<{ codigoErp: string }>
+
+  /**
+   * Obtiene los turnos disponibles para una empresa.
+   */
+  getTurnos(empresaId: number): Promise<ErpTurno[]>
+
+  /**
+   * Obtiene los uniformes disponibles para una empresa.
+   */
+  getUniformes(empresaId: number): Promise<ErpUniforme[]>
+
+  /**
+   * Obtiene los servicios de venta para una empresa.
+   */
+  getServiciosVenta(empresaId: number, searchText?: string): Promise<ErpServicioVenta[]>
+
+  /**
+   * Obtiene las direcciones operativas de un cliente.
+   */
+  getClienteDirecciones(empresaId: number, clienteId: number): Promise<ErpDireccionOperativa[]>
+
+  /**
+   * Busca una empresa en el ERP por su código.
+   * Llama a sp_buscar_empresa y devuelve { codigo, nombre } o null si no existe.
+   * Usado para mostrar el nombre de la empresa ERP al registrar en Costeos.
+   */
+  buscarEmpresa(codigoEmpresa: string): Promise<{ codigo: string; nombre: string } | null>
 }
+

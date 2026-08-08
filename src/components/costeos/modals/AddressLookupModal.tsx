@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { DataTable } from '@/components/ui/data-table';
-import { DireccionOperativa } from '@/app/actions/ubicaciones';
+import type { ErpDireccionOperativa } from '@/lib/erp';
 import { ColumnDef } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { Check } from 'lucide-react';
@@ -14,12 +14,12 @@ import { Check } from 'lucide-react';
 interface AddressLookupModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  direcciones: DireccionOperativa[];
+  direcciones: ErpDireccionOperativa[];
   onSelect: (secuencia: number) => void;
 }
 
 export function AddressLookupModal({ open, onOpenChange, direcciones, onSelect }: AddressLookupModalProps) {
-  const columns: ColumnDef<DireccionOperativa>[] = [
+  const columns: ColumnDef<ErpDireccionOperativa>[] = [
     {
       accessorKey: 'nombre',
       header: 'Nombre',

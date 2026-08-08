@@ -42,7 +42,7 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
   const isEditing = !!item
   const [mode, setMode] = useState<'view' | 'edit'>(isEditing ? 'view' : 'edit')
   
-  const [empresa, setEmpresa] = useState<string>(item?.empresa.toString() ?? '')
+  const [empresa, setEmpresa] = useState<string>(item?.empresaId.toString() ?? '')
 
   const [descripcion, setDescripcion] = useState(item?.descripcion ?? '')
   const [unidadMedida, setUnidadMedida] = useState(item?.unidadMedida ?? 'UND')
@@ -84,7 +84,7 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
   }, [tipoItem])
 
   const resetForm = (data?: ItemRow) => {
-    setEmpresa(data?.empresa.toString() ?? '')
+    setEmpresa(data?.empresaId.toString() ?? '')
 
     setDescripcion(data?.descripcion ?? '')
     setUnidadMedida(data?.unidadMedida ?? 'UND')
@@ -133,7 +133,7 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
 
     setLoading(true)
     const data: ItemInput = {
-      empresa: parseInt(empresa, 10),
+      empresaId: parseInt(empresa, 10),
 
       descripcion: normalizeText(descripcion),
       unidadMedida: normalizeText(unidadMedida),
@@ -147,7 +147,7 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
 
     let res
     if (isEditing && item) {
-      res = await actualizarItem(item.id, data)
+      res = await actualizarItem(item.id, { ...data, registroVersion: item.registroVersion })
     } else {
       res = await crearItem(data)
     }

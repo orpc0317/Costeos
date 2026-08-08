@@ -1,21 +1,21 @@
 import React from 'react';
 import { Clock, Users } from 'lucide-react';
-import { TurnoItem } from '@/app/actions/puestos';
+import type { ErpTurno } from '@/lib/erp';
 
 interface TurnoCardProps {
-  turno: TurnoItem;
+  turno: ErpTurno;
   cantidadTurnos?: number;
 }
 
 export function TurnoCard({ turno, cantidadTurnos = 1 }: TurnoCardProps) {
   const diasSemana = [
-    { label: 'L', name: 'lunes', val: turno.lunes, hrs: turno.lunes_horas },
-    { label: 'M', name: 'martes', val: turno.martes, hrs: turno.martes_horas },
-    { label: 'M', name: 'miercoles', val: turno.miercoles, hrs: turno.miercoles_horas },
-    { label: 'J', name: 'jueves', val: turno.jueves, hrs: turno.jueves_horas },
-    { label: 'V', name: 'viernes', val: turno.viernes, hrs: turno.viernes_horas },
-    { label: 'S', name: 'sabado', val: turno.sabado, hrs: turno.sabado_horas },
-    { label: 'D', name: 'domingo', val: turno.domingo, hrs: turno.domingo_horas },
+    { label: 'L', name: 'lunes',     val: turno.lunes,     hrs: turno.lunesHoras },
+    { label: 'M', name: 'martes',    val: turno.martes,    hrs: turno.martesHoras },
+    { label: 'M', name: 'miercoles', val: turno.miercoles, hrs: turno.miercolesHoras },
+    { label: 'J', name: 'jueves',    val: turno.jueves,    hrs: turno.juevesHoras },
+    { label: 'V', name: 'viernes',   val: turno.viernes,   hrs: turno.viernesHoras },
+    { label: 'S', name: 'sabado',    val: turno.sabado,    hrs: turno.sabadoHoras },
+    { label: 'D', name: 'domingo',   val: turno.domingo,   hrs: turno.domingoHoras },
   ];
 
   const totalHoras = diasSemana.reduce((sum, dia) => sum + (dia.val === 1 ? (dia.hrs || 0) : 0), 0);

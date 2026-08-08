@@ -9,9 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getDepartamentos, getMunicipios, UbicacionItem } from '@/app/actions/ubicaciones';
-import { getTurnos, getUniformes, getBonos, TurnoItem, UniformeItem, BonoItem } from '@/app/actions/puestos';
-import { getClienteDireccionesOperativas, DireccionOperativa } from '@/app/actions/ubicaciones';
+import { getDepartamentosERP, getMunicipiosERP, getTurnosERP, getUniformesERP, getServiciosVentaERP, getClienteDireccionesERP } from '@/app/actions/erp';
+import type { ErpTurno, ErpUniforme, ErpServicioVenta, ErpDireccionOperativa } from '@/lib/erp';
 import { AddressLookupModal } from './modals/AddressLookupModal';
 import { Search } from 'lucide-react';
 import { MapPin, Settings2, Calculator, Trash2, CornerUpRight } from 'lucide-react';
@@ -144,18 +143,17 @@ export default function EditorPanel() {
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
-  const [turnos, setTurnos] = useState<TurnoItem[]>([]);
-  const [uniformes, setUniformes] = useState<UniformeItem[]>([]);
-  const [bonosDisponibles, setBonosDisponibles] = useState<BonoItem[]>([]);
+  const [turnos, setTurnos] = useState<ErpTurno[]>([]);
+  const [uniformes, setUniformes] = useState<ErpUniforme[]>([]);
+  const [bonosDisponibles, setBonosDisponibles] = useState<{ codigo: string; descripcion: string; costo: number }[]>([]);
   const [selectedBonoId, setSelectedBonoId] = useState<string>('');
   const [selectedBonoPrecio, setSelectedBonoPrecio] = useState<number>(0);
 
   useEffect(() => {
     let active = true;
     if (proyecto?.empresaId) {
-      getTurnos(proyecto.empresaId).then(data => { if (active) setTurnos(data); });
-      getUniformes(proyecto.empresaId).then(data => { if (active) setUniformes(data); });
-      getBonos().then(data => { if (active) setBonosDisponibles(data); });
+      getTurnosERP(proyecto.empresaId).then(data => { if (active) setTurnos(data); });
+      getUniformesERP(proyecto.empresaId).then(data => { if (active) setUniformes(data); });
     }
     return () => { active = false; };
   }, [proyecto?.empresaId]);
@@ -340,7 +338,7 @@ export default function EditorPanel() {
                           handleChange({
                             turnoCodigo: code,
                             personas: t?.personas || 1,
-                            horasSemana: t ? ((t.lunes === 1 ? t.lunes_horas : 0) + (t.martes === 1 ? t.martes_horas : 0) + (t.miercoles === 1 ? t.miercoles_horas : 0) + (t.jueves === 1 ? t.jueves_horas : 0) + (t.viernes === 1 ? t.viernes_horas : 0) + (t.sabado === 1 ? t.sabado_horas : 0) + (t.domingo === 1 ? t.domingo_horas : 0)) : 0
+                            horasSemana: t ? ((t.lunes === 1 ? t.lunesHoras : 0) + (t.martes === 1 ? t.martesHoras : 0) + (t.miercoles === 1 ? t.miercolesHoras : 0) + (t.jueves === 1 ? t.juevesHoras : 0) + (t.viernes === 1 ? t.viernesHoras : 0) + (t.sabado === 1 ? t.sabadoHoras : 0) + (t.domingo === 1 ? t.domingoHoras : 0)) : 0
                           });
                         }}
                         placeholder="Seleccione..."
@@ -586,13 +584,13 @@ export default function EditorPanel() {
                     variant="secondary"
                     onClick={() => {
                       if (!selectedBonoId) return;
-                      const bonoItem = bonosDisponibles.find(b => b.codigo === selectedBonoId);
-                      if (bonoItem) {
+                      const never = bonosDisponibles.find(b => b.codigo === selectedBonoId);
+                      if (never) {
                         const newBonos = [...(nodeData.bonos || []), {
                           id: crypto.randomUUID(),
-                          erpBonoId: bonoItem.codigo,
-                          nombre: bonoItem.descripcion,
-                          costoUnitario: bonoItem.costo,
+                          erpBonoId: never.codigo,
+                          nombre: never.descripcion,
+                          costoUnitario: never.costo,
                           precioVentaUnitario: selectedBonoPrecio
                         }];
                         handleChange('bonos', newBonos);
@@ -707,11 +705,11 @@ export default function EditorPanel() {
 }
 
 function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas, proyecto }: { nodeData: NodoCosteo, handleChange: (field: string | Record<string, any>, value?: any) => void, handleDelete: () => void, tc: any, etiquetas: string[], proyecto: any }) {
-  const [departamentos, setDepartamentos] = useState<UbicacionItem[]>([]);
-  const [municipios, setMunicipios] = useState<UbicacionItem[]>([]);
+  const [departamentos, setDepartamentos] = useState<import('@/lib/erp').ErpDepartamento[]>([]);
+  const [municipios, setMunicipios] = useState<import('@/lib/erp').ErpMunicipio[]>([]);;
   const [loadingDeptos, setLoadingDeptos] = useState(true);
   const [loadingMunis, setLoadingMunis] = useState(false);
-  const [direccionesOperativas, setDireccionesOperativas] = useState<DireccionOperativa[]>([]);
+  const [direccionesOperativas, setDireccionesOperativas] = useState<ErpDireccionOperativa[]>([]);
   const [loadingDirecciones, setLoadingDirecciones] = useState(false);
   const [showAddressLookup, setShowAddressLookup] = useState<boolean>(false);
   
@@ -726,7 +724,7 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas, proye
     if (hasDireccion && proyecto?.empresaId && proyecto?.cliente?.id) {
       setLoadingDirecciones(true);
       const clienteErpId = parseInt(proyecto.cliente.codigo || proyecto.cliente.id, 10);
-      getClienteDireccionesOperativas(proyecto.empresaId, clienteErpId).then(dirs => {
+      getClienteDireccionesERP(proyecto.empresaId, clienteErpId).then(dirs => {
         if (active) {
           setDireccionesOperativas(dirs);
           setLoadingDirecciones(false);
@@ -788,7 +786,7 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas, proye
     if (hasDireccion) {
       const fetchDeptos = async () => {
         setLoadingDeptos(true);
-        const data = await getDepartamentos('GT');
+        const data = await getDepartamentosERP();
         if (active) {
           setDepartamentos(data);
           setLoadingDeptos(false);
@@ -817,7 +815,7 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas, proye
     
     const fetchMunis = async () => {
       setLoadingMunis(true);
-      const data = await getMunicipios('GT', nodeData.departamento!);
+      const data = await getMunicipiosERP(Number(nodeData.departamento!));
       if (active) {
         setMunicipios(data);
         setLoadingMunis(false);
@@ -933,7 +931,7 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas, proye
                     Departamento {loadingDeptos && <span className="text-xs text-slate-400">(cargando...)</span>}
                   </Label>
                   <SearchableSelect
-                    options={departamentos.map(d => ({ value: d.codigo, label: d.nombre }))}
+                    options={departamentos.map(d => ({ value: String(d.codigo), label: d.nombre }))}
                     value={nodeData.departamento || ''}
                     onChange={(val) => handleChange('departamento', val)}
                     disabled={loadingDeptos || !isNewAddress}

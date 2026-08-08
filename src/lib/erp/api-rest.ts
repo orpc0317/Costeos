@@ -31,10 +31,13 @@ import type {
   ErpEmpresa,
   ErpDepartamento,
   ErpMunicipio,
+  ErpTurno,
+  ErpUniforme,
+  ErpServicioVenta,
+  ErpDireccionOperativa,
   ContratoAprobadoPayload,
   ErpPushResult,
   ItemFiltros,
-  ClienteFiltros,
 } from './types'
 
 export class ApiRestErpRepository implements ErpRepository {
@@ -165,5 +168,40 @@ export class ApiRestErpRepository implements ErpRepository {
     //   return { ok: false, error: `ERP API error ${res.status}: ${err}` }
     // }
     // return res.json() // { ok: true, erpContratoId, erpClienteId? }
+  }
+
+  // ── Sincronización de Catálogos (Fase de Mantenimiento) ────────────────────
+
+  async buscarCategorias(empresaId: number, busqueda: string): Promise<any[]> {
+    throw new Error('[ApiRestErpRepository] buscarCategorias: NOT IMPLEMENTED.')
+  }
+
+  async crearCategoria(empresaId: number, nombre: string): Promise<{ codigoErp: string }> {
+    throw new Error('[ApiRestErpRepository] crearCategoria: NOT IMPLEMENTED.')
+  }
+
+  async crearItem(empresaId: number, payload: Partial<ErpItem>): Promise<{ codigoErp: string }> {
+    throw new Error('[ApiRestErpRepository] crearItem: NOT IMPLEMENTED.')
+  }
+
+  async getTurnos(empresaId: number): Promise<ErpTurno[]> {
+    throw new Error('[ApiRestErpRepository] getTurnos: NOT IMPLEMENTED.')
+  }
+
+  async getUniformes(empresaId: number): Promise<ErpUniforme[]> {
+    throw new Error('[ApiRestErpRepository] getUniformes: NOT IMPLEMENTED.')
+  }
+
+  async getServiciosVenta(empresaId: number, searchText?: string): Promise<ErpServicioVenta[]> {
+    throw new Error('[ApiRestErpRepository] getServiciosVenta: NOT IMPLEMENTED.')
+  }
+
+  async getClienteDirecciones(empresaId: number, clienteId: number): Promise<ErpDireccionOperativa[]> {
+    throw new Error('[ApiRestErpRepository] getClienteDirecciones: NOT IMPLEMENTED.')
+  }
+
+  async buscarEmpresa(codigoEmpresa: string): Promise<{ codigo: string; nombre: string } | null> {
+    // TODO — implementar cuando el ERP tenga el endpoint
+    throw new Error('[ApiRestErpRepository] buscarEmpresa: NOT IMPLEMENTED. Usar ERP_INTEGRATION_MODE=sqlserver')
   }
 }

@@ -45,18 +45,23 @@ model Usuario {
 //      el ID real, que reemplaza codigo_temp y llena erp_cliente_id.
 
 model Cliente {
-  id              Int       @id @default(autoincrement())
-  erpClienteId    Int?      @map("erp_cliente_id") // null hasta sincronizar con ERP
-  codigoTemp      String?   @map("codigo_temp") @db.VarChar(50) // "TEMP-{timestamp}"
-  nit             String    @db.VarChar(30)
-  razonSocial     String    @map("razon_social") @db.VarChar(200)
-  direccionFiscal String?   @map("direccion_fiscal") @db.VarChar(500)
-  esNuevo         Boolean   @default(false) @map("es_nuevo") // true = creado aquí, false = del ERP
-  sincronizadoEn  DateTime? @map("sincronizado_en") // cuándo ERP devolvió el ID real
-  creadoEn        DateTime  @default(now()) @map("creado_en")
-  modificadoEn    DateTime  @updatedAt @map("modificado_en")
-
-  contratos Contrato[]
+  id                        Int        @id @default(autoincrement())
+  empresaId                 Int        @default(0) @map("empresa_id")
+  codigoTemp                String?    @map("codigo_temp") @db.VarChar(50)
+  nit                       String     @db.VarChar(30)
+  razonSocial               String     @map("razon_social") @db.VarChar(200)
+  direccionFiscal           String?    @map("direccion_fiscal") @db.VarChar(150)
+  direccionPaisId           Int        @default(0) @map("direccion_pais_id")
+  direccionDepartamentoId   Int        @default(0) @map("direccion_departamento_id")
+  direccionMunicipioId      Int        @default(0) @map("direccion_municipio_id")
+  diasCredito               Int        @default(0) @map("dias_credito")
+  esNuevo                   Boolean    @default(false) @map("es_nuevo")
+  sincronizadoEn            DateTime?  @map("sincronizado_en")
+  codigoErp                 Int?       @default(0) @map("codigo_erp")
+  usuarioCreo               Int        @default(0) @map("usuario_creo")
+  fechaCreo                 DateTime   @default(now()) @map("fecha_creo")
+  registroVersion           Int        @default(1) @map("registro_version")
+  contratos                 Contrato[]
 
   @@map("costeos_cliente")
 }
@@ -345,26 +350,61 @@ model HistorialAutoGuardado {
   @@map("costeos_historial_autoguardado")
 }
 
+// ─── EMPRESAS Y CONFIGURACIÓN SYNC ────────────────────────────────────────────
+
+model Empresa {
+  id              Int      @id @default(autoincrement())
+  nombre          String   @map("empresa_nombre") @db.VarChar(100)
+  razonSocial     String   @default("") @map("empresa_razon_social") @db.VarChar(100)
+  nit             String   @default("") @map("empresa_nit") @db.VarChar(20)
+  codigoErp       String   @default("") @map("codigo_erp") @db.VarChar(10)
+  usuarioCreo     Int      @default(0) @map("usuario_creo")
+  fechaCreo       DateTime @default(now()) @map("fecha_creo")
+  registroVersion Int      @default(0) @map("registro_version")
+
+  configuracionesSync     EmpresaCatalogoSync[]
+  categorias              CategoriaItem[]
+  items                   Item[]
+
+  @@map("costeos_empresa")
+}
+
+model EmpresaCatalogoSync {
+  id              Int      @id @default(autoincrement())
+  empresaId       Int      @map("empresa_id")
+  catalogo        String   @db.VarChar(50) // "ITEMS", "CATEGORIAS"
+  sincronizar     Boolean  @default(false)
+  
+  empresa         Empresa  @relation(fields: [empresaId], references: [id])
+
+  @@unique([empresaId, catalogo])
+  @@map("costeos_empresa_catalogo_sync")
+}
+
 // ─── CATEGORIAS E ITEMS (INDEPENDIENTES DEL ERP) ──────────────────────────────
 
 model CategoriaItem {
   id              Int      @id @default(autoincrement())
-  empresa         Int
+  empresaId       Int      @default(0) @map("empresa_id")
   codigo          Int      @unique
+  codigoErp       Int      @default(0) @map("codigo_erp")
   nombre          String   @db.VarChar(100)
+  prioridad       Boolean  @default(false)
   activo          Boolean  @default(true)
-  usuarioCreo     Int      @map("usuario_creo")
+  usuarioCreo     Int      @default(0) @map("usuario_creo")
   fechaCreo       DateTime @default(now()) @map("fecha_creo")
   registroVersion Int      @default(1) @map("registro_version")
 
+  empresa         Empresa  @relation(fields: [empresaId], references: [id])
   items           Item[]
 
-  @@map("costeos_categoria_item")
+  @@map("costeos_categoria")
 }
+
 
 model Item {
   id                Int      @id @default(autoincrement())
-  empresa           Int
+  empresaId         Int      @map("empresa_id")
   descripcion       String   @db.VarChar(100)
   unidadMedida      String   @map("unidad_medida") @db.VarChar(10)
   tipoItem          Int      @map("tipo_item") @db.TinyInt // 1 Producto, 2 Servicio, 3 Equipo, 4 Financiero
@@ -379,7 +419,55 @@ model Item {
   fechaCreo         DateTime @default(now()) @map("fecha_creo")
   registroVersion   Int      @default(1) @map("registro_version")
 
+  empresa           Empresa       @relation(fields: [empresaId], references: [id])
   categoria         CategoriaItem @relation(fields: [categoriaId], references: [id])
 
   @@map("costeos_item")
+}
+
+model Pais {
+  id              Int            @id @default(autoincrement())
+  codigo          String         @map("pais_codigo") @db.VarChar(5)
+  nombre          String         @map("pais_nombre") @db.VarChar(50)
+  usuarioCreo     Int            @default(0) @map("usuario_creo")
+  fechaCreo       DateTime       @default(now()) @map("fecha_creo")
+  registroVersion Int            @default(1) @map("registro_version")
+  
+  departamentos   Departamento[]
+
+  @@map("costeos_pais")
+}
+
+model Departamento {
+  id              Int         @id @default(autoincrement())
+  paisId          Int         @default(0) @map("pais_id")
+  codigo          Int         @default(0) @map("departamento_codigo")
+  nombre          String      @map("departamento_nombre") @db.VarChar(100)
+  usuarioCreo     Int         @default(0) @map("usuario_creo")
+  fechaCreo       DateTime    @default(now()) @map("fecha_creo")
+  registroVersion Int         @default(1) @map("registro_version")
+  
+  pais            Pais        @relation(fields: [paisId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  municipios      Municipio[]
+
+  @@index([paisId])
+  @@map("costeos_departamento")
+}
+
+model Municipio {
+  id              Int          @id @default(autoincrement())
+  paisId          Int          @default(0) @map("pais_id")
+  departamentoId  Int          @default(0) @map("departamento_id")
+  codigo          Int          @default(0) @map("municipio_codigo")
+  nombre          String       @map("municipio_nombre") @db.VarChar(100)
+  longitud        String?      @db.VarChar(45)
+  latitud         String?      @db.VarChar(45)
+  usuarioCreo     Int          @default(0) @map("usuario_creo")
+  fechaCreo       DateTime     @default(now()) @map("fecha_creo")
+  registroVersion Int          @default(1) @map("registro_version")
+  
+  departamento    Departamento @relation(fields: [departamentoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([paisId, departamentoId])
+  @@map("costeos_municipio")
 }

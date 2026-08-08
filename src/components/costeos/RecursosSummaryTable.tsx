@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useCosteo } from '@/lib/context/CosteoContext';
-import { getTurnos, getUniformes, TurnoItem, UniformeItem } from '@/app/actions/puestos';
+import { getTurnosERP, getUniformesERP } from '@/app/actions/erp';
+import type { ErpTurno, ErpUniforme } from '@/lib/erp';
 import { RecursoCosteo } from '@/lib/types/costeos';
 import {
   ColumnDef,
@@ -41,8 +42,8 @@ interface HierarchicalData {
 
 export function RecursosSummaryTable({ recursos }: { recursos: RecursoSummaryItem[] }) {
   const { proyecto } = useCosteo();
-  const [turnos, setTurnos] = useState<TurnoItem[]>([]);
-  const [uniformes, setUniformes] = useState<UniformeItem[]>([]);
+  const [turnos, setTurnos] = useState<ErpTurno[]>([]);
+  const [uniformes, setUniformes] = useState<ErpUniforme[]>([]);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<ExpandedState>({});
 
@@ -53,8 +54,8 @@ export function RecursosSummaryTable({ recursos }: { recursos: RecursoSummaryIte
     const fetchData = async () => {
       setLoading(true);
       const [tData, uData] = await Promise.all([
-        getTurnos(proyecto.empresaId),
-        getUniformes(proyecto.empresaId)
+        getTurnosERP(proyecto.empresaId),
+        getUniformesERP(proyecto.empresaId)
       ]);
       if (active) {
         setTurnos(tData);

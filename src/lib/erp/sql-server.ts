@@ -29,10 +29,14 @@ import type {
   ErpEmpresa,
   ErpDepartamento,
   ErpMunicipio,
+  ErpTurno,
+  ErpUniforme,
+  ErpServicioVenta,
+  ErpDireccionOperativa,
   ContratoAprobadoPayload,
   ErpPushResult,
   ItemFiltros,
-  ClienteFiltros,
+  ErpCategoria,
 } from './types'
 
 export class SqlServerErpRepository implements ErpRepository {
@@ -187,6 +191,7 @@ export class SqlServerErpRepository implements ErpRepository {
 
     return result.recordset.map((r) => ({
       id: r.departamento,
+      codigo: r.departamento,
       nombre: r.departamento_nombre,
     }))
   }
@@ -201,6 +206,7 @@ export class SqlServerErpRepository implements ErpRepository {
 
     return result.recordset.map((r) => ({
       id: r.municipio,
+      codigo: r.municipio,
       nombre: r.municipio_nombre,
     }))
   }
@@ -247,6 +253,174 @@ export class SqlServerErpRepository implements ErpRepository {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error desconocido en ERP'
       return { ok: false, error: message }
+    }
+  }
+
+  // ── Sincronización de Catálogos (Fase de Mantenimiento) ────────────────────
+
+  async buscarCategorias(empresaId: number, busqueda: string): Promise<ErpCategoria[]> {
+    const pool = await getPool()
+    // TODO: Ajustar nombre del SP según corresponda en el ERP
+    const result = await pool
+      .request()
+      .input('PrmEmpresa', empresaId)
+      .input('PrmSearchText', busqueda)
+      .execute('sp_buscar_categorias_erp')
+
+    return result.recordset.map((r) => ({
+      id: String(r.codigo),
+      codigo: String(r.codigo),
+      nombre: r.nombre ?? r.descripcion ?? '',
+    }))
+  }
+
+  async crearCategoria(empresaId: number, nombre: string): Promise<{ codigoErp: string }> {
+    const pool = await getPool()
+    // TODO: Ajustar nombre del SP según corresponda en el ERP
+    const result = await pool
+      .request()
+      .input('PrmEmpresa', empresaId)
+      .input('PrmNombre', nombre)
+      .execute('sp_crear_categoria_erp')
+
+    if (!result.recordset || result.recordset.length === 0) {
+      throw new Error('El ERP no devolvió un código al crear la categoría.')
+    }
+    
+    return { codigoErp: String(result.recordset[0].codigo) }
+  }
+
+  async crearItem(empresaId: number, payload: Partial<ErpItem>): Promise<{ codigoErp: string }> {
+    const pool = await getPool()
+    const result = await pool
+      .request()
+      .input('PrmEmpresa', empresaId)
+      .input('PrmNombre', payload.nombre)
+      .input('PrmDescripcion', payload.descripcion)
+      .input('PrmCategoriaId', payload.categoriaId)
+      .input('PrmTipoRecurso', payload.tipo)
+      .input('PrmUnidad', payload.unidad)
+      .execute('sp_crear_item_erp')
+
+    if (!result.recordset || result.recordset.length === 0) {
+      throw new Error('El ERP no devolvió un código al crear el ítem.')
+    }
+    
+    return { codigoErp: String(result.recordset[0].codigo) }
+  }
+
+  // ── Catálogos operacionales ────────────────────────────────────────────────
+
+  async getTurnos(empresaId: number): Promise<ErpTurno[]> {
+    try {
+      const pool = await getPool()
+      const result = await pool.request()
+        .input('PrmEmpresa', empresaId)
+        .execute('sp_buscar_turnos')
+      return result.recordset.map(r => ({
+        codigo: r.codigo,
+        descripcion: r.descripcion,
+        personas: r.personas || 0,
+        lunes: r.lunes || 0,          lunesHoras: r.lunes_horas || 0,
+        martes: r.martes || 0,        martesHoras: r.martes_horas || 0,
+        miercoles: r.miercoles || 0,  miercolesHoras: r.miercoles_horas || 0,
+        jueves: r.jueves || 0,        juevesHoras: r.jueves_horas || 0,
+        viernes: r.viernes || 0,      viernesHoras: r.viernes_horas || 0,
+        sabado: r.sabado || 0,        sabadoHoras: r.sabado_horas || 0,
+        domingo: r.domingo || 0,      domingoHoras: r.domingo_horas || 0,
+      }))
+    } catch (err) {
+      console.error('[SqlServerErpRepository] getTurnos:', err)
+      return []
+    }
+  }
+
+  async getUniformes(empresaId: number): Promise<ErpUniforme[]> {
+    try {
+      const pool = await getPool()
+      const result = await pool.request()
+        .input('PrmEmpresa', empresaId)
+        .execute('sp_buscar_uniformes')
+      return result.recordset.map(r => ({
+        codigo: String(r.codigo),
+        descripcion: r.descripcion || '',
+      }))
+    } catch (err) {
+      console.error('[SqlServerErpRepository] getUniformes:', err)
+      return []
+    }
+  }
+
+  async getServiciosVenta(empresaId: number, searchText: string = ''): Promise<ErpServicioVenta[]> {
+    try {
+      const pool = await getPool()
+      const result = await pool.request()
+        .input('PrmEmpresa', empresaId)
+        .input('PrmSearchText', searchText)
+        .execute('sp_buscar_servicios_venta')
+      return result.recordset.map(r => ({
+        codigo:            String(r.codigo),
+        descripcion:       r.descripcion || '',
+        unidadMedida:      r.unidad_medida || '',
+        tipoBien:          r.tipo_bien || 0,
+        tipoItem:          r.tipo_item || 0,
+        itemRegistro:      r.item_registro || 0,
+        recurrente:        r.recurrente || 0,
+        requiereDireccion: r.requiere_direccion || 0,
+        precioVentaCero:   r.precio_venta_cero || 0,
+        perfil:            r.perfil || 0,
+        manejoCostos:      r.manejo_costos || 0,
+      }))
+    } catch (err) {
+      console.error('[SqlServerErpRepository] getServiciosVenta:', err)
+      return []
+    }
+  }
+
+  async getClienteDirecciones(empresaId: number, clienteId: number): Promise<ErpDireccionOperativa[]> {
+    try {
+      const pool = await getPool()
+      const result = await pool.request()
+        .input('PrmEmpresa', empresaId)
+        .input('PrmCliente', clienteId)
+        .execute('sp_buscar_cliente_direccion')
+      return result.recordset.map(r => ({
+        empresa:            r.empresa,
+        cliente:            r.cliente,
+        secuencia:          r.secuencia,
+        nombre:             r.nombre,
+        direccion:          r.direccion_nombre || r.direccion,
+        pais:               r.pais,
+        departamento:       String(r.departamento),
+        municipio:          String(r.municipio),
+        departamentoNombre: r.departamento_nombre || '',
+        municipioNombre:    r.municipio_nombre || '',
+      }))
+    } catch (err) {
+      console.error('[SqlServerErpRepository] getClienteDirecciones:', err)
+      return []
+    }
+  }
+
+  async buscarEmpresa(codigoEmpresa: string): Promise<{ codigo: string; nombre: string } | null> {
+    try {
+      const pool = await getPool()
+      const result = await pool
+        .request()
+        .input('PrmEmpresa', codigoEmpresa)
+        .execute('sp_buscar_empresa')
+
+      if (!result.recordset || result.recordset.length === 0) return null
+
+      const r = result.recordset[0]
+      const codigo = String(r.codigo)
+      const nombre = String(r.nombre ?? '')
+      if (!nombre) return null
+
+      return { codigo, nombre }
+    } catch (err) {
+      console.error('[SqlServerErpRepository] buscarEmpresa:', err)
+      return null
     }
   }
 }

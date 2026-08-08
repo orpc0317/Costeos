@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import { ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/ui/data-table'
 import { Badge } from '@/components/ui/badge'
@@ -10,17 +11,26 @@ import { CategoriaModal } from '@/components/categorias/categoria-modal'
 import type { CategoriaRow } from '@/lib/types/categorias'
 
 export function CategoriasClient({ data }: { data: CategoriaRow[] }) {
+  const router = useRouter()
+
   const columns: ColumnDef<CategoriaRow>[] = useMemo(
     () => [
+      {
+        accessorKey: 'id',
+        header: 'ID',
+        cell: ({ row }) => <span className="font-mono text-sm text-muted-foreground">{row.original.id}</span>,
+      },
       {
         accessorKey: 'codigo',
         header: 'Código',
         cell: ({ row }) => <span className="font-medium">{row.original.codigo}</span>,
       },
       {
-        accessorKey: 'empresa',
+        accessorKey: 'empresaId',
         header: 'Empresa',
-        cell: ({ row }) => <span className="text-muted-foreground">{row.original.empresaNombre || row.original.empresa}</span>,
+        cell: ({ row }) => (
+          <span className="text-muted-foreground">{row.original.empresaNombre || row.original.empresaId}</span>
+        ),
       },
       {
         accessorKey: 'nombre',
@@ -47,15 +57,15 @@ export function CategoriasClient({ data }: { data: CategoriaRow[] }) {
           )
         },
       },
-
       {
-        id: 'acciones',
+        id: 'actions',
         header: '',
         enableHiding: false,
         meta: { align: 'center' },
         cell: ({ row }) => (
           <CategoriaModal
             categoria={row.original}
+            onSuccess={() => router.refresh()}
             trigger={
               <button className="p-2 hover:bg-slate-100 rounded-md transition-colors">
                 <Eye className="h-4 w-4 text-blue-600" />
@@ -66,16 +76,6 @@ export function CategoriasClient({ data }: { data: CategoriaRow[] }) {
       },
     ],
     []
-  )
-
-  const toolbarActions = (
-    <CategoriaModal
-      trigger={
-        <button className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2 gap-2">
-          <Plus className="w-4 h-4" /> Nueva Categoría
-        </button>
-      }
-    />
   )
 
   return (
@@ -100,7 +100,16 @@ export function CategoriasClient({ data }: { data: CategoriaRow[] }) {
         tableId="categorias-crud"
         searchPlaceholder="Buscar por nombre..."
         searchKey="nombre"
-        customToolbarActions={toolbarActions}
+        customToolbarActions={
+          <CategoriaModal
+            onSuccess={() => router.refresh()}
+            trigger={
+              <Button className="gap-2">
+                <Plus className="w-4 h-4" /> Nueva Categoría
+              </Button>
+            }
+          />
+        }
       />
     </div>
   )

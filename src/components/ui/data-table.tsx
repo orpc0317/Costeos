@@ -78,6 +78,7 @@ function DraggableTableHead({ header }: { header: Header<any, unknown> }) {
   const { attributes, isDragging, listeners, setNodeRef, transform, transition } =
     useSortable({
       id: header.column.id,
+      disabled: header.column.id === 'id' || header.column.id === 'actions' || header.column.id === 'acciones'
     })
 
   const style = {
@@ -101,8 +102,12 @@ function DraggableTableHead({ header }: { header: Header<any, unknown> }) {
       <div
         {...attributes}
         {...listeners}
-        className={`flex items-center gap-2 cursor-grab active:cursor-grabbing select-none w-full h-full py-1 ${justifyClass}`}
-        title="Arrastrar para reordenar"
+        className={`flex items-center gap-2 select-none w-full h-full py-1 ${justifyClass} ${
+          header.column.id === 'id' || header.column.id === 'actions' || header.column.id === 'acciones' 
+            ? 'cursor-default' 
+            : 'cursor-grab active:cursor-grabbing'
+        }`}
+        title={header.column.id === 'id' || header.column.id === 'actions' || header.column.id === 'acciones' ? '' : 'Arrastrar para reordenar'}
       >
         {header.isPlaceholder
           ? null
@@ -130,21 +135,45 @@ export function DataTable<TData, TValue>({
     const savedVisibility = localStorage.getItem(`${tableId}-visibility`)
     const savedOrder = localStorage.getItem(`${tableId}-order`)
 
+    let initialOrder: string[] = []
+
     if (savedVisibility) {
       try { setColumnVisibility(JSON.parse(savedVisibility)) } catch (e) {}
     }
+    
     if (savedOrder) {
       try {
         const order = JSON.parse(savedOrder)
         const currentColIds = columns.map(c => (c as any).id || (c as any).accessorKey)
         const validOrder = order.filter((id: string) => currentColIds.includes(id))
         if (validOrder.length > 0) {
-          setColumnOrder(validOrder)
+          initialOrder = validOrder
         }
       } catch (e) {}
-    } else {
-      setColumnOrder(columns.map((c: any) => c.id ?? c.accessorKey as string))
+    } 
+    
+    if (initialOrder.length === 0) {
+      initialOrder = columns.map((c: any) => c.id ?? c.accessorKey as string)
     }
+
+    // Fuerza a que 'id' sea SIEMPRE el primero y 'actions' el último
+    const currentColIds = columns.map((c: any) => c.id ?? (c.accessorKey as string))
+    const withoutIdAndActions = initialOrder.filter(
+      x => x !== 'id' && x !== 'actions' && x !== 'acciones'
+    )
+    // Columnas que existen ahora pero no estaban en el orden guardado
+    // (ej. columnas nuevas agregadas después de que el usuario guardó preferencias)
+    const missingMiddleCols = currentColIds.filter(
+      id => id !== 'id' && id !== 'actions' && id !== 'acciones' && !withoutIdAndActions.includes(id)
+    )
+
+    const finalOrder: string[] = []
+    if (currentColIds.includes('id')) finalOrder.push('id')
+    finalOrder.push(...withoutIdAndActions, ...missingMiddleCols)
+    if (currentColIds.includes('actions'))  finalOrder.push('actions')
+    else if (currentColIds.includes('acciones')) finalOrder.push('acciones')
+
+    setColumnOrder(finalOrder)
   }, [tableId, columns])
 
   useEffect(() => {
@@ -182,7 +211,10 @@ export function DataTable<TData, TValue>({
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
-    if (active.id !== over?.id) {
+    if (active.id !== over?.id && over?.id) {
+      if (active.id === 'id' || over.id === 'id') return
+      if (active.id === 'actions' || over.id === 'actions' || active.id === 'acciones' || over.id === 'acciones') return
+
       setColumnOrder((items) => {
         const oldIndex = items.indexOf(active.id as string)
         const newIndex = items.indexOf(over?.id as string)
@@ -274,7 +306,7 @@ export function DataTable<TData, TValue>({
                 <DropdownMenuSeparator />
                 <div className="max-h-[300px] overflow-y-auto">
                   {table.getAllLeafColumns().map((column) => {
-                    if (!column.getCanHide()) return null
+                    if (!column.getCanHide() || column.id === 'id' || column.id === 'actions' || column.id === 'acciones') return null
                     return (
                       <DropdownMenuCheckboxItem
                         key={column.id}
