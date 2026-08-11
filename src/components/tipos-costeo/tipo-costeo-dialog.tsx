@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import React, { useEffect, useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { Settings2, Hash, Power, PowerOff, History, Pencil, Info, CalendarDays, CornerDownRight, Network, Building, MapPin, Briefcase, Users, Layers, Box, Component, Folder, ListTree, Tags, ChevronDown } from 'lucide-react'
 import { normalizeText } from '@/lib/utils/text'
@@ -50,29 +50,29 @@ const ICON_COMPONENTS: Record<string, React.ElementType> = {
 }
 
 interface TipoCosteoDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
   tipoCosteo?: TipoCosteoRow | null
+  trigger: React.ReactNode
 }
 
-export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoDialogProps) {
+export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps) {
+  const [open, setOpen] = useState(false)
   const [historialOpen, setHistorialOpen] = useState(false)
 
-  const [initialTipoCosteo, setInitialTipoCosteo] = useState(tipoCosteo)
-  const [mode, setMode] = useState<'view' | 'edit' | 'create'>(tipoCosteo ? 'view' : 'create')
+  const [initialTipoCosteo, setInitialTipoCosteo] = useState<TipoCosteoRow | null>(null)
+  const [mode, setMode] = useState<'view' | 'edit' | 'create'>('create')
   const [isPendingToggle, startTransitionToggle] = useTransition()
 
   function handleToggle() {
-    if (!tipoCosteo) return
+    if (!initialTipoCosteo) return
     startTransitionToggle(async () => {
-      const result = await toggleActivo(tipoCosteo.id, tipoCosteo.registroVersion)
+      const result = await toggleActivo(initialTipoCosteo.id, initialTipoCosteo.registroVersion)
       if (result.ok) {
         toast.success(
-          tipoCosteo.activo
-            ? `${tipoCosteo.nombre} fue desactivado`
-            : `${tipoCosteo.nombre} fue activado`,
+          initialTipoCosteo.activo
+            ? `${initialTipoCosteo.nombre} fue desactivado`
+            : `${initialTipoCosteo.nombre} fue activado`,
         )
-        onOpenChange(false)
+        setOpen(false)
       } else {
         toast.error(result.error)
       }
@@ -87,57 +87,53 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
   const [empresas, setEmpresas] = useState<{value: string, label: string}[]>([])
   const [cargandoEmpresas, setCargandoEmpresas] = useState(false)
 
-  const [empresaId, setEmpresaId] = useState(initialTipoCosteo?.empresaId?.toString() ?? '')
-  const [codigo, setCodigo] = useState(initialTipoCosteo?.codigo ?? '')
-  const [nombre, setNombre] = useState(initialTipoCosteo?.nombre ?? '')
-  const [cantidadNiveles, setCantidadNiveles] = useState(initialTipoCosteo?.cantidadNiveles ?? 2)
-  const [etiquetasNiveles, setEtiquetasNiveles] = useState<string[]>(
-    initialTipoCosteo?.etiquetasNiveles ? initialTipoCosteo.etiquetasNiveles.split(',') : ['NIVEL 1', 'NIVEL 2']
-  )
-  const [coloresNiveles, setColoresNiveles] = useState<string[]>(
-    initialTipoCosteo?.coloresNiveles ? initialTipoCosteo.coloresNiveles.split(',') : [PREDEFINED_COLORS[0], PREDEFINED_COLORS[1]]
-  )
-  const [iconosNiveles, setIconosNiveles] = useState<string[]>(
-    initialTipoCosteo?.iconosNiveles ? initialTipoCosteo.iconosNiveles.split(',') : [PREDEFINED_ICONS[0], PREDEFINED_ICONS[1]]
-  )
-  const [nivelConDireccion, setNivelConDireccion] = useState(initialTipoCosteo?.nivelConDireccion ?? 1)
-  const [lineaEtiqueta, setLineaEtiqueta] = useState(initialTipoCosteo?.lineaEtiqueta ?? '')
-  const [baseEvaluacion, setBaseEvaluacion] = useState<'GLOBAL'|'MENSUAL'>(initialTipoCosteo?.baseEvaluacion ?? 'GLOBAL')
-  const [manejoPlazo, setManejoPlazo] = useState<'LIBRE'|'FIJO'|'NO_APLICA'>(initialTipoCosteo?.manejoPlazo ?? 'NO_APLICA')
-  const [fijarPlazo, setFijarPlazo] = useState<number>(initialTipoCosteo?.fijarPlazo ?? 0)
+  const [empresaId, setEmpresaId] = useState('')
+  const [nombre, setNombre] = useState('')
+  const [cantidadNiveles, setCantidadNiveles] = useState(2)
+  const [etiquetasNiveles, setEtiquetasNiveles] = useState<string[]>(['NIVEL 1', 'NIVEL 2'])
+  const [coloresNiveles, setColoresNiveles] = useState<string[]>([PREDEFINED_COLORS[0], PREDEFINED_COLORS[1]])
+  const [iconosNiveles, setIconosNiveles] = useState<string[]>([PREDEFINED_ICONS[0], PREDEFINED_ICONS[1]])
+  const [nivelConDireccion, setNivelConDireccion] = useState(1)
+  const [lineaEtiqueta, setLineaEtiqueta] = useState('')
+  const [baseEvaluacion, setBaseEvaluacion] = useState<'GLOBAL'|'MENSUAL'>('GLOBAL')
+  const [manejoPlazo, setManejoPlazo] = useState<'LIBRE'|'FIJO'|'NO_APLICA'>('NO_APLICA')
+  const [fijarPlazo, setFijarPlazo] = useState<number>(0)
 
-  useEffect(() => {
-    if (open) {
+  function handleOpenChange(newOpen: boolean) {
+    if (newOpen) {
+      // Inicializar SIEMPRE aquí, nunca en useEffect con dependencias de datos
+      const tc = tipoCosteo ?? null
+      setInitialTipoCosteo(tc)
+      setMode(tc ? 'view' : 'create')
+      setActiveTab('general')
+      setEmpresaId(tc?.empresaId?.toString() ?? '')
+      setNombre(tc?.nombre ?? '')
+      setCantidadNiveles(tc?.cantidadNiveles ?? 2)
+      setEtiquetasNiveles(tc?.etiquetasNiveles ? tc.etiquetasNiveles.split(',') : ['NIVEL 1', 'NIVEL 2'])
+      setColoresNiveles(tc?.coloresNiveles ? tc.coloresNiveles.split(',') : [PREDEFINED_COLORS[0], PREDEFINED_COLORS[0]])
+      setIconosNiveles(tc?.iconosNiveles ? tc.iconosNiveles.split(',') : [PREDEFINED_ICONS[0], PREDEFINED_ICONS[0]])
+      setNivelConDireccion(tc?.nivelConDireccion ?? 1)
+      setLineaEtiqueta(tc?.lineaEtiqueta ?? '')
+      setBaseEvaluacion(tc?.baseEvaluacion ?? 'GLOBAL')
+      setManejoPlazo(tc?.manejoPlazo ?? 'NO_APLICA')
+      setFijarPlazo(tc?.fijarPlazo ?? 0)
+      setError(null)
+      setFieldErrors({})
+
+      // Cargar empresas
       setCargandoEmpresas(true)
       getEmpresasForUser()
         .then(data => {
           setEmpresas(data.map(e => ({ value: e.id.toString(), label: e.nombre })))
-          if (!tipoCosteo && data.length > 0) {
+          if (!tc && data.length > 0) {
             setEmpresaId(data[0].id.toString())
           }
         })
         .catch(err => toast.error('Error al cargar empresas: ' + err.message))
         .finally(() => setCargandoEmpresas(false))
-
-      setInitialTipoCosteo(tipoCosteo ?? null)
-      setMode(tipoCosteo ? 'view' : 'create')
-      setActiveTab('general')
-      setEmpresaId(tipoCosteo?.empresaId?.toString() ?? '')
-      setCodigo(tipoCosteo?.codigo ?? '')
-      setNombre(tipoCosteo?.nombre ?? '')
-      setCantidadNiveles(tipoCosteo?.cantidadNiveles ?? 2)
-      setEtiquetasNiveles(tipoCosteo?.etiquetasNiveles ? tipoCosteo.etiquetasNiveles.split(',') : ['NIVEL 1', 'NIVEL 2'])
-      setColoresNiveles(tipoCosteo?.coloresNiveles ? tipoCosteo.coloresNiveles.split(',') : [PREDEFINED_COLORS[0], PREDEFINED_COLORS[0]])
-      setIconosNiveles(tipoCosteo?.iconosNiveles ? tipoCosteo.iconosNiveles.split(',') : [PREDEFINED_ICONS[0], PREDEFINED_ICONS[0]])
-      setNivelConDireccion(tipoCosteo?.nivelConDireccion ?? 1)
-      setLineaEtiqueta(tipoCosteo?.lineaEtiqueta ?? '')
-      setBaseEvaluacion(tipoCosteo?.baseEvaluacion ?? 'GLOBAL')
-      setManejoPlazo(tipoCosteo?.manejoPlazo ?? 'NO_APLICA')
-      setFijarPlazo(tipoCosteo?.fijarPlazo ?? 0)
-      setError(null)
-      setFieldErrors({})
     }
-  }, [open, tipoCosteo])
+    setOpen(newOpen)
+  }
 
   useEffect(() => {
     setEtiquetasNiveles(prev => {
@@ -180,7 +176,7 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
       return
     }
     formData.append('empresaId', empresaId)
-    formData.append('codigo', codigo)
+
     formData.append('nombre', nombre)
     formData.append('cantidadNiveles', cantidadNiveles.toString())
     formData.append('etiquetasNiveles', etiquetasNiveles.join(','))
@@ -205,7 +201,7 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
 
       if (result && !result.ok) {
         if (result.field) {
-          const generalFields = ['empresaId', 'codigo', 'nombre', 'lineaEtiqueta']
+          const generalFields = ['empresaId', 'nombre', 'lineaEtiqueta']
           const nivelesFields = ['cantidadNiveles', 'etiquetasNiveles', 'nivelConDireccion']
           const evaluacionFields = ['baseEvaluacion', 'manejoPlazo', 'fijarPlazo']
 
@@ -238,7 +234,7 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
         }
         setMode('view')
       } else {
-        onOpenChange(false)
+        setOpen(false)
       }
     } catch (err: any) {
       setError(err.message)
@@ -273,8 +269,15 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
 
   return (
     <>
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    {React.cloneElement(trigger as React.ReactElement<any>, {
+      onClick: (e: React.MouseEvent) => {
+        e.stopPropagation()
+        handleOpenChange(true)
+      },
+    })}
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[600px] h-[520px] max-h-[90vh] flex flex-col">
+
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Hash className="w-5 h-5 text-slate-500" />
@@ -325,27 +328,8 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                     {fieldErrors.empresaId && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.empresaId}</p>}
                   </div>
 
-                {/* Código */}
-                {mode !== 'create' && (
-                  <div className="space-y-1.5 col-span-1">
-                    <Label htmlFor="tc-codigo">
-                      Código
-                    </Label>
-                    <Input
-                      id="tc-codigo"
-                      name="codigo"
-                      value={codigo}
-                      readOnly
-                      disabled
-                      aria-invalid={!!fieldErrors.codigo}
-                      className="bg-muted/50 font-mono text-sm uppercase"
-                    />
-                    {fieldErrors.codigo && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.codigo}</p>}
-                  </div>
-                )}
-
                 {/* Nombre */}
-                <div className={`space-y-1.5 ${mode === 'create' ? 'col-span-4' : 'col-span-3'}`}>
+                <div className="space-y-1.5 col-span-4">
                   <Label htmlFor="tc-nombre">
                     Nombre <span className="text-red-500">*</span>
                   </Label>
@@ -710,7 +694,7 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                     onClick={() => {
                       if (mode === 'edit') {
                         setEmpresaId(initialTipoCosteo?.empresaId?.toString() ?? '')
-                        setCodigo(initialTipoCosteo?.codigo ?? '')
+
                         setNombre(initialTipoCosteo?.nombre ?? '')
                         setCantidadNiveles(initialTipoCosteo?.cantidadNiveles ?? 2)
                         setEtiquetasNiveles(initialTipoCosteo?.etiquetasNiveles ? initialTipoCosteo.etiquetasNiveles.split(',') : ['NIVEL 1', 'NIVEL 2'])
@@ -724,7 +708,7 @@ export function TipoCosteoDialog({ open, onOpenChange, tipoCosteo }: TipoCosteoD
                         setError(null)
                         setMode('view')
                       } else {
-                        onOpenChange(false)
+                        setOpen(false)
                       }
                     }} 
                     disabled={loading}

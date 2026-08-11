@@ -16,7 +16,10 @@ export const CategoriaRepository = {
       include: {
         empresa: { select: { nombre: true } },
       },
-      orderBy: { id: 'asc' },
+      orderBy: [
+        { prioridad: 'asc' },
+        { id: 'asc' },
+      ],
     })
   },
 
@@ -24,22 +27,38 @@ export const CategoriaRepository = {
     return prisma.categoriaItem.findUnique({ where: { id } })
   },
 
-  async findByCodigo(codigo: number) {
-    return prisma.categoriaItem.findUnique({ where: { codigo } })
-  },
-
-  async findByCodigoExcluding(codigo: number, excludeId: number) {
-    return prisma.categoriaItem.findFirst({
-      where: { codigo, id: { not: excludeId } },
+  async findByEmpresa(empresaId: number) {
+    return prisma.categoriaItem.findMany({
+      where: { empresaId },
+      orderBy: [
+        { prioridad: 'asc' },
+        { id: 'asc' },
+      ],
     })
   },
 
-  async countByEmpresa(empresaId: number): Promise<number> {
-    return prisma.categoriaItem.count({ where: { empresaId } })
+  async findMaxPrioridad(empresaId: number): Promise<number> {
+    const result = await prisma.categoriaItem.aggregate({
+      where: { empresaId },
+      _max: { prioridad: true },
+    })
+    return result._max.prioridad ?? 0
+  },
+
+  async findByNombreYEmpresa(nombre: string, empresaId: number) {
+    return prisma.categoriaItem.findFirst({
+      where: { nombre, empresaId },
+    })
+  },
+
+  async findByNombreYEmpresaExcluding(nombre: string, empresaId: number, excludeId: number) {
+    return prisma.categoriaItem.findFirst({
+      where: { nombre, empresaId, id: { not: excludeId } },
+    })
   },
 
   async create(
-    data: { empresaId: number; codigo: number; nombre: string; prioridad: boolean; activo: boolean },
+    data: { empresaId: number; nombre: string; prioridad: number },
     userId: number,
     tx: TxClient = prisma as unknown as TxClient,
   ) {
@@ -50,7 +69,7 @@ export const CategoriaRepository = {
 
   async update(
     id: number,
-    data: { empresaId?: number; codigo?: number; nombre: string; prioridad: boolean; activo: boolean; registroVersion: number },
+    data: { empresaId?: number; nombre: string; prioridad?: number; registroVersion: number },
     tx: TxClient = prisma as unknown as TxClient,
   ) {
     const { registroVersion, ...rest } = data
@@ -60,5 +79,27 @@ export const CategoriaRepository = {
     })
     if (result.count === 0) return null // OCC
     return (tx as any).categoriaItem.findUnique({ where: { id } })
+  },
+
+  /**
+   * Batch update de prioridades con OCC.
+   * Cada item: { id, prioridad, registroVersion }.
+   * Devuelve los IDs que no pudieron actualizarse por conflicto de versión.
+   */
+  async updatePrioridades(
+    actualizaciones: { id: number; prioridad: number; registroVersion: number }[],
+    tx: TxClient = prisma as unknown as TxClient,
+  ): Promise<{ conflictos: number[] }> {
+    const conflictos: number[] = []
+    await Promise.all(
+      actualizaciones.map(async ({ id, prioridad, registroVersion }) => {
+        const result = await (tx as any).categoriaItem.updateMany({
+          where: { id, registroVersion },
+          data: { prioridad, registroVersion: { increment: 1 } },
+        })
+        if (result.count === 0) conflictos.push(id)
+      }),
+    )
+    return { conflictos }
   },
 }

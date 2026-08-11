@@ -1,18 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Building2, Pencil, History, Save, Loader2 } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Building2, Pencil, History, Save, Loader2, Plug } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
+import { Switch } from '@/components/ui/switch'
 import { FieldError } from '@/components/ui/field-error'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { HistorialDrawer } from '@/components/shared/historial-drawer'
 import { normalizeText } from '@/lib/utils/text'
-import { crearEmpresa, actualizarEmpresa } from '@/app/actions/empresas'
+import { crearEmpresa, actualizarEmpresaCompleto } from '@/app/actions/empresas'
 import { buscarEmpresaErp } from '@/app/actions/erp'
+import { CATALOGOS_ERP, type CatalogoSyncRow } from '@/lib/types/empresas'
 import type { EmpresaRow } from '@/lib/types/empresas'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -27,8 +28,14 @@ interface EmpresaModalProps {
 
 // ─── Componente ───────────────────────────────────────────────────────────────
 
-export function EmpresaModal({ empresa, trigger, open: controlledOpen, onOpenChange, onSuccess }: EmpresaModalProps) {
-  // Soporta tanto modo controlado (open/onOpenChange) como modo autónomo (trigger)
+export function EmpresaModal({
+  empresa,
+  trigger,
+  open: controlledOpen,
+  onOpenChange,
+  onSuccess,
+}: EmpresaModalProps) {
+  // Soporta modo controlado (open/onOpenChange) y modo autónomo (trigger)
   const [internalOpen, setInternalOpen] = useState(false)
   const isControlled = controlledOpen !== undefined
   const open = isControlled ? controlledOpen : internalOpen
@@ -41,23 +48,22 @@ export function EmpresaModal({ empresa, trigger, open: controlledOpen, onOpenCha
   const [mode, setMode] = useState<'view' | 'edit'>('view')
 
   // ── Estado del formulario ───────────────────────────────────────────────────
-  const [nombre, setNombre] = useState('')
+  const [nombre, setNombre]           = useState('')
   const [razonSocial, setRazonSocial] = useState('')
-  const [nit, setNit] = useState('')
-  const [codigoErp, setCodigoErp] = useState('')
-  const [sincronizarItems, setSincronizarItems] = useState(false)
-  const [sincronizarCategorias, setSincronizarCategorias] = useState(false)
+  const [nit, setNit]                 = useState('')
+  const [codigoErp, setCodigoErp]     = useState('')
+
+  // ── Estado pestaña ERP ──────────────────────────────────────────────────────
+  const [catalogosSync, setCatalogosSync] = useState<CatalogoSyncRow[]>([])
 
   // ── Estado del lookup ERP ───────────────────────────────────────────────────
-  const [nombreErp, setNombreErp] = useState<string | null>(null)
-  const [buscandoErp, setBuscandoErp] = useState(false)
+  const [nombreErp, setNombreErp]       = useState<string | null>(null)
+  const [buscandoErp, setBuscandoErp]   = useState(false)
 
   // ── Estado de errores y UI ──────────────────────────────────────────────────
-  // fieldErrors unifica TODOS los errores de campo: validaciones locales,
-  // errores del servidor y errores del ERP. Se presenta via <FieldError>.
-  const [globalError, setGlobalError] = useState<string | null>(null)
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  const [loading, setLoading] = useState(false)
+  const [globalError, setGlobalError]   = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors]   = useState<Record<string, string>>({})
+  const [loading, setLoading]           = useState(false)
 
   // ── Reset del formulario ────────────────────────────────────────────────────
   const resetForm = (data?: EmpresaRow) => {
@@ -65,8 +71,7 @@ export function EmpresaModal({ empresa, trigger, open: controlledOpen, onOpenCha
     setRazonSocial(data?.razonSocial ?? '')
     setNit(data?.nit ?? '')
     setCodigoErp(data?.codigoErp ?? '')
-    setSincronizarItems(data?.sincronizarItems ?? false)
-    setSincronizarCategorias(data?.sincronizarCategorias ?? false)
+    setCatalogosSync(data?.catalogosSync ?? [])
     setGlobalError(null)
     setFieldErrors({})
     setNombreErp(null)
@@ -83,10 +88,8 @@ export function EmpresaModal({ empresa, trigger, open: controlledOpen, onOpenCha
     setOpen(newOpen)
   }
 
-  // ── Cargar nombre ERP para registros existentes ─────────────────────────────
-  // SOLO depende de [open] — nunca de `empresa` ni de `mode` (convención anti-flash).
-  // Al abrir un registro que ya tiene codigo_erp, consulta el ERP para mostrar
-  // el nombre informativo en modo Vista y Edición.
+  // ── Cargar nombre ERP al abrir empresa existente con código ──────────────────
+  // SOLO depende de [open] — convención anti-flash.
   useEffect(() => {
     if (open && isExisting && empresa?.codigoErp) {
       buscarEmpresaErp(empresa.codigoErp).then(resultado => {
@@ -95,19 +98,14 @@ export function EmpresaModal({ empresa, trigger, open: controlledOpen, onOpenCha
     }
   }, [open])
 
-  // ── Lookup ERP al salir del campo Código ERP ────────────────────────────────
-  // El resultado (encontrado o no) se canaliza siempre a través de fieldErrors,
-  // igual que cualquier otro error de campo, sin importar su origen.
+  // ── Lookup ERP al salir del campo Código ERP ─────────────────────────────────
   async function handleCodigoErpBlur() {
     const codigo = codigoErp.trim()
-
-    // Si el campo quedó vacío, limpiar todo y salir
     if (!codigo) {
       setNombreErp(null)
       setFieldErrors(prev => { const e = { ...prev }; delete e.codigoErp; return e })
       return
     }
-
     setBuscandoErp(true)
     try {
       const resultado = await buscarEmpresaErp(codigo)
@@ -126,36 +124,40 @@ export function EmpresaModal({ empresa, trigger, open: controlledOpen, onOpenCha
     }
   }
 
-  // ── Submit ─────────────────────────────────────────────────────────────────
+  // ── Toggle de catálogo — solo actualiza estado local (se guarda en handleSave) ─
+  function handleToggleCatalogo(catalogo: string, nuevoValor: boolean) {
+    setCatalogosSync(prev => {
+      const existe = prev.some(c => c.catalogo === catalogo)
+      if (existe) {
+        return prev.map(c => c.catalogo === catalogo ? { ...c, sincronizar: nuevoValor } : c)
+      }
+      return [...prev, { catalogo, sincronizar: nuevoValor }]
+    })
+  }
+
+  // ── Submit ──────────────────────────────────────────────────────────────────
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setGlobalError(null)
 
     const codigoTrimmed = codigoErp.trim()
 
-    // ── Paso 1: Validaciones locales ────────────────────────────────────────
+    // Validaciones locales
     const errors: Record<string, string> = {}
     if (!nombre.trim())      errors.nombre      = 'Requerido'
     if (!razonSocial.trim()) errors.razonSocial = 'Requerido'
     if (!nit.trim())         errors.nit         = 'Requerido'
 
-    // ── Paso 2: Validación ERP (solo al crear y si se ingresó un código) ────
-    // El nombreErp es el indicador de estado de la verificación ERP:
-    //   - nombreErp visible   → ya fue verificado y existe   ✅ sin error
-    //   - fieldErrors activo  → ya fue verificado y no existe ❌ bloquear
-    //   - ninguno de los dos  → aún no se verificó           → verificar ahora
+    // Validación ERP (solo al crear y si se ingresó código)
     if (!isExisting && codigoTrimmed) {
       if (fieldErrors.codigoErp) {
-        // Código ya verificado y fallido — preservar el error
         errors.codigoErp = fieldErrors.codigoErp
       } else if (!nombreErp) {
-        // El usuario no hizo blur antes de guardar — verificar inline y esperar
         setBuscandoErp(true)
         try {
           const resultado = await buscarEmpresaErp(codigoTrimmed)
           if (resultado) {
             setNombreErp(resultado.nombre)
-            // Código válido — continúa al guardado sin error
           } else {
             errors.codigoErp = 'No encontrado en ERP'
           }
@@ -165,7 +167,6 @@ export function EmpresaModal({ empresa, trigger, open: controlledOpen, onOpenCha
           setBuscandoErp(false)
         }
       }
-      // Si nombreErp ya está visible → código verificado → sin error, continúa
     }
 
     setFieldErrors(errors)
@@ -174,16 +175,18 @@ export function EmpresaModal({ empresa, trigger, open: controlledOpen, onOpenCha
     setLoading(true)
     try {
       const data = {
-        nombre:               normalizeText(nombre),
-        razonSocial:          normalizeText(razonSocial),
-        nit:                  nit.trim().toUpperCase(),
-        codigoErp:            codigoErp.trim(),
-        sincronizarItems,
-        sincronizarCategorias,
+        nombre:      normalizeText(nombre),
+        razonSocial: normalizeText(razonSocial),
+        nit:         nit.trim().toUpperCase(),
+        codigoErp:   codigoErp.trim(),
       }
 
       const res = isExisting
-        ? await actualizarEmpresa(empresa!.id, { ...data, registroVersion: empresa!.registroVersion })
+        ? await actualizarEmpresaCompleto(
+            empresa!.id,
+            { ...data, registroVersion: empresa!.registroVersion },
+            catalogosSync,
+          )
         : await crearEmpresa(data)
 
       if (!res.ok) {
@@ -195,7 +198,8 @@ export function EmpresaModal({ empresa, trigger, open: controlledOpen, onOpenCha
         return
       }
 
-      resetForm(res.data)
+      // resetForm usa los catalogosSync que el usuario acaba de guardar
+      resetForm(res.data ? { ...res.data, catalogosSync } : res.data)
       if (!isExisting) {
         setOpen(false)
       } else {
@@ -208,6 +212,19 @@ export function EmpresaModal({ empresa, trigger, open: controlledOpen, onOpenCha
       setLoading(false)
     }
   }
+
+  // ── Pestaña ERP: visible solo en empresa existente con codigoErp ─────────────
+  const mostrarTabErp = isExisting && !!empresa?.codigoErp
+
+  // Construir el estado visual de cada catálogo mezclando el hardcode con el estado guardado
+  const catalogosConEstado = CATALOGOS_ERP.map(cat => {
+    const guardado = catalogosSync.find(c => c.catalogo === cat.key)
+    return {
+      key:         cat.key,
+      label:       cat.label,
+      sincronizar: guardado?.sincronizar ?? false,
+    }
+  })
 
   // ── Render ─────────────────────────────────────────────────────────────────
   const title = !isExisting
@@ -243,9 +260,17 @@ export function EmpresaModal({ empresa, trigger, open: controlledOpen, onOpenCha
                   <Building2 className="w-4 h-4 mr-2" />
                   General
                 </TabsTrigger>
+                {mostrarTabErp && (
+                  <TabsTrigger value="erp">
+                    <Plug className="w-4 h-4 mr-2" />
+                    ERP
+                  </TabsTrigger>
+                )}
               </TabsList>
 
               <div className="flex-1 overflow-y-auto pr-2 pb-4">
+
+                {/* ── Pestaña General ──────────────────────────────────────────── */}
                 <TabsContent value="general" className="mt-0">
                   <div className="grid grid-cols-2 gap-x-6 gap-y-4">
 
@@ -292,12 +317,9 @@ export function EmpresaModal({ empresa, trigger, open: controlledOpen, onOpenCha
                     </div>
 
                     {/* Código ERP */}
-                    {/* Al crear: visible y editable con lookup ERP onBlur.
-                        Al editar: visible y siempre deshabilitado (campo autogenerado). */}
                     <div className="flex flex-col gap-1.5 col-span-1">
                       <Label htmlFor="empresa-codigo-erp">Código ERP</Label>
                       {isExisting ? (
-                        // Registro existente: siempre deshabilitado
                         <>
                           <Input
                             id="empresa-codigo-erp"
@@ -305,7 +327,6 @@ export function EmpresaModal({ empresa, trigger, open: controlledOpen, onOpenCha
                             disabled={true}
                             className="h-8 py-1 bg-muted/50 font-mono text-sm"
                           />
-                          {/* Nombre ERP — informativo, nunca se graba en Costeos */}
                           {nombreErp && (
                             <p className="text-xs text-emerald-600 !mt-0.5 leading-none font-medium">
                               ✓ {nombreErp}
@@ -313,7 +334,6 @@ export function EmpresaModal({ empresa, trigger, open: controlledOpen, onOpenCha
                           )}
                         </>
                       ) : (
-                        // Creación: editable con lookup ERP
                         <>
                           <div className="relative">
                             <Input
@@ -321,10 +341,10 @@ export function EmpresaModal({ empresa, trigger, open: controlledOpen, onOpenCha
                               value={codigoErp}
                               onChange={e => {
                                 setCodigoErp(e.target.value)
-                                // Limpiar nombre y error al modificar el código
                                 setNombreErp(null)
                                 setFieldErrors(prev => { const e2 = { ...prev }; delete e2.codigoErp; return e2 })
                               }}
+                              onBlur={handleCodigoErpBlur}
                               maxLength={10}
                               className="h-8 py-1 font-mono text-sm pr-8"
                               placeholder="Opcional"
@@ -334,50 +354,72 @@ export function EmpresaModal({ empresa, trigger, open: controlledOpen, onOpenCha
                               <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />
                             )}
                           </div>
-                          {/* Nombre ERP — informativo, nunca se graba en Costeos */}
                           {nombreErp && (
                             <p className="text-xs text-emerald-600 !mt-0.5 leading-none font-medium">
                               ✓ {nombreErp}
                             </p>
                           )}
-                          {/* Error de campo unificado — misma presentación sin importar el origen */}
                           <FieldError message={fieldErrors.codigoErp} />
                         </>
                       )}
                     </div>
 
-                    {/* Checkboxes de sincronización */}
-                    <div className="flex items-center gap-4 col-span-2 mt-2">
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="sync-items"
-                          checked={sincronizarItems}
-                          onCheckedChange={v => setSincronizarItems(!!v)}
-                          disabled={mode === 'view'}
-                        />
-                        <Label htmlFor="sync-items" className="font-normal cursor-pointer">
-                          Sync Items
-                        </Label>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="sync-categorias"
-                          checked={sincronizarCategorias}
-                          onCheckedChange={v => setSincronizarCategorias(!!v)}
-                          disabled={mode === 'view'}
-                        />
-                        <Label htmlFor="sync-categorias" className="font-normal cursor-pointer">
-                          Sync Categorías
-                        </Label>
-                      </div>
-                    </div>
-
                   </div>
                 </TabsContent>
+
+                {/* ── Pestaña ERP ──────────────────────────────────────────────── */}
+                {mostrarTabErp && (
+                  <TabsContent value="erp" className="mt-0">
+                    <div className="space-y-4">
+
+                      {/* Encabezado informativo */}
+                      <div className="rounded-lg bg-indigo-50 border border-indigo-100 p-3">
+                        <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide mb-0.5">
+                          Empresa en ERP
+                        </p>
+                        {nombreErp ? (
+                          <p className="text-sm font-medium text-indigo-900">{nombreErp}</p>
+                        ) : (
+                          <p className="text-xs text-indigo-400 italic">No se pudo verificar la conexión ERP</p>
+                        )}
+                        <p className="text-xs text-indigo-500 mt-1">
+                          Código: <span className="font-mono font-medium">{empresa?.codigoErp}</span>
+                        </p>
+                      </div>
+
+                      {/* Lista de catálogos */}
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                          Catálogos a Sincronizar
+                        </p>
+                        <div className="divide-y rounded-lg border overflow-hidden">
+                          {catalogosConEstado.map(cat => (
+                            <div
+                              key={cat.key}
+                              className="flex items-center justify-between px-4 py-3 bg-white hover:bg-slate-50 transition-colors"
+                            >
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-sm font-medium">{cat.label}</span>
+                              </div>
+                              <Switch
+                                checked={cat.sincronizar}
+                                onCheckedChange={val => handleToggleCatalogo(cat.key, val)}
+                                disabled={mode === 'view'}
+                                aria-label={`Sincronizar ${cat.label}`}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                    </div>
+                  </TabsContent>
+                )}
+
               </div>
             </Tabs>
 
-            {/* ── Footer estándar — SIEMPRE al fondo con borde ── */}
+            {/* ── Footer estándar ── */}
             <div className="flex flex-row items-center justify-between mt-6 -mx-4 -mb-4 px-4 py-4 border-t bg-slate-50 sm:rounded-b-xl shrink-0">
               <div />
               <div className="flex gap-2 justify-end">
@@ -426,7 +468,7 @@ export function EmpresaModal({ empresa, trigger, open: controlledOpen, onOpenCha
         </DialogContent>
       </Dialog>
 
-      {/* Historial Auditoría — fuera del Dialog, dentro del fragmento */}
+      {/* Historial Auditoría */}
       {isExisting && empresa && (
         <HistorialDrawer
           open={historialOpen}

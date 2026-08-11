@@ -62,7 +62,6 @@ export async function buscarConFuzzyMatch(
       const dbCosteos = await prisma.categoriaItem.findMany({
         where: {
           empresaId,
-          activo: true,
           nombre: { contains: busqueda }
         }
       })
@@ -77,7 +76,7 @@ export async function buscarConFuzzyMatch(
       for (const item of dbCosteos) {
         const match = calculateMatchPercentage(item.nombre, busqueda)
         if (match >= MIN_MATCH_PERCENTAGE) {
-          mergedMap.set(item.codigoErp || `local_${item.id}`, {
+          mergedMap.set(`local_${item.id}`, {
             ...item,
             isNewInCosteos: false,
             matchPercentage: match,
@@ -192,31 +191,19 @@ export async function guardarRegistroCatalogo(
     const sincronizar = config?.sincronizar ?? false
 
     if (catalogo === 'CATEGORIAS') {
-      let codigoErp = 0
-      
       if (sincronizar) {
-        // Enviar al ERP y obtener código (Rollback si falla)
+        // Enviar al ERP (solo notificación — categoria ya no almacena codigoErp)
         try {
-          const erpRes = await erp.crearCategoria(empresaId, payload.nombre)
-          codigoErp = typeof erpRes.codigoErp === 'string' ? parseInt(erpRes.codigoErp, 10) : erpRes.codigoErp
+          await erp.crearCategoria(empresaId, payload.nombre)
         } catch (erpError: any) {
           console.error("Fallo al guardar Categoría en ERP:", erpError)
           return { error: 'Fallo al sincronizar con el ERP. No se guardó el registro.' }
         }
       }
 
-      // Conseguir el siguiente código interno (Prisma)
-      const lastCat = await prisma.categoriaItem.findFirst({
-        where: { empresaId },
-        orderBy: { codigo: 'desc' }
-      })
-      const nextCodigo = (lastCat?.codigo || 0) + 1
-
       const nuevaCategoria = await prisma.categoriaItem.create({
         data: {
           empresaId,
-          codigo: nextCodigo,
-          codigoErp: codigoErp,
           nombre: payload.nombre,
           usuarioCreo: usuarioId
         }
@@ -240,7 +227,7 @@ export async function guardarRegistroCatalogo(
           const erpRes = await erp.crearItem(empresaId, {
             nombre: payload.descripcion,
             descripcion: payload.descripcion,
-            categoriaId: categoriaLocal.codigoErp > 0 ? categoriaLocal.codigoErp : categoriaLocal.codigo, 
+            categoriaId: categoriaLocal.id,
             tipo: payload.tipoItem === 2 ? 'SERVICIO' : 'ARTICULO',
             unidad: payload.unidadMedida
           })

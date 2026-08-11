@@ -2,21 +2,35 @@
  * tipo-costeo.service.ts — Lógica de negocio para Tipos de Costeo.
  *
  * Responsabilidades:
- * - Generación de código correlativo
  * - Validación de "en uso" (no puede cambiar estructura si tiene costeos)
- * - Validación de duplicados
  * - Atomicidad (registro + audit log)
  * - OCC validation
  */
 
 import { prisma } from '@/lib/prisma'
 import { TipoCosteoRepository } from '@/lib/repositories/tipo-costeo.repository'
+import { EmpresaRepository } from '@/lib/repositories/empresa.repository'
 import { AuditRepository } from '@/lib/repositories/audit.repository'
+import { computeDiff } from '@/lib/utils/audit'
 import type { ActionResult } from '@/lib/types/common'
 import type { TipoCosteoRow } from '@/lib/types/tipos-costeo'
 import type { BaseEvaluacion } from '@prisma/client'
 
 const TABLA = 'costeos_tipo_costeo'
+
+/** Campos auditables con labels legibles (docs/conventions.md §16). */
+const CAMPOS_TIPO_COSTEO = [
+  { key: 'nombre',            label: 'Nombre' },
+  { key: 'lineaEtiqueta',     label: 'Línea Etiqueta' },
+  { key: 'cantidadNiveles',   label: 'Niveles' },
+  { key: 'etiquetasNiveles',  label: 'Etiquetas Niveles' },
+  { key: 'coloresNiveles',    label: 'Colores Niveles' },
+  { key: 'iconosNiveles',     label: 'Iconos Niveles' },
+  { key: 'nivelConDireccion', label: 'Nivel Dirección' },
+  { key: 'baseEvaluacion',    label: 'Base Evaluación' },
+  { key: 'manejoPlazo',       label: 'Manejo Plazo' },
+  { key: 'fijarPlazo',        label: 'Fijar Plazo' },
+] as const
 
 type TipoCosteoInput = {
   empresaId: number
@@ -33,35 +47,28 @@ type TipoCosteoInput = {
 }
 
 type TipoCosteoEditInput = TipoCosteoInput & {
-  codigo: string
   registroVersion: number
 }
 
 export const TipoCosteoService = {
 
   async listar(): Promise<TipoCosteoRow[]> {
-    const rows = await TipoCosteoRepository.findAll()
+    const [rows, empresas] = await Promise.all([
+      TipoCosteoRepository.findAll(),
+      EmpresaRepository.findAll(),
+    ])
+    const empresaMap = new Map(empresas.map(e => [e.id, e.nombre]))
     return rows.map(r => ({
       ...r,
       manejoPlazo: r.manejoPlazo as 'LIBRE' | 'FIJO' | 'NO_APLICA',
-      empresaNombre: `Empresa ${r.empresaId}`,
+      empresaNombre: empresaMap.get(r.empresaId) ?? `Empresa ${r.empresaId}`,
       enUso: r._count.costeos > 0,
     }))
   },
 
   async crear(data: TipoCosteoInput, userId: number): Promise<ActionResult<{ id: number }>> {
-    // Generar código correlativo
-    const count = await TipoCosteoRepository.countByEmpresa(data.empresaId)
-    const codigo = String(count + 1).padStart(3, '0')
-
-    // Verificar unicidad
-    const existente = await TipoCosteoRepository.findByCodigoAndEmpresa(codigo, data.empresaId)
-    if (existente) {
-      return { ok: false, error: 'Error al generar el código, intente nuevamente' }
-    }
-
     const nuevo = await prisma.$transaction(async (tx) => {
-      const reg = await TipoCosteoRepository.create({ ...data, codigo }, tx as any)
+      const reg = await TipoCosteoRepository.create(data, tx as any)
       await AuditRepository.logCreate(TABLA, reg.id, userId, reg as any, tx as any)
       return reg
     })
@@ -88,16 +95,15 @@ export const TipoCosteoService = {
       }
     }
 
-    // Verificar código duplicado
-    const duplicado = await TipoCosteoRepository.findByCodigoAndEmpresa(data.codigo, data.empresaId, id)
-    if (duplicado) {
-      return { ok: false, error: 'Ya existe un tipo de costeo con este código', field: 'codigo' }
-    }
-
     const actualizado = await prisma.$transaction(async (tx) => {
       const reg = await TipoCosteoRepository.update(id, data, tx as any)
       if (!reg) return null
-      await AuditRepository.logUpdate(TABLA, id, userId, tipoActual as any, reg as any, tx as any)
+
+      // Solo loguear los campos que realmente cambiaron, con labels legibles
+      const { antes, despues } = computeDiff(CAMPOS_TIPO_COSTEO, tipoActual as any, reg as any)
+      if (Object.keys(antes).length > 0) {
+        await AuditRepository.logUpdate(TABLA, id, userId, antes as any, despues as any, tx as any)
+      }
       return reg
     })
 
@@ -126,10 +132,11 @@ export const TipoCosteoService = {
     const actualizado = await prisma.$transaction(async (tx) => {
       const reg = await TipoCosteoRepository.toggleActivo(id, tipo.activo, registroVersion, tx as any)
       if (!reg) return null
+      // Campo puntual — no necesita computeDiff (solo cambia `activo`)
       await AuditRepository.logUpdate(
         TABLA, id, userId,
-        { activo: tipo.activo },
-        { activo: reg.activo },
+        { Activo: tipo.activo ? 'Sí' : 'No' },
+        { Activo: reg.activo  ? 'Sí' : 'No' },
         tx as any,
       )
       return reg

@@ -1,17 +1,15 @@
 'use client'
-
 import React, { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { NumericInput } from '@/components/ui/numeric-input'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { FieldError } from '@/components/ui/field-error'
-import { Tags, Save, Pencil, History } from 'lucide-react'
+import { Tags, Save, Pencil, History, ArrowUpDown } from 'lucide-react'
 import { HistorialDrawer } from '@/components/shared/historial-drawer'
+import { PrioridadModal } from '@/components/categorias/prioridad-modal'
 import { crearCategoria, actualizarCategoria } from '@/app/actions/categorias'
 import { getEmpresasForUser } from '@/app/actions/erp'
 import { normalizeText } from '@/lib/utils/text'
@@ -25,62 +23,58 @@ interface CategoriaModalProps {
   onSuccess?: () => void
 }
 
-export function CategoriaModal({ categoria, trigger, open: controlledOpen, onOpenChange, onSuccess }: CategoriaModalProps) {
+export function CategoriaModal({
+  categoria,
+  trigger,
+  open: controlledOpen,
+  onOpenChange,
+  onSuccess,
+}: CategoriaModalProps) {
   const [internalOpen, setInternalOpen] = useState(false)
   const isControlled = controlledOpen !== undefined
   const open = isControlled ? controlledOpen : internalOpen
   const setOpen = isControlled ? onOpenChange! : setInternalOpen
   const [historialOpen, setHistorialOpen] = useState(false)
+  const [prioridadOpen, setPrioridadOpen] = useState(false)
 
   const isEditing = !!categoria
   const [mode, setMode] = useState<'view' | 'edit'>('view')
 
+  // Campos del formulario
   const [empresa, setEmpresa] = useState<string>('')
-  const [codigo, setCodigo] = useState<number | null>(null)
   const [nombre, setNombre] = useState('')
-  const [prioridad, setPrioridad] = useState(false)
-  const [activo, setActivo] = useState(true)
 
+  // Datos externos
   const [empresas, setEmpresas] = useState<{ value: string; label: string }[]>([])
   const [cargandoEmpresas, setCargandoEmpresas] = useState(false)
 
+  // Estados de UI
   const [globalError, setGlobalError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState('general')
 
-  // ── Cargar empresas al abrir ─────────────────────────────────────────────────
-  // SOLO depende de [open] — nunca de `categoria` ni de `mode` (anti-flash).
+  // Cargar empresas SOLO cuando abre el modal — nunca depende de datos del registro ni de `mode`
   useEffect(() => {
-    if (open) {
-      setCargandoEmpresas(true)
-      getEmpresasForUser()
-        .then(data => {
-          const opts = data.map(e => ({ value: e.id.toString(), label: e.nombre }))
-          setEmpresas(opts)
-          // Auto-selección solo al crear; al editar ya viene en resetForm
-          if (opts.length > 0 && !isEditing) {
-            setEmpresa(opts[0].value)
-          }
-        })
-        .finally(() => setCargandoEmpresas(false))
-    }
+    if (!open) return
+    setCargandoEmpresas(true)
+    getEmpresasForUser()
+      .then(data => {
+        const opts = data.map(e => ({ value: e.id.toString(), label: e.nombre }))
+        setEmpresas(opts)
+      })
+      .finally(() => setCargandoEmpresas(false))
   }, [open])
 
-  // ── Reset ────────────────────────────────────────────────────────────────────
   const resetForm = (data?: CategoriaRow) => {
     setEmpresa(data?.empresaId.toString() ?? '')
-    setCodigo(data?.codigo ?? null)
     setNombre(data?.nombre ?? '')
-    setPrioridad(data?.prioridad ?? false)
-    setActivo(data?.activo ?? true)
     setGlobalError(null)
     setFieldErrors({})
     setActiveTab('general')
   }
 
-  // ── Apertura/Cierre ──────────────────────────────────────────────────────────
-  // CRÍTICO: inicializar estado AQUÍ, nunca en useEffect con deps en datos.
+  // CRÍTICO: inicializar estado aquí, NUNCA en useEffect con deps en datos del registro
   const handleOpenChange = (newOpen: boolean) => {
     if (newOpen) {
       resetForm(categoria)
@@ -89,26 +83,21 @@ export function CategoriaModal({ categoria, trigger, open: controlledOpen, onOpe
     setOpen(newOpen)
   }
 
-  // ── Submit ───────────────────────────────────────────────────────────────────
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setGlobalError(null)
 
-    // Construir errores locales — NO hacer setFieldErrors({}) al inicio
+    // Construir errores locales SIN limpiar fieldErrors al inicio (preservar errores externos)
     const errors: Record<string, string> = {}
     if (!empresa) errors.empresa = 'Requerido'
     if (!nombre.trim()) errors.nombre = 'Requerido'
-
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) return
 
     setLoading(true)
     const data: CategoriaInput = {
       empresaId: parseInt(empresa, 10),
-      codigo,
       nombre: normalizeText(nombre),
-      prioridad,
-      activo,
     }
 
     try {
@@ -118,7 +107,7 @@ export function CategoriaModal({ categoria, trigger, open: controlledOpen, onOpe
 
       if (!res.ok) {
         if (res.field) {
-          setFieldErrors({ [res.field]: res.error })
+          setFieldErrors(prev => ({ ...prev, [res.field!]: res.error }))
           setActiveTab('general')
         } else {
           setGlobalError(res.error)
@@ -140,11 +129,16 @@ export function CategoriaModal({ categoria, trigger, open: controlledOpen, onOpe
     }
   }
 
+  // Nombre de la empresa para el modal de prioridades
+  const empresaNombreActual = empresas.find(e => e.value === empresa)?.label
+    ?? categoria?.empresaNombre
+    ?? `Empresa ${empresa}`
+
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
         {trigger && <DialogTrigger render={trigger as React.ReactElement} />}
-        <DialogContent className="sm:max-w-[500px] h-[85vh] sm:h-[450px] flex flex-col p-4 sm:p-6 overflow-hidden">
+        <DialogContent className="sm:max-w-[500px] h-[85vh] sm:h-[420px] flex flex-col p-4 sm:p-6 overflow-hidden">
           <DialogHeader className="mb-2 shrink-0">
             <DialogTitle className="flex items-center gap-2 text-xl">
               <Tags className="w-5 h-5 text-slate-500" />
@@ -155,7 +149,7 @@ export function CategoriaModal({ categoria, trigger, open: controlledOpen, onOpe
           </DialogHeader>
 
           {globalError && (
-            <div className="bg-red-50 text-red-500 text-sm p-3 rounded-md mb-4 border border-red-200 shrink-0">
+            <div className="bg-red-50 text-red-500 text-sm p-3 rounded-md border border-red-200 shrink-0">
               {globalError}
             </div>
           )}
@@ -175,8 +169,11 @@ export function CategoriaModal({ categoria, trigger, open: controlledOpen, onOpe
 
                     {/* Empresa */}
                     <div className="flex flex-col gap-1.5 col-span-2">
-                      <Label htmlFor="cat-empresa">Empresa <span className="text-red-500">*</span></Label>
+                      <Label htmlFor="cat-empresa">
+                        Empresa <span className="text-red-500">*</span>
+                      </Label>
                       <SearchableSelect
+                        id="cat-empresa"
                         options={empresas}
                         value={empresa}
                         onChange={setEmpresa}
@@ -187,26 +184,11 @@ export function CategoriaModal({ categoria, trigger, open: controlledOpen, onOpe
                       <FieldError message={fieldErrors.empresa} />
                     </div>
 
-                    {/* Código — solo al editar, siempre deshabilitado */}
-                    {isEditing && (
-                      <div className="flex flex-col gap-1.5 col-span-1">
-                        <Label htmlFor="cat-codigo">Código</Label>
-                        <NumericInput
-                          id="cat-codigo"
-                          value={codigo ?? undefined}
-                          onChange={(val) => setCodigo(val ?? null)}
-                          disabled={true}
-                          className="h-8 py-1 bg-muted/50"
-                          aria-invalid={!!fieldErrors.codigo}
-                          isInteger={true}
-                        />
-                        <FieldError message={fieldErrors.codigo} />
-                      </div>
-                    )}
-
                     {/* Nombre */}
-                    <div className={`flex flex-col gap-1.5 ${isEditing ? 'col-span-1' : 'col-span-2'}`}>
-                      <Label htmlFor="cat-nombre">Nombre <span className="text-red-500">*</span></Label>
+                    <div className="flex flex-col gap-1.5 col-span-2">
+                      <Label htmlFor="cat-nombre">
+                        Nombre <span className="text-red-500">*</span>
+                      </Label>
                       <Input
                         id="cat-nombre"
                         value={nombre}
@@ -218,38 +200,48 @@ export function CategoriaModal({ categoria, trigger, open: controlledOpen, onOpe
                       <FieldError message={fieldErrors.nombre} />
                     </div>
 
-                    {/* Checkboxes */}
-                    <div className="flex items-center gap-4 col-span-2 mt-2">
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="cat-prioridad"
-                          checked={prioridad}
-                          onCheckedChange={(checked) => setPrioridad(checked as boolean)}
-                          disabled={mode === 'view'}
-                        />
-                        <Label htmlFor="cat-prioridad" className="font-normal cursor-pointer">Alta Prioridad</Label>
-                      </div>
-                      {isEditing && (
+                    {/* Prioridad (solo lectura en modo vista) */}
+                    {isEditing && mode === 'view' && (
+                      <div className="flex flex-col gap-1.5 col-span-2">
+                        <Label>Prioridad</Label>
                         <div className="flex items-center gap-2">
-                          <Checkbox
-                            id="cat-activo"
-                            checked={activo}
-                            onCheckedChange={(checked) => setActivo(checked as boolean)}
-                            disabled={mode === 'view'}
-                          />
-                          <Label htmlFor="cat-activo" className="font-normal cursor-pointer">Activo</Label>
+                          {categoria!.prioridad > 0 ? (
+                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 text-sm font-bold">
+                              {categoria!.prioridad}
+                            </span>
+                          ) : (
+                            <span className="text-sm text-muted-foreground italic">
+                              Sin prioridad asignada
+                            </span>
+                          )}
+                          <span className="text-xs text-muted-foreground">
+                            Usa el botón "Prioridad" para reordenar
+                          </span>
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
 
                   </div>
                 </TabsContent>
               </div>
             </Tabs>
 
-            {/* Footer estándar */}
+            {/* Footer fijo — botones de acción */}
             <div className="flex flex-row items-center justify-between mt-6 -mx-4 -mb-4 px-4 py-4 border-t bg-slate-50 sm:rounded-b-xl shrink-0">
-              <div />
+              <div>
+                {/* Botón Prioridad solo en modo vista de registro existente */}
+                {mode === 'view' && isEditing && empresa && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100 hover:text-violet-800"
+                    onClick={() => setPrioridadOpen(true)}
+                  >
+                    <ArrowUpDown className="mr-2 h-4 w-4" />
+                    Prioridad
+                  </Button>
+                )}
+              </div>
               <div className="flex gap-2 justify-end">
                 {mode === 'view' && (
                   <>
@@ -259,10 +251,12 @@ export function CategoriaModal({ categoria, trigger, open: controlledOpen, onOpe
                       className="bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 hover:text-sky-800"
                       onClick={() => setHistorialOpen(true)}
                     >
-                      <History className="mr-2 h-4 w-4" /> Historial
+                      <History className="mr-2 h-4 w-4" />
+                      Historial
                     </Button>
                     <Button type="button" onClick={() => setMode('edit')}>
-                      <Pencil className="w-4 h-4 mr-2" /> Editar
+                      <Pencil className="w-4 h-4 mr-2" />
+                      Editar
                     </Button>
                   </>
                 )}
@@ -279,7 +273,10 @@ export function CategoriaModal({ categoria, trigger, open: controlledOpen, onOpe
                       </Button>
                     )}
                     <Button type="submit" disabled={loading}>
-                      {loading ? 'Guardando...' : <><Save className="w-4 h-4 mr-2" />Guardar</>}
+                      {loading
+                        ? 'Guardando...'
+                        : <><Save className="w-4 h-4 mr-2" />Guardar</>
+                      }
                     </Button>
                   </>
                 )}
@@ -289,6 +286,7 @@ export function CategoriaModal({ categoria, trigger, open: controlledOpen, onOpe
         </DialogContent>
       </Dialog>
 
+      {/* Drawer de historial */}
       {categoria && (
         <HistorialDrawer
           open={historialOpen}
@@ -296,6 +294,19 @@ export function CategoriaModal({ categoria, trigger, open: controlledOpen, onOpe
           entidadId={categoria.id}
           entidadTipo="Categoria"
           tabla="costeos_categoria"
+        />
+      )}
+
+      {/* Modal de reordenamiento de prioridades */}
+      {isEditing && empresa && (
+        <PrioridadModal
+          open={prioridadOpen}
+          onOpenChange={setPrioridadOpen}
+          empresaId={parseInt(empresa, 10)}
+          empresaNombre={empresaNombreActual}
+          onSuccess={() => {
+            onSuccess?.()
+          }}
         />
       )}
     </>

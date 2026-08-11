@@ -12,7 +12,6 @@ type TxClient = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transa
 const SELECT_COMPLETO = {
   id: true,
   empresaId: true,
-  codigo: true,
   nombre: true,
   cantidadNiveles: true,
   etiquetasNiveles: true,
@@ -46,7 +45,7 @@ export const TipoCosteoRepository = {
     return prisma.tipoCosteo.findMany({
       where: { activo: true },
       select: {
-        id: true, empresaId: true, codigo: true, nombre: true,
+        id: true, empresaId: true, nombre: true,
         cantidadNiveles: true, etiquetasNiveles: true, nivelConDireccion: true,
         lineaEtiqueta: true, baseEvaluacion: true, manejoPlazo: true,
         fijarPlazo: true, activo: true,
@@ -55,27 +54,13 @@ export const TipoCosteoRepository = {
     })
   },
 
-  async findByCodigoAndEmpresa(codigo: string, empresaId: number, excludeId?: number) {
-    return prisma.tipoCosteo.findFirst({
-      where: {
-        empresaId,
-        codigo,
-        ...(excludeId ? { NOT: { id: excludeId } } : {}),
-      },
-    })
-  },
-
-  async countByEmpresa(empresaId: number): Promise<number> {
-    return prisma.tipoCosteo.count({ where: { empresaId } })
-  },
-
   async countCosteosAsociados(tipoCosteoId: number): Promise<number> {
     return prisma.costeo.count({ where: { tipoCosteoId } })
   },
 
   async create(
     data: {
-      empresaId: number; codigo: string; nombre: string; cantidadNiveles: number;
+      empresaId: number; nombre: string; cantidadNiveles: number;
       etiquetasNiveles: string; coloresNiveles: string; iconosNiveles: string;
       nivelConDireccion: number; lineaEtiqueta: string;
       baseEvaluacion: BaseEvaluacion; manejoPlazo: string; fijarPlazo: number;
@@ -91,7 +76,7 @@ export const TipoCosteoRepository = {
   async update(
     id: number,
     data: {
-      empresaId: number; codigo: string; nombre: string; cantidadNiveles: number;
+      empresaId: number; nombre: string; cantidadNiveles: number;
       etiquetasNiveles: string; coloresNiveles: string; iconosNiveles: string;
       nivelConDireccion: number; lineaEtiqueta: string;
       baseEvaluacion: BaseEvaluacion; manejoPlazo: string; fijarPlazo: number;

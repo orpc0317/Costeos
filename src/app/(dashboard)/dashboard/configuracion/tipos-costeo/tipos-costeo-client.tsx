@@ -13,10 +13,14 @@ export function TiposCosteoClient({ tiposCosteo }: { tiposCosteo: TipoCosteoRow[
   const columns: ColumnDef<TipoCosteoRow>[] = useMemo(
     () => [
       {
-        accessorKey: 'codigo',
-        header: 'Código',
-        cell: ({ row }) => <span className="font-medium">{row.original.codigo}</span>,
+        accessorKey: 'id',
+        header: 'ID',
+        enableHiding: false,
+        cell: ({ row }) => (
+          <span className="font-mono text-sm text-muted-foreground">{row.original.id}</span>
+        ),
       },
+
       {
         accessorKey: 'empresaNombre',
         header: 'Empresa',
@@ -58,24 +62,7 @@ export function TiposCosteoClient({ tiposCosteo }: { tiposCosteo: TipoCosteoRow[
         },
       },
       {
-        accessorKey: 'creadoEn',
-        header: 'Fecha Registro',
-        meta: { align: 'center' },
-        cell: ({ row }) => {
-          const date = new Date(row.original.creadoEn)
-          return (
-            <span className="text-sm text-muted-foreground">
-              {date.toLocaleDateString('es-ES', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-              })}
-            </span>
-          )
-        },
-      },
-      {
-        id: 'acciones',
+        id: 'actions',
         header: '',
         enableHiding: false,
         meta: { align: 'center' },

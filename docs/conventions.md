@@ -813,3 +813,107 @@ Cada entidad tiene **un ícono canónico** definido en el sidebar (`app-sidebar.
 
 > Al desarrollar una pantalla nueva, elegir el ícono **antes** de escribir código y agregarlo a esta tabla. El mismo ícono va en los tres contextos mencionados.
 
+---
+
+## 16. LOG DE AUDITORÍA SEMÁNTICO
+
+> **Regla obligatoria** para todo `AuditRepository.logUpdate`. Aplica a todos los services del proyecto.
+
+### 16.1 El Problema con Objetos Completos
+
+Pasar objetos crudos a `logUpdate` genera entradas ilegibles:
+- Muestra campos técnicos (`registroVersion`, `usuarioCreo`, `fechaCreo`) que no le interesan al usuario.
+- Muestra **todos** los campos aunque no hayan cambiado.
+- Usa claves de columna BD (`razonSocial`, `codigoErp`) en lugar de labels legibles.
+
+```ts
+// ❌ MAL — genera ruido: muestra registroVersion, fechaCreo, campos sin cambio, etc.
+await AuditRepository.logUpdate(TABLA, id, userId, anterior as any, reg as any, tx as any)
+```
+
+### 16.2 La Solución: `computeDiff`
+
+Usar siempre la utilidad `computeDiff` de `src/lib/utils/audit.ts`:
+
+```ts
+import { computeDiff } from '@/lib/utils/audit'
+
+// ✅ BIEN — solo campos que cambiaron, con labels legibles
+const { antes, despues } = computeDiff(CAMPOS_ENTIDAD, anterior as any, reg as any)
+if (Object.keys(antes).length > 0) {
+  await AuditRepository.logUpdate(TABLA, id, userId, antes as any, despues as any, tx as any)
+}
+```
+
+El guard `Object.keys(antes).length > 0` evita crear entradas vacías cuando el usuario guarda sin cambios.
+
+### 16.3 Definir el Mapa de Campos
+
+Cada service define su propia constante `CAMPOS_<ENTIDAD>` con los campos auditables y sus labels legibles:
+
+```ts
+/** Campos auditables con labels legibles. Solo incluir campos editables por el usuario. */
+const CAMPOS_EMPRESA = [
+  { key: 'nombre',      label: 'Nombre' },
+  { key: 'razonSocial', label: 'Razón Social' },
+  { key: 'nit',         label: 'NIT' },
+  { key: 'codigoErp',   label: 'Código ERP' },
+] as const
+```
+
+**Reglas para el mapa:**
+- Incluir **solo** los campos que el usuario puede editar.
+- **Excluir** siempre: `registroVersion`, `usuarioCreo`, `fechaCreo`, `id`.
+- Los `labels` deben coincidir con los labels del formulario (misma nomenclatura que ve el usuario).
+- Los booleanos se formatean automáticamente como `"Sí"` / `"No"` por `computeDiff`.
+
+### 16.4 Cambios Puntuales Sin computeDiff
+
+Cuando solo cambia **un campo específico** (ej: `toggleActivo`), se puede escribir el diff directamente — más legible que usar computeDiff:
+
+```ts
+// ✅ OK — campo puntual, diff explícito
+await AuditRepository.logUpdate(
+  TABLA, id, userId,
+  { Activo: tipo.activo ? 'Sí' : 'No' },
+  { Activo: reg.activo  ? 'Sí' : 'No' },
+  tx as any,
+)
+```
+
+### 16.5 Cambios Compuestos (Empresa + Sub-entidades)
+
+Cuando una sola acción del usuario modifica la entidad principal **y** sub-entidades relacionadas (ej: Empresa + catálogos ERP), generar **un único log consolidado** con todos los cambios:
+
+```ts
+// ✅ BIEN — un único log con todos los campos que cambiaron
+const antes: Record<string, unknown>   = {}
+const despues: Record<string, unknown> = {}
+
+// Campos principales via computeDiff
+const diffEmpresa = computeDiff(CAMPOS_EMPRESA, anterior, nuevo)
+Object.assign(antes, diffEmpresa.antes)
+Object.assign(despues, diffEmpresa.despues)
+
+// Sub-entidades (catálogos, relaciones, etc.)
+for (const cat of catalogosCambiados) {
+  antes[`Sync ${cat.label}`]   = cat.valorAnterior ? 'Sí' : 'No'
+  despues[`Sync ${cat.label}`] = cat.nuevoValor    ? 'Sí' : 'No'
+}
+
+if (Object.keys(antes).length > 0) {
+  await AuditRepository.logUpdate(TABLA, id, userId, antes as any, despues as any, tx as any)
+}
+```
+
+**¿Por qué un único log?** El historial debe reflejar la intención del usuario ("guardé estos cambios"), no los detalles de implementación ("hice 3 llamadas a BD"). Si el usuario modifica NIT + Sync Clientes + Sync Items en una sola acción de "Guardar", el historial debe mostrar **una sola entrada** con los 3 cambios.
+
+### 16.6 Resumen Rápido
+
+| Escenario | Herramienta |
+|---|---|
+| Actualizar múltiples campos de una entidad | `computeDiff(CAMPOS_ENTIDAD, anterior, nuevo)` |
+| Cambiar un solo campo puntual | Diff manual `{ Label: antes }` → `{ Label: despues }` |
+| Cambiar entidad + sub-entidades en un solo guardado | Diff consolidado manual (ver §16.5) |
+| Ningún campo cambió | NO llamar `logUpdate` (verificar con `Object.keys(antes).length > 0`) |
+| Booleanos | `computeDiff` los formatea automáticamente como `"Sí"` / `"No"` |

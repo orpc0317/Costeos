@@ -26,17 +26,17 @@ export async function crearTipoCosteo(
   if (!guard.ok) return guard
 
   const raw = {
-    empresaId:        formData.get('empresaId'),
-    nombre:           formData.get('nombre'),
-    cantidadNiveles:  formData.get('cantidadNiveles'),
-    etiquetasNiveles: formData.get('etiquetasNiveles') || '',
-    coloresNiveles:   formData.get('coloresNiveles') || '',
-    iconosNiveles:    formData.get('iconosNiveles') || '',
-    nivelConDireccion:formData.get('nivelConDireccion'),
-    lineaEtiqueta:    formData.get('lineaEtiqueta') || '',
-    baseEvaluacion:   formData.get('baseEvaluacion') || 'GLOBAL',
-    manejoPlazo:      formData.get('manejoPlazo') || 'NO_APLICA',
-    fijarPlazo:       formData.get('fijarPlazo'),
+    empresaId:         formData.get('empresaId'),
+    nombre:            formData.get('nombre'),
+    cantidadNiveles:   formData.get('cantidadNiveles'),
+    etiquetasNiveles:  formData.get('etiquetasNiveles') || '',
+    coloresNiveles:    formData.get('coloresNiveles') || '',
+    iconosNiveles:     formData.get('iconosNiveles') || '',
+    nivelConDireccion: formData.get('nivelConDireccion'),
+    lineaEtiqueta:     formData.get('lineaEtiqueta') || '',
+    baseEvaluacion:    formData.get('baseEvaluacion') || 'GLOBAL',
+    manejoPlazo:       formData.get('manejoPlazo') || 'NO_APLICA',
+    fijarPlazo:        formData.get('fijarPlazo'),
   }
 
   const parsed = crearTipoCosteoSchema.safeParse(raw)
@@ -65,7 +65,6 @@ export async function editarTipoCosteo(
 
   const raw = {
     empresaId:         formData.get('empresaId'),
-    codigo:            formData.get('codigo'),
     nombre:            formData.get('nombre'),
     cantidadNiveles:   formData.get('cantidadNiveles'),
     etiquetasNiveles:  formData.get('etiquetasNiveles') || '',
@@ -105,7 +104,6 @@ export async function toggleActivo(id: number, registroVersion: number): Promise
 }
 
 export async function getTiposCosteoActivosAction() {
-  const { prisma } = await import('@/lib/prisma')
   const { TipoCosteoRepository } = await import('@/lib/repositories/tipo-costeo.repository')
   return TipoCosteoRepository.findActivos()
 }
