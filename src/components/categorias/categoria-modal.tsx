@@ -10,7 +10,8 @@ import { FieldError } from '@/components/ui/field-error'
 import { Tags, Save, Pencil, History, ArrowUpDown } from 'lucide-react'
 import { HistorialDrawer } from '@/components/shared/historial-drawer'
 import { PrioridadModal } from '@/components/categorias/prioridad-modal'
-import { crearCategoria, actualizarCategoria } from '@/app/actions/categorias'
+import { crearCategoria, actualizarCategoria, buscarCategoriasSimilares } from '@/app/actions/categorias'
+import type { SimilarItem } from '@/lib/utils/similarity'
 import { getEmpresasForUser } from '@/app/actions/erp'
 import { normalizeText } from '@/lib/utils/text'
 import type { CategoriaInput, CategoriaRow } from '@/lib/types/categorias'
@@ -54,13 +55,18 @@ export function CategoriaModal({
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState('general')
 
+  // Detección de similares
+  const [similares, setSimilares] = useState<SimilarItem[]>([])
+
   // Cargar empresas SOLO cuando abre el modal — nunca depende de datos del registro ni de `mode`
   useEffect(() => {
     if (!open) return
     setCargandoEmpresas(true)
     getEmpresasForUser()
       .then(data => {
-        const opts = data.map(e => ({ value: e.id.toString(), label: e.nombre }))
+        const opts = data
+          .map(e => ({ value: e.id.toString(), label: e.nombre }))
+          .sort((a, b) => a.label.localeCompare(b.label))
         setEmpresas(opts)
       })
       .finally(() => setCargandoEmpresas(false))
@@ -72,6 +78,7 @@ export function CategoriaModal({
     setGlobalError(null)
     setFieldErrors({})
     setActiveTab('general')
+    setSimilares([])
   }
 
   // CRÍTICO: inicializar estado aquí, NUNCA en useEffect con deps en datos del registro
@@ -83,28 +90,17 @@ export function CategoriaModal({
     setOpen(newOpen)
   }
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setGlobalError(null)
-
-    // Construir errores locales SIN limpiar fieldErrors al inicio (preservar errores externos)
-    const errors: Record<string, string> = {}
-    if (!empresa) errors.empresa = 'Requerido'
-    if (!nombre.trim()) errors.nombre = 'Requerido'
-    setFieldErrors(errors)
-    if (Object.keys(errors).length > 0) return
-
+  /** Ejecuta el guardado real (sin verificación de similares) */
+  const doSave = async () => {
     setLoading(true)
     const data: CategoriaInput = {
       empresaId: parseInt(empresa, 10),
       nombre: normalizeText(nombre),
     }
-
     try {
       const res = isEditing && categoria
         ? await actualizarCategoria(categoria.id, data)
         : await crearCategoria(data)
-
       if (!res.ok) {
         if (res.field) {
           setFieldErrors(prev => ({ ...prev, [res.field!]: res.error }))
@@ -114,7 +110,6 @@ export function CategoriaModal({
         }
         return
       }
-
       resetForm(res.data)
       if (!isEditing) {
         setOpen(false)
@@ -127,6 +122,34 @@ export function CategoriaModal({
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setGlobalError(null)
+    setSimilares([])
+
+    const errors: Record<string, string> = {}
+    if (!empresa) errors.empresa = 'Requerido'
+    if (!nombre.trim()) errors.nombre = 'Requerido'
+    setFieldErrors(errors)
+    if (Object.keys(errors).length > 0) return
+
+    // Verificar similares antes de guardar
+    setLoading(true)
+    const found = await buscarCategoriasSimilares(
+      normalizeText(nombre),
+      parseInt(empresa, 10),
+      categoria?.id,
+    )
+    setLoading(false)
+
+    if (found.length > 0) {
+      setSimilares(found)
+      return // Detener: mostrar advertencia, el usuario debe confirmar
+    }
+
+    await doSave()
   }
 
   // Nombre de la empresa para el modal de prioridades
@@ -143,8 +166,8 @@ export function CategoriaModal({
             <DialogTitle className="flex items-center gap-2 text-xl">
               <Tags className="w-5 h-5 text-slate-500" />
               {isEditing
-                ? (mode === 'view' ? 'Detalle Categoría' : 'Editar Categoría')
-                : 'Nueva Categoría'}
+                ? (mode === 'view' ? 'Detalle Categoria' : 'Editar Categoria')
+                : 'Nueva Categoria'}
             </DialogTitle>
           </DialogHeader>
 
@@ -192,12 +215,48 @@ export function CategoriaModal({
                       <Input
                         id="cat-nombre"
                         value={nombre}
-                        onChange={(e) => setNombre(e.target.value)}
+                        onChange={(e) => {
+                          setNombre(e.target.value)
+                          if (similares.length > 0) setSimilares([])
+                        }}
                         disabled={mode === 'view'}
                         className="h-8 py-1 uppercase"
                         aria-invalid={!!fieldErrors.nombre}
                       />
                       <FieldError message={fieldErrors.nombre} />
+                      {similares.length > 0 && mode === 'edit' && (
+                        <div className="mt-1 rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
+                          <p className="text-xs font-semibold text-amber-800">
+                            ⚠️ Se encontraron {similares.length} registro{similares.length > 1 ? 's' : ''} similar{similares.length > 1 ? 'es' : ''} — ¿Desea guardar de todas formas?
+                          </p>
+                          <ul className="space-y-1">
+                            {similares.map(s => (
+                              <li key={s.id} className="flex justify-between text-xs text-amber-900">
+                                <span className="font-mono">{s.descripcion}</span>
+                                <span className={`font-bold ml-2 ${s.pct === 100 ? 'text-red-600' : 'text-amber-700'}`}>
+                                  {s.pct}%
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                          <div className="flex gap-3 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => { setSimilares([]); doSave() }}
+                              className="text-xs bg-amber-700 text-white px-3 py-1 rounded hover:bg-amber-800 font-medium"
+                            >
+                              Sí, guardar de todas formas
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSimilares([])}
+                              className="text-xs text-amber-800 underline hover:text-amber-900"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Prioridad (solo lectura en modo vista) */}

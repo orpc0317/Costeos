@@ -3,24 +3,50 @@
  *
  * Responsabilidades:
  * - Atomicidad (registro + audit log)
- * - OCC validation (que faltaba en el action original)
+ * - OCC validation
+ *
+ * ESTÁNDAR FK: Los nombres de empresa/categoría se resuelven vía joins
+ * manuales con Promise.all. El repositorio NO usa `include`.
  */
 
 import { prisma } from '@/lib/prisma'
 import { ItemRepository } from '@/lib/repositories/item.repository'
 import { AuditRepository } from '@/lib/repositories/audit.repository'
+import { computeDiff } from '@/lib/utils/audit'
+import { labelTipoItem, labelTipoServicio } from '@/lib/constants/items'
 import type { ActionResult } from '@/lib/types/common'
 import type { ItemInput, ItemRow } from '@/lib/types/items'
 
 const TABLA = 'costeos_item'
 
+/** Campos auditables con labels legibles. Solo campos editables por el usuario. */
+const CAMPOS_ITEM = [
+  { key: 'descripcion',     label: 'Descripción' },
+  { key: 'unidadMedida',    label: 'Unidad Medida' },
+  { key: 'categoriaId',     label: 'Categoría' },
+  { key: 'tipoItem',        label: 'Tipo Ítem',   transform: labelTipoItem },
+  { key: 'tipoServicio',    label: 'Tipo Servicio', transform: labelTipoServicio },
+  { key: 'codigoErp',       label: 'Código ERP' },
+  { key: 'precioVentaCero', label: 'Permitir Precio Cero' },
+  { key: 'recurrente',      label: 'Recurrente' },
+  { key: 'recurrenteGasto', label: 'Recurrente Gasto' },
+  { key: 'manejoCostos',    label: 'Manejo Costos' },
+  { key: 'tipo',            label: 'Tipo' },
+  { key: 'perfil',          label: 'Perfil' },
+  { key: 'activo',          label: 'Activo' },
+] as const
+
 export const ItemService = {
 
   async listar(): Promise<ItemRow[]> {
-    const rows = await ItemRepository.findAll()
+    const [rows, empresas] = await Promise.all([
+      ItemRepository.findAll(),
+      prisma.empresa.findMany({ select: { id: true, nombre: true } }),
+    ])
+    const empresaMap = new Map(empresas.map(e => [e.id, e.nombre]))
     return rows.map(r => ({
       ...r,
-      empresaNombre: r.empresa?.nombre ?? `Empresa ${r.empresaId}`,
+      empresaNombre: empresaMap.get(r.empresaId) ?? `Empresa ${r.empresaId}`,
     }))
   },
 
@@ -28,52 +54,82 @@ export const ItemService = {
     const nuevo = await prisma.$transaction(async (tx) => {
       const reg = await ItemRepository.create(
         {
-          empresaId: data.empresaId,
-          descripcion: data.descripcion,
-          unidadMedida: data.unidadMedida,
-          tipoItem: data.tipoItem,
-          tipoServicio: data.tipoServicio,
-          codigoErp: data.codigoErp ?? null,
-          categoriaId: data.categoriaId,
+          empresaId:       data.empresaId,
+          descripcion:     data.descripcion,
+          unidadMedida:    data.unidadMedida,
+          tipoItem:        data.tipoItem,
+          tipoServicio:    data.tipoServicio,
+          codigoErp:       data.codigoErp ?? null,
+          categoriaId:     data.categoriaId,
           precioVentaCero: data.precioVentaCero,
-          activo: data.activo ?? true,
+          recurrente:      data.recurrente,
+          recurrenteGasto: data.recurrenteGasto,
+          manejoCostos:    data.manejoCostos,
+          tipo:            data.tipo,
+          perfil:          data.perfil,
+          activo:          data.activo ?? true,
         },
         userId,
         tx as any,
       )
-      const { categoria: _, empresa: __, ...regSinRelaciones } = reg as any
-      await AuditRepository.logCreate(TABLA, reg.id, userId, regSinRelaciones, tx as any)
+      await AuditRepository.logCreate(TABLA, reg.id, userId, reg as any, tx as any)
       return reg
     })
 
     return { ok: true, data: nuevo as ItemRow }
   },
 
-  async actualizar(id: number, data: ItemInput & { registroVersion: number }, userId: number): Promise<ActionResult<ItemRow>> {
-    const anterior = await ItemRepository.findById(id)
+  async actualizar(
+    id: number,
+    data: ItemInput & { registroVersion: number },
+    userId: number,
+  ): Promise<ActionResult<ItemRow>> {
+    const [anterior, categorias] = await Promise.all([
+      ItemRepository.findById(id),
+      prisma.categoriaItem.findMany({ select: { id: true, nombre: true } }),
+    ])
     if (!anterior) return { ok: false, error: 'Ítem no encontrado' }
+
+    const categoriaMap = new Map(categorias.map(c => [c.id, c.nombre]))
 
     const actualizado = await prisma.$transaction(async (tx) => {
       const reg = await ItemRepository.update(
         id,
         {
-          empresaId: data.empresaId,
-          descripcion: data.descripcion,
-          unidadMedida: data.unidadMedida,
-          tipoItem: data.tipoItem,
-          tipoServicio: data.tipoServicio,
-          codigoErp: data.codigoErp ?? null,
-          categoriaId: data.categoriaId,
+          empresaId:       data.empresaId,
+          descripcion:     data.descripcion,
+          unidadMedida:    data.unidadMedida,
+          tipoItem:        data.tipoItem,
+          tipoServicio:    data.tipoServicio,
+          codigoErp:       data.codigoErp ?? null,
+          categoriaId:     data.categoriaId,
           precioVentaCero: data.precioVentaCero,
-          activo: data.activo ?? true,
+          recurrente:      data.recurrente,
+          recurrenteGasto: data.recurrenteGasto,
+          manejoCostos:    data.manejoCostos,
+          tipo:            data.tipo,
+          perfil:          data.perfil,
+          activo:          data.activo ?? true,
           registroVersion: data.registroVersion,
         },
         tx as any,
       )
       if (!reg) return null
-      const { categoria: _, empresa: __, ...anteriorSinRel } = anterior as any
-      const { categoria: _2, empresa: __2, ...regSinRel } = reg as any
-      await AuditRepository.logUpdate(TABLA, id, userId, anteriorSinRel, regSinRel, tx as any)
+
+      // Resolver categoriaId a nombre legible para el diff de auditoría
+      const anteriorParaDiff = {
+        ...anterior,
+        categoriaId: categoriaMap.get(anterior.categoriaId) ?? anterior.categoriaId,
+      }
+      const regParaDiff = {
+        ...reg,
+        categoriaId: categoriaMap.get(reg.categoriaId) ?? reg.categoriaId,
+      }
+
+      const { antes, despues } = computeDiff(CAMPOS_ITEM, anteriorParaDiff as any, regParaDiff as any)
+      if (Object.keys(antes).length > 0) {
+        await AuditRepository.logUpdate(TABLA, id, userId, antes as any, despues as any, tx as any)
+      }
       return reg
     })
 

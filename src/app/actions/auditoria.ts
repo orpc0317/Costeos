@@ -32,8 +32,16 @@ const CAMPOS_IGNORADOS = [
   'usuarioCreo', 'fechaCreo', 'usuarioModifico', 'fechaModifico'
 ]
 
+// Mapas de lookup para campos codificados (para entradas antiguas del log con valores numéricos crudos)
+const MAPA_TIPO_ITEM: Record<string, string> = { '1': 'PRODUCTO', '2': 'SERVICIO', '3': 'EQUIPO', '4': 'FINANCIERO' }
+const MAPA_TIPO_SERVICIO: Record<string, string> = { '0': 'ESTANDAR', '1': 'PERSONAL' }
+
 function formatValor(valor: any, campo: string): string {
   if (valor === null || valor === undefined) return ''
+  // Objetos anidados (datos legacy que almacenaron la relación Prisma completa, ej. { nombre: 'BONOS' })
+  if (typeof valor === 'object' && !Array.isArray(valor)) {
+    return valor.nombre ?? valor.label ?? valor.name ?? JSON.stringify(valor)
+  }
   if (typeof valor === 'boolean') {
     if (campo === 'activo' || campo === 'Estado') {
       return valor ? 'Activo' : 'Inactivo'
@@ -50,6 +58,15 @@ function formatValor(valor: any, campo: string): string {
     if (typeof valor === 'string' && rolMap[valor.toUpperCase()]) {
       return rolMap[valor.toUpperCase()]
     }
+  }
+  // Lookup para entradas antiguas con tipoItem/tipoServicio numérico crudo
+  if (campo === 'tipoItem' || campo === 'Tipo Ítem') {
+    const label = MAPA_TIPO_ITEM[String(valor)]
+    if (label) return label
+  }
+  if (campo === 'tipoServicio' || campo === 'Tipo Servicio') {
+    const label = MAPA_TIPO_SERVICIO[String(valor)]
+    if (label) return label
   }
   return String(valor)
 }

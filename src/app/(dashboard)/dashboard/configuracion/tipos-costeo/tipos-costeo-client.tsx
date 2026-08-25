@@ -93,7 +93,6 @@ export function TiposCosteoClient({ tiposCosteo }: { tiposCosteo: TipoCosteoRow[
         data={tiposCosteo}
         tableId="tipos-costeo-crud-v3"
         searchPlaceholder="Buscar por código o nombre..."
-        searchKey="nombre"
         customToolbarActions={<NuevoTipoCosteoButton />}
       />
     </div>

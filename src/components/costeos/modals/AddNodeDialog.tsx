@@ -485,7 +485,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
         <div className="flex-1 flex flex-col gap-1.5">
           <Label>Seleccionar Bono</Label>
           <SearchableSelect
-            options={bonosDisponibles.map(b => ({ value: b.codigo, label: b.descripcion }))}
+            options={bonosDisponibles.map(b => ({ value: b.codigo, label: b.descripcion })).sort((a, b) => a.label.localeCompare(b.label))}
             value={selectedBonoId}
             onChange={(val) => setSelectedBonoId(val)}
             placeholder="Seleccione..."
@@ -686,7 +686,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                     </Label>
                     <SearchableSelect
                       id="field-departamento"
-                      options={departamentos.map(d => ({ value: String(d.codigo), label: d.nombre }))}
+                      options={departamentos.map(d => ({ value: String(d.codigo), label: d.nombre })).sort((a, b) => a.label.localeCompare(b.label))}
                       value={departamento}
                       onChange={val => {
                         setDepartamento(val);
@@ -706,7 +706,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                     </Label>
                     <SearchableSelect
                       id="field-municipio"
-                      options={municipios.map(m => ({ value: String(m.codigo), label: m.nombre }))}
+                      options={municipios.map(m => ({ value: String(m.codigo), label: m.nombre })).sort((a, b) => a.label.localeCompare(b.label))}
                       value={municipio}
                       onChange={val => {
                         setMunicipio(val);
@@ -740,7 +740,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                     options={items.map(item => ({
                       value: item.id.toString(),
                       label: `${item.codigoErp || item.id} - ${item.descripcion}`
-                    }))}
+                    })).sort((a, b) => a.label.localeCompare(b.label))}
                     value={selectedItemId}
                     onChange={(val) => {
                       setSelectedItemId(val || '');
@@ -820,7 +820,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                         </Label>
                         <SearchableSelect
                           id="field-turnoCodigo"
-                          options={turnos.map(t => ({ value: String(t.codigo), label: t.descripcion }))}
+                          options={turnos.map(t => ({ value: String(t.codigo), label: t.descripcion })).sort((a, b) => a.label.localeCompare(b.label))}
                           value={turnoCodigo !== undefined ? String(turnoCodigo) : ''}
                           onChange={(val) => { setTurnoCodigo(parseInt(val, 10)); setFieldErrors(prev => ({ ...prev, turnoCodigo: '' })); }}
                           disabled={loadingTurnos || turnos.length === 0}
@@ -861,7 +861,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                         </Label>
                         <SearchableSelect
                           id="field-uniformeCodigo"
-                          options={uniformes.map(u => ({ value: u.codigo, label: u.descripcion }))}
+                          options={uniformes.map(u => ({ value: u.codigo, label: u.descripcion })).sort((a, b) => a.label.localeCompare(b.label))}
                           value={uniformeCodigo}
                           onChange={(val) => { setUniformeCodigo(val); setFieldErrors(prev => ({ ...prev, uniformeCodigo: '' })); }}
                           disabled={loadingUniformes || uniformes.length === 0}

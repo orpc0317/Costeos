@@ -41,9 +41,8 @@ model Cliente {
   direccionDepartamentoId Int        @default(0) @map("direccion_departamento_id")
   direccionMunicipioId    Int        @default(0) @map("direccion_municipio_id")
   diasCredito             Int        @default(0) @map("dias_credito")
-  esNuevo                 Boolean    @default(false) @map("es_nuevo")
   sincronizadoEn          DateTime?  @map("sincronizado_en")
-  codigoErp               Int?       @default(0) @map("codigo_erp")
+  codigoErp               String?    @map("codigo_erp") @db.VarChar(15)
   usuarioCreo             Int        @default(0) @map("usuario_creo")
   fechaCreo               DateTime   @default(now()) @map("fecha_creo")
   registroVersion         Int        @default(1) @map("registro_version")
@@ -327,12 +326,17 @@ model Item {
   id              Int           @id @default(autoincrement())
   empresaId       Int           @map("empresa_id")
   descripcion     String        @db.VarChar(100)
+  codigoErp       String?       @map("codigo_erp") @db.VarChar(15)
+  categoriaId     Int           @map("categoria_id")
   unidadMedida    String        @map("unidad_medida") @db.VarChar(10)
   tipoItem        Int           @map("tipo_item") @db.TinyInt
   tipoServicio    Int           @default(0) @map("tipo_servicio") @db.TinyInt
   precioVentaCero Boolean       @default(false) @map("precio_venta_cero")
-  categoriaId     Int           @map("categoria_id")
-  codigoErp       String?       @map("codigo_erp") @db.VarChar(15)
+  recurrente      Int           @default(0) @db.TinyInt
+  recurrenteGasto Int           @default(0) @map("recurrente_gasto") @db.TinyInt
+  manejoCostos    Int           @default(0) @map("manejo_costos") @db.TinyInt
+  tipo            Int           @default(0) @db.TinyInt
+  perfil          Int           @default(0) @db.TinyInt
   activo          Boolean       @default(true)
   usuarioCreo     Int           @map("usuario_creo")
   fechaCreo       DateTime      @default(now()) @map("fecha_creo")

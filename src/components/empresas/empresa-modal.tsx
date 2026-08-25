@@ -372,25 +372,12 @@ export function EmpresaModal({
                   <TabsContent value="erp" className="mt-0">
                     <div className="space-y-4">
 
-                      {/* Encabezado informativo */}
-                      <div className="rounded-lg bg-indigo-50 border border-indigo-100 p-3">
-                        <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide mb-0.5">
-                          Empresa en ERP
-                        </p>
-                        {nombreErp ? (
-                          <p className="text-sm font-medium text-indigo-900">{nombreErp}</p>
-                        ) : (
-                          <p className="text-xs text-indigo-400 italic">No se pudo verificar la conexión ERP</p>
-                        )}
-                        <p className="text-xs text-indigo-500 mt-1">
-                          Código: <span className="font-mono font-medium">{empresa?.codigoErp}</span>
-                        </p>
-                      </div>
+
 
                       {/* Lista de catálogos */}
                       <div>
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                          Catálogos a Sincronizar
+                        <p className="text-xs font-semibold text-muted-foreground tracking-wide mb-2">
+                          Catalogos Sincronizar
                         </p>
                         <div className="divide-y rounded-lg border overflow-hidden">
                           {catalogosConEstado.map(cat => (

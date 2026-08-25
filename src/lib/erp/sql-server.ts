@@ -167,18 +167,18 @@ export class SqlServerErpRepository implements ErpRepository {
       .execute('sp_buscar_cliente')
 
     return result.recordset.map((r) => ({
-      id: r.clientId ?? undefined,
-      codigo: r.codigo ?? undefined,
-      nit: r.nit,
-      nombreComercial: r.cliente_nombre,
-      razonSocial: r.razon_social || r.razona_social,
-      direccion: r.direccion,
-      pais: r.pais,
-      departamentoId: r.departamento,
+      id:                r.codigo != null ? String(r.codigo) : undefined, // → codigoErp VARCHAR
+      codigo:            r.codigo != null ? String(r.codigo) : undefined,
+      nit:               r.nit,
+      nombreComercial:   r.cliente_nombre,
+      razonSocial:       r.razon_social || r.razona_social,
+      direccion:         r.direccion,
+      pais:              r.pais,
+      departamentoId:    r.departamento != null ? Number(r.departamento) : undefined,
       departamentoNombre: r.departamento_nombre,
-      municipioId: r.municipio,
-      municipioNombre: r.municipio_nombre,
-      diasCredito: r.dias_credito,
+      municipioId:       r.municipio    != null ? Number(r.municipio)    : undefined,
+      municipioNombre:   r.municipio_nombre,
+      diasCredito:       r.dias_credito,
     }))
   }
 
@@ -190,8 +190,8 @@ export class SqlServerErpRepository implements ErpRepository {
       .execute('sp_departamentos_pais')
 
     return result.recordset.map((r) => ({
-      id: r.departamento,
-      codigo: r.departamento,
+      id:     r.departamento,
+      codigo: r.departamento,          // puede ser string ("A01") o número
       nombre: r.departamento_nombre,
     }))
   }
@@ -202,10 +202,10 @@ export class SqlServerErpRepository implements ErpRepository {
       .request()
       .input('PrmPais', pais)
       .input('PrmDepartamento', deptoId)
-      .execute('sp_municpios_departamento')
+      .execute('sp_municipios_departamento')
 
     return result.recordset.map((r) => ({
-      id: r.municipio,
+      id:     r.municipio,
       codigo: r.municipio,
       nombre: r.municipio_nombre,
     }))
@@ -358,12 +358,13 @@ export class SqlServerErpRepository implements ErpRepository {
         .input('PrmEmpresa', empresaId)
         .input('PrmSearchText', searchText)
         .execute('sp_buscar_servicios_venta')
+
       return result.recordset.map(r => ({
         codigo:            String(r.codigo),
         descripcion:       r.descripcion || '',
         unidadMedida:      r.unidad_medida || '',
-        tipoBien:          r.tipo_bien || 0,
-        tipoItem:          r.tipo_item || 0,
+        tipoBien:          r.tipo_item  || 0, // SP: tipo_item  → tipoBien (Tipo Servicio)
+        tipoItem:          r.tipo_bien  || 0, // SP: tipo_bien  → tipoItem (Tipo Ítem: 1=Prod,2=Serv…)
         itemRegistro:      r.item_registro || 0,
         recurrente:        r.recurrente || 0,
         requiereDireccion: r.requiere_direccion || 0,

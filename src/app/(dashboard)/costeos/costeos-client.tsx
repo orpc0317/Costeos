@@ -24,6 +24,15 @@ export function CosteosClient({ costeos }: { costeos: CosteoListRow[] }) {
   const columns: ColumnDef<CosteoListRow>[] = useMemo(
     () => [
       {
+        accessorKey: 'id',
+        header: 'ID',
+        enableHiding: false,
+        meta: { align: 'center' },
+        cell: ({ row }) => (
+          <span className="font-mono text-xs text-muted-foreground">{row.original.id}</span>
+        ),
+      },
+      {
         accessorKey: 'codigoErp',
         header: 'No. Costeo',
         meta: { align: 'center' },
@@ -96,7 +105,7 @@ export function CosteosClient({ costeos }: { costeos: CosteoListRow[] }) {
         },
       },
       {
-        id: 'acciones',
+        id: 'actions',
         header: '',
         enableHiding: false,
         meta: { align: 'center' },
@@ -126,8 +135,7 @@ export function CosteosClient({ costeos }: { costeos: CosteoListRow[] }) {
         columns={columns}
         data={costeos}
         tableId="costeos-crud-v2"
-        searchPlaceholder="Buscar por proyecto o cliente..."
-        searchKey="proyectoNombre" // Búsqueda por defecto
+        searchPlaceholder="Buscar en todos los campos..."
         customToolbarActions={
           <Link href="/costeos/nuevo" className={buttonVariants({ variant: "default" })}>
             Nuevo Costeo

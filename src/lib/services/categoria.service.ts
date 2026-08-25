@@ -22,7 +22,7 @@ const TABLA = 'costeos_categoria'
 
 /** Campos auditables con labels legibles (docs/conventions.md §16). */
 const CAMPOS_CATEGORIA = [
-  { key: 'empresaId', label: 'Empresa ID' },
+  { key: 'empresaId', label: 'Empresa' },
   { key: 'nombre',    label: 'Nombre' },
 ] as const
 
@@ -33,10 +33,14 @@ const CAMPOS_PRIORIDAD = [
 export const CategoriaService = {
 
   async listar(): Promise<CategoriaRow[]> {
-    const rows = await CategoriaRepository.findAll()
+    const [rows, empresas] = await Promise.all([
+      CategoriaRepository.findAll(),
+      prisma.empresa.findMany({ select: { id: true, nombre: true } }),
+    ])
+    const empresaMap = new Map(empresas.map(e => [e.id, e.nombre]))
     return rows.map(r => ({
       ...r,
-      empresaNombre: r.empresa?.nombre ?? `Empresa ${r.empresaId}`,
+      empresaNombre: empresaMap.get(r.empresaId) ?? `Empresa ${r.empresaId}`,
     }))
   },
 
@@ -71,8 +75,13 @@ export const CategoriaService = {
   },
 
   async actualizar(id: number, data: CategoriaInput, userId: number): Promise<ActionResult<CategoriaRow>> {
-    const anterior = await CategoriaRepository.findById(id)
+    const [anterior, empresas] = await Promise.all([
+      CategoriaRepository.findById(id),
+      prisma.empresa.findMany({ select: { id: true, nombre: true } }),
+    ])
     if (!anterior) return { ok: false, error: 'Categoría no encontrada' }
+
+    const empresaMap = new Map(empresas.map(e => [e.id, e.nombre]))
 
     const existente = await CategoriaRepository.findByNombreYEmpresaExcluding(data.nombre, data.empresaId, id)
     if (existente) {
@@ -87,8 +96,17 @@ export const CategoriaService = {
       )
       if (!reg) return null
 
-      // Solo loguear los campos que realmente cambiaron, con labels legibles
-      const { antes, despues } = computeDiff(CAMPOS_CATEGORIA, anterior as any, reg as any)
+      // Pre-resolver empresaId a su nombre legible para el diff de auditoría
+      const anteriorParaDiff = {
+        ...anterior,
+        empresaId: empresaMap.get(anterior.empresaId) ?? anterior.empresaId,
+      }
+      const regParaDiff = {
+        ...reg,
+        empresaId: empresaMap.get(reg.empresaId) ?? reg.empresaId,
+      }
+
+      const { antes, despues } = computeDiff(CAMPOS_CATEGORIA, anteriorParaDiff as any, regParaDiff as any)
       if (Object.keys(antes).length > 0) {
         await AuditRepository.logUpdate(TABLA, id, userId, antes as any, despues as any, tx as any)
       }

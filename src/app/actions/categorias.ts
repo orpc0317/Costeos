@@ -3,6 +3,8 @@ import { revalidatePath } from 'next/cache'
 import { requireManagerOrAdmin } from '@/lib/auth-helpers'
 import { categoriaSchema, type CategoriaInput, type CategoriaRow } from '@/lib/types/categorias'
 import { CategoriaService } from '@/lib/services/categoria.service'
+import { CategoriaRepository } from '@/lib/repositories/categoria.repository'
+import { detectarSimilares, type SimilarItem } from '@/lib/utils/similarity'
 import type { ActionResult } from '@/lib/types/common'
 
 const PATH = '/dashboard/configuracion/categorias'
@@ -64,4 +66,25 @@ export async function reordenarPrioridades(
   } catch {
     return { ok: false, error: 'Error al guardar el orden. Intenta de nuevo.' }
   }
+}
+
+/**
+ * Verifica si el nombre dado es similar a alguna categoría existente de la misma empresa.
+ * Retorna hasta 5 similares con su % de coincidencia.
+ * Excluir `excluirId` al editar (para no comparar la categoría consigo misma).
+ */
+export async function buscarCategoriasSimilares(
+  nombre: string,
+  empresaId: number,
+  excluirId?: number,
+): Promise<SimilarItem[]> {
+  const guard = await requireManagerOrAdmin()
+  if (!guard.ok) return []
+
+  const todas = await CategoriaRepository.findAll()
+  const deEmpresa = todas
+    .filter(c => c.empresaId === empresaId)
+    .map(c => ({ id: c.id, descripcion: c.nombre }))
+
+  return detectarSimilares(nombre, deEmpresa, 0.85, excluirId)
 }

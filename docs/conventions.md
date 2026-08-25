@@ -508,17 +508,21 @@ Siempre `<SearchableSelect>`. Opciones como `{ value: string, label: string }`. 
 
 **Cascada:** Al cambiar el select padre → limpiar hijo → recargar lista hijo → auto-seleccionar primero del hijo.
 
+**⚠️ Ordenamiento Obligatorio (R17):** Todo select que cargue datos desde la base de datos o desde el ERP **DEBE** ordenarse alfabéticamente ascendente (A-Z) al momento de construir las opciones, usando `.sort((a, b) => a.label.localeCompare(b.label))`. Esto aplica a: empresas, categorías, items, tipos de costeo, turnos, uniformes, bonos, departamentos, municipios, y cualquier otra entidad que provenga de BD/ERP.
+
 ```tsx
-// Cargar lista al abrir el modal
+// ✅ CORRECTO — cargar + ordenar
 useEffect(() => {
   if (open) {
     getEmpresasForUser().then(data => {
-      const opts = data.map(e => ({ value: e.id.toString(), label: e.nombre }))
+      const opts = data
+        .map(e => ({ value: e.id.toString(), label: e.nombre }))
+        .sort((a, b) => a.label.localeCompare(b.label))  // ← OBLIGATORIO
       setEmpresas(opts)
-      if (opts.length > 0 && !isEditing) setEmpresaId(opts[0].value) // auto-selección
+      if (opts.length > 0 && !isEditing) setEmpresaId(opts[0].value)
     })
   }
-}, [open])  // SOLO depende de `open`
+}, [open])
 
 // JSX
 <SearchableSelect
@@ -531,7 +535,160 @@ useEffect(() => {
 />
 ```
 
+**Excepción — Selects hardcoded:** Cuando las opciones están definidas en el código (ej. `OPCIONES_CUBRE_DESCANSO`, estados, `CATEGORIAS_SERVICIO`), se respeta el orden definido por el desarrollador. **No aplicar sort**.
+
+**Excepción — Jerarquías/árboles:** Selects que representan estructura jerárquica (ej. destino al mover nodo de costeo) mantienen su orden natural de árbol. **No aplicar sort**.
+
+### 7.4 Prop `searchable` en SearchableSelect
+
+El componente `<SearchableSelect>` soporta la prop `searchable` (default `true`).
+
+- `searchable={true}` (default): Muestra el input de búsqueda. Usar cuando la lista puede ser larga o de tamaño impredecible.
+- `searchable={false}`: Oculta el input de búsqueda y lista todos los registros directamente. Usar cuando la lista siempre tendrá pocos registros (ej. Categorías de Items).
+
+```tsx
+// Lista corta — sin buscador
+<SearchableSelect
+  options={opcionesCategoria}
+  value={categoriaId}
+  onChange={setCategoriaId}
+  searchable={false}
+/>
+```
+
 ---
+
+
+### 7.5 Detección de Similares / Anti-duplicados (R18)
+
+**Regla:** En toda pantalla de catálogo que tenga un campo Nombre o Descripción libre, se debe verificar si existe un registro similar antes de guardar. El objetivo es minimizar la creación de duplicados.
+
+#### Alcance por Empresa
+
+> **CRÍTICO:** La comparación de similitud se realiza **únicamente contra registros de la misma empresa**. Dos empresas distintas SÍ pueden tener registros con nombres iguales o similares — eso es válido y no debe generar advertencia.
+
+El `empresaId` debe siempre filtrarse antes de comparar:
+
+```typescript
+// ✅ CORRECTO — filtrar por empresa antes de comparar
+const deEmpresa = todos
+  .filter(i => i.empresaId === empresaId)  // ← OBLIGATORIO
+  .map(i => ({ id: i.id, descripcion: i.descripcion }))
+return detectarSimilares(descripcion, deEmpresa, 0.85, excluirId)
+
+// ❌ INCORRECTO — comparar contra toda la BD mezclaría empresas
+return detectarSimilares(descripcion, todos, 0.85, excluirId)
+```
+
+#### Cuándo Activar la Validación
+
+- Al intentar **Guardar** un registro nuevo o editado (no en onBlur, no en onChange).
+- Solo para campos de texto libre (Nombre, Descripción). No aplica a códigos, IDs ni campos codificados.
+- Solo en catálogos propios de Costeos. No aplica a búsquedas de ítems dentro de costeos (allí la lista puede ser enorme y la búsqueda es intencional).
+
+#### Comportamiento Esperado
+
+| Situación | Acción |
+|---|---|
+| No se encuentran similares (< 85%) | Guardar procede normalmente |
+| Se encuentran similares (≥ 85%) | Se muestra advertencia con la lista y porcentaje. El guardado se **detiene**. |
+| Porcentaje 100% (texto idéntico) | El porcentaje aparece en **rojo** |
+| Usuario acepta igualmente | Clic en "Sí, guardar de todas formas" → guarda sin re-verificar |
+| Usuario cancela | Clic en "Cancelar" → cierra la advertencia para corregir el nombre |
+
+#### Algoritmo
+
+Ubicado en `src/lib/utils/similarity.ts`. Combina dos estrategias y toma el máximo:
+
+1. **Levenshtein normalizado** sobre el texto completo.
+2. **Levenshtein normalizado** sobre el texto **sin stopwords** (preposiciones y artículos del español: `DE`, `DEL`, `LA`, `EL`, `LOS`, `CON`, `POR`, etc.).
+
+Esto permite detectar variantes semánticas:
+```
+"JEFE DE GRUPO"  vs  "JEFE GRUPO"  →  100% (idénticos sin stopwords)
+"COORDINADOR DE AREA"  vs  "COORDINADOR AREA"  →  100%
+```
+
+El umbral es **85%** por defecto. Al editar, se excluye el propio registro de la comparación (`excluirId`).
+
+#### Implementación Estándar
+
+```typescript
+// server action (actions/mi-entidad.ts)
+export async function buscarMiEntidadSimilares(
+  nombre: string,
+  empresaId: number,
+  excluirId?: number,
+): Promise<SimilarItem[]> {
+  const guard = await requireManagerOrAdmin()
+  if (!guard.ok) return []
+  const todos = await MiEntidadRepository.findAll()
+  const deEmpresa = todos
+    .filter(r => r.empresaId === empresaId)  // ← siempre filtrar por empresa
+    .map(r => ({ id: r.id, descripcion: r.nombre }))
+  return detectarSimilares(nombre, deEmpresa, 0.85, excluirId)
+}
+```
+
+```typescript
+// En el modal (components/mi-entidad/mi-entidad-modal.tsx)
+const [similares, setSimilares] = useState<SimilarItem[]>([])
+
+// doSave() — lógica pura de guardado, sin verificación de similares
+const doSave = async () => { /* crearMiEntidad / actualizarMiEntidad */ }
+
+// handleSave — verifica similares PRIMERO
+const handleSave = async (e: React.FormEvent) => {
+  e.preventDefault()
+  setSimilares([])
+  // ... validaciones de campo ...
+
+  // Verificar similares
+  const found = await buscarMiEntidadSimilares(normalizeText(nombre), parseInt(empresa, 10), miEntidad?.id)
+  if (found.length > 0) { setSimilares(found); return }
+
+  await doSave()
+}
+```
+
+```tsx
+{/* JSX del aviso — debajo del input de Nombre/Descripción */}
+{similares.length > 0 && mode === 'edit' && (
+  <div className="mt-1 rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
+    <p className="text-xs font-semibold text-amber-800">
+      ⚠️ Se encontraron {similares.length} registro(s) similar(es) — ¿Desea guardar de todas formas?
+    </p>
+    <ul className="space-y-1">
+      {similares.map(s => (
+        <li key={s.id} className="flex justify-between text-xs text-amber-900">
+          <span className="font-mono">{s.descripcion}</span>
+          <span className={`font-bold ml-2 ${s.pct === 100 ? 'text-red-600' : 'text-amber-700'}`}>{s.pct}%</span>
+        </li>
+      ))}
+    </ul>
+    <div className="flex gap-3 pt-1">
+      <button type="button" onClick={() => { setSimilares([]); doSave() }}
+        className="text-xs bg-amber-700 text-white px-3 py-1 rounded hover:bg-amber-800 font-medium">
+        Sí, guardar de todas formas
+      </button>
+      <button type="button" onClick={() => setSimilares([])}
+        className="text-xs text-amber-800 underline hover:text-amber-900">
+        Cancelar
+      </button>
+    </div>
+  </div>
+)}
+```
+
+#### Pantallas que ya tienen R18 implementado
+
+| Pantalla | Campo verificado | Scope |
+|---|---|---|
+| Items (`item-modal.tsx`) | Descripción | Por empresa |
+| Categorias (`categoria-modal.tsx`) | Nombre | Por empresa |
+
+---
+
 
 ## 8. MANEJO DE ERRORES
 

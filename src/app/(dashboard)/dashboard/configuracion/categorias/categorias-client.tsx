@@ -74,7 +74,7 @@ export function CategoriasClient({ data }: { data: CategoriaRow[] }) {
         <div>
           <div className="flex items-center gap-2 text-indigo-900">
             <Tags className="h-6 w-6" />
-            <h1 className="text-2xl font-bold tracking-tight">Categorías</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Categorias</h1>
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">
             {data.length === 1 ? '1 categoría registrada' : `${data.length} categorías registradas`}
@@ -84,9 +84,8 @@ export function CategoriasClient({ data }: { data: CategoriaRow[] }) {
       <DataTable
         columns={columns}
         data={data}
-        tableId="categorias-crud"
+        tableId="categorias-v3"
         searchPlaceholder="Buscar por nombre..."
-        searchKey="nombre"
         customToolbarActions={
           <CategoriaModal
             onSuccess={() => router.refresh()}

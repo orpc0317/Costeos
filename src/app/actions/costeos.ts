@@ -36,22 +36,20 @@ export async function createCosteo(formData: FormData) {
           nit: erpCliente.nit,
           razonSocial: erpCliente.razonSocial,
           direccionFiscal: erpCliente.direccion,
-          esNuevo: true,
         }
       })
     } else {
       clienteLocal = await tx.cliente.findFirst({
-        where: { codigoErp: parseInt(erpCliente.id, 10) || 0 }
+        where: { codigoErp: erpCliente.id ?? null }
       })
 
       if (!clienteLocal) {
         clienteLocal = await tx.cliente.create({
           data: {
-            codigoErp: parseInt(erpCliente.id, 10) || 0,
+            codigoErp: erpCliente.id ?? null,
             nit: erpCliente.nit,
             razonSocial: erpCliente.razonSocial,
             direccionFiscal: erpCliente.direccion,
-            esNuevo: false,
           }
         })
       } else {

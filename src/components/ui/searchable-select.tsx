@@ -20,6 +20,7 @@ interface SearchableSelectProps {
   error?: boolean
   autoFocus?: boolean
   id?: string
+  searchable?: boolean
 }
 
 export function SearchableSelect({
@@ -31,7 +32,8 @@ export function SearchableSelect({
   disabled = false,
   error = false,
   autoFocus = false,
-  id
+  id,
+  searchable = true,
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -95,19 +97,21 @@ export function SearchableSelect({
 
       {isOpen && (
         <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95">
-          <div className="sticky top-0 z-10 bg-popover px-2 py-2 border-b">
-            <div className="relative">
-              <SearchIcon className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <input
-                type="text"
-                className="w-full bg-transparent pl-8 pr-2 py-1 text-sm outline-none placeholder:text-muted-foreground"
-                placeholder="Buscar..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                autoFocus
-              />
+          {searchable && (
+            <div className="sticky top-0 z-10 bg-popover px-2 py-2 border-b">
+              <div className="relative">
+                <SearchIcon className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  className="w-full bg-transparent pl-8 pr-2 py-1 text-sm outline-none placeholder:text-muted-foreground"
+                  placeholder="Buscar..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  autoFocus
+                />
+              </div>
             </div>
-          </div>
+          )}
           
           <div className="p-1">
             {filteredOptions.length === 0 ? (

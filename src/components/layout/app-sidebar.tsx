@@ -35,20 +35,16 @@ const navItems = [
     icon: FileText,
   },
   {
-    label: 'CLIENTES',
-    href: '/dashboard/clientes',
-    icon: Building2,
-  },
-  {
     label: 'CONFIGURACION',
     href: '/dashboard/configuracion',
     icon: Settings,
     children: [
-      { label: 'Empresas', href: '/dashboard/configuracion/empresas', icon: Building2 },
+      { label: 'Empresas',     href: '/dashboard/configuracion/empresas',     icon: Building2 },
+      { label: 'Clientes',     href: '/dashboard/configuracion/clientes',     icon: Building2 },
       { label: 'Tipos Costeo', href: '/dashboard/configuracion/tipos-costeo', icon: Network },
-      { label: 'Categorías', href: '/dashboard/configuracion/categorias', icon: Tags },
-      { label: 'Ítems', href: '/dashboard/configuracion/items', icon: Package },
-      { label: 'Usuarios', href: '/dashboard/configuracion/usuarios', icon: Users },
+      { label: 'Categorias',   href: '/dashboard/configuracion/categorias',   icon: Tags },
+      { label: 'Items',        href: '/dashboard/configuracion/items',        icon: Package },
+      { label: 'Usuarios',     href: '/dashboard/configuracion/usuarios',     icon: Users },
     ],
   },
 ]

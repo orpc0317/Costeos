@@ -45,8 +45,7 @@ export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
   
   const [selectedCliente, setSelectedCliente] = useState<ErpCliente | null>(null)
   
-  // Guardamos el código del tipo de costeo en lugar del ID
-  const [tipoCosteoCodigo, setTipoCosteoCodigo] = useState<string>('')
+  const [tipoCosteoId, setTipoCosteoId] = useState<string>('')
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -96,21 +95,23 @@ export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
   // Filtrar tipos de costeo por empresa seleccionada
   const filteredTiposCosteo = useMemo(() => {
     if (!tiposCosteo || !empresaId) return []
-    return tiposCosteo.filter((tc: any) => tc.empresaId === Number(empresaId))
+    return tiposCosteo
+      .filter((tc: any) => tc.empresaId === Number(empresaId))
+      .sort((a: any, b: any) => a.nombre.localeCompare(b.nombre))
   }, [tiposCosteo, empresaId])
 
   // Pre-seleccionar el primer tipo de costeo de la empresa
   useEffect(() => {
     if (filteredTiposCosteo.length > 0) {
-      setTipoCosteoCodigo(String(filteredTiposCosteo[0].codigo))
+      setTipoCosteoId(String(filteredTiposCosteo[0].id))
     } else {
-      setTipoCosteoCodigo('')
+      setTipoCosteoId('')
     }
   }, [filteredTiposCosteo])
 
   const selectedTipoCosteo = useMemo(() => {
-    return filteredTiposCosteo.find((tc: any) => tc.codigo === tipoCosteoCodigo)
-  }, [filteredTiposCosteo, tipoCosteoCodigo])
+    return filteredTiposCosteo.find((tc: any) => String(tc.id) === tipoCosteoId)
+  }, [filteredTiposCosteo, tipoCosteoId])
 
   useEffect(() => {
     if (selectedTipoCosteo) {
@@ -127,9 +128,12 @@ export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
     setCargandoEmpresas(true)
     getEmpresasForUser()
       .then(data => {
-        setEmpresas(data.map(e => ({ value: e.id.toString(), label: e.nombre })))
-        if (data.length > 0 && !empresaId) {
-          setEmpresaId(data[0].id.toString())
+        const sorted = data
+          .map(e => ({ value: e.id.toString(), label: e.nombre }))
+          .sort((a, b) => a.label.localeCompare(b.label))
+        setEmpresas(sorted)
+        if (sorted.length > 0 && !empresaId) {
+          setEmpresaId(sorted[0].value)
         }
       })
       .catch(err => toast.error('Error al cargar empresas: ' + err.message))
@@ -169,8 +173,7 @@ export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
       formData.append('empresa', empresaId)
       formData.append('erpClienteData', JSON.stringify(selectedCliente))
       formData.append('isNewClient', 'false')
-      formData.append('tipoCosteoId', filteredTiposCosteo.find((tc: any) => tc.codigo === tipoCosteoCodigo)?.id?.toString() || '')
-      formData.append('tipoCosteoCodigo', tipoCosteoCodigo)
+      formData.append('tipoCosteoId', tipoCosteoId)
       formData.append('moneda', moneda)
       formData.append('nombreProyecto', nombreProyecto)
       formData.append('plazoMeses', (plazoMeses || 0).toString())
@@ -213,9 +216,9 @@ export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
               <div className="space-y-2">
                 <Label htmlFor="tipoCosteoSelect">Tipo Costeo</Label>
                 <SearchableSelect
-                  options={filteredTiposCosteo.map((tc: any) => ({ value: String(tc.codigo), label: tc.nombre }))}
-                  value={tipoCosteoCodigo}
-                  onChange={setTipoCosteoCodigo}
+                  options={filteredTiposCosteo.map((tc: any) => ({ value: String(tc.id), label: tc.nombre }))}
+                  value={tipoCosteoId}
+                  onChange={setTipoCosteoId}
                   placeholder="Selecciona un tipo"
                   disabled={!empresaId || filteredTiposCosteo.length === 0}
                 />
@@ -373,7 +376,7 @@ export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
                 <Button type="button" variant="outline" onClick={handleBackToSearch} disabled={isSubmitting}>
                   Volver
                 </Button>
-                <Button type="submit" disabled={!tipoCosteoCodigo || isSubmitting} className="bg-indigo-600 hover:bg-indigo-700">
+                <Button type="submit" disabled={!tipoCosteoId || isSubmitting} className="bg-indigo-600 hover:bg-indigo-700">
                   {isSubmitting ? 'Creando...' : 'Crear Proyecto'}
                 </Button>
               </div>

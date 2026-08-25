@@ -22,6 +22,14 @@ export function UsuariosClient({ usuarios }: { usuarios: Usuario[] }) {
   const columns: ColumnDef<Usuario>[] = useMemo(
     () => [
       {
+        accessorKey: 'id',
+        header: 'ID',
+        enableHiding: false,
+        cell: ({ row }) => (
+          <span className="font-mono text-xs text-muted-foreground">{row.original.id}</span>
+        ),
+      },
+      {
         accessorKey: 'nombre',
         header: 'Nombre',
         cell: ({ row }) => <span className="font-medium">{row.original.nombre}</span>,
@@ -64,29 +72,13 @@ export function UsuariosClient({ usuarios }: { usuarios: Usuario[] }) {
         },
       },
       {
-        accessorKey: 'agregoFecha',
-        header: 'Fecha Registro',
-        meta: { align: 'center' },
-        cell: ({ row }) => {
-          const date = new Date(row.original.agregoFecha)
-          return (
-            <span className="text-sm text-muted-foreground">
-              {date.toLocaleDateString('es-ES', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-              })}
-            </span>
-          )
-        },
-      },
-      {
-        id: 'acciones',
+        id: 'actions',
         header: '',
-        enableHiding: false, // Las acciones no se deben ocultar normalmente
+        enableHiding: false,
         meta: { align: 'center' },
         cell: ({ row }) => <UsuarioAcciones usuario={row.original} />,
       },
+
     ],
     []
   )
@@ -112,9 +104,8 @@ export function UsuariosClient({ usuarios }: { usuarios: Usuario[] }) {
       <DataTable
         columns={columns}
         data={usuarios}
-        tableId="usuarios-crud"
-        searchPlaceholder="Buscar por nombre o correo..."
-        searchKey="nombre" // Búsqueda por defecto usando el nombre
+        tableId="usuarios-table"
+        searchPlaceholder="Buscar en todos los campos..."
         customToolbarActions={<NuevoUsuarioButton />}
       />
     </div>

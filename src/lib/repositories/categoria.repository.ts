@@ -13,9 +13,6 @@ export const CategoriaRepository = {
 
   async findAll() {
     return prisma.categoriaItem.findMany({
-      include: {
-        empresa: { select: { nombre: true } },
-      },
       orderBy: [
         { prioridad: 'asc' },
         { id: 'asc' },

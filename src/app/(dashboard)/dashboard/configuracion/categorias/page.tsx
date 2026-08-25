@@ -4,7 +4,7 @@ import { listarCategorias } from '@/app/actions/categorias'
 import { CategoriasClient } from './categorias-client'
 
 export const metadata: Metadata = {
-  title: 'Categorías | Costeos',
+  title: 'Categorias | Costeos',
   description: 'Gestión de categorías de ítems',
 }
 

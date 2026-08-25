@@ -13,11 +13,32 @@ Para mantener la consistencia en el proyecto, **todas las pantallas CRUD** (list
 ## Características del DataTable
 
 Al utilizar `DataTable`, heredas automáticamente:
-- **Buscador global** (searchbox del lado del cliente) integrado en el toolbar.
-- **Administrador de columnas** (mostrar/ocultar y reordenar mediante drag-and-drop en el encabezado).
-- **Exportación a CSV**: Botón de descarga integrado que exporta automáticamente solo las columnas visibles de la tabla a un archivo CSV compatible con Excel/Google Sheets.
-- **Persistencia**: La visibilidad y orden de las columnas se guarda en el `localStorage` del navegador.
+- **Paginación**
+- **Ordenamiento de columnas**
+- **Búsqueda global** (buscando coincidencias en *cualquier* campo visible de la fila). **IMPORTANTE:** Para que la búsqueda global funcione correctamente en todos los campos, NO debes enviar la propiedad `searchKey` al instanciar el componente, a menos que haya una justificación estricta para limitar la búsqueda a una sola columna.
+- **Ocultamiento de columnas** y reordenamiento mediante drag-and-drop en el encabezado.
+- **Exportación a CSV**: Botón de descarga integrado que exporta automáticamente solo las columnas visibles a un archivo CSV compatible con Excel.
+- **Persistencia**: La visibilidad y orden de columnas se guarda en el `localStorage` del navegador bajo las claves `${tableId}-visibility` y `${tableId}-order`.
 - **Theming parametrizado**: Colores, tamaños de fuente y estilos unificados.
+
+### ⚠️ Regla: Columnas Foreign Key → usar `accessorFn`
+
+Cuando una columna muestra el texto de una relación (FK) en lugar del ID numérico crudo, **NUNCA** uses `accessorKey: 'entidadId'` porque el filtro global buscaría sobre el número, no sobre el texto visible. Usa siempre `accessorFn` para exponer el valor legible:
+
+```ts
+// ❌ MAL: el filtro global busca sobre el número (ej. 5), no sobre "SERVICIOS PROFESIONALES"
+{ accessorKey: 'categoriaId', header: 'Categoría', cell: ... }
+
+// ✅ BIEN: el filtro global busca sobre el texto visible
+{
+  id: 'categoria',
+  accessorFn: (row) => row.categoria?.nombre ?? String(row.categoriaId),
+  header: 'Categoría',
+  cell: ({ row }) => <span>{row.original.categoria?.nombre ?? row.original.categoriaId}</span>,
+}
+```
+
+Esta regla aplica a cualquier columna que renderice un nombre/descripción derivado de un ID (empresa, categoría, cliente, etc.).
 
 ## Ejemplo de Uso
 

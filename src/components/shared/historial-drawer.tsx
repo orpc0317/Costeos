@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { History, UserCircle2, Clock, Loader2 } from 'lucide-react'
+import { History, UserCircle2, Clock, Loader2, CheckCircle2, XCircle } from 'lucide-react'
 import {
   Sheet,
   SheetContent,
@@ -15,6 +15,61 @@ interface HistorialDrawerProps {
   entidadId: string | number
   entidadTipo: string
   tabla?: string
+}
+
+/** Valores que representan "verdadero" en el log de auditoría. */
+const VALORES_TRUE  = new Set(['sí', 'si', 'true', '1', 'activo'])
+/** Valores que representan "falso" en el log de auditoría. */
+const VALORES_FALSE = new Set(['no', 'false', '0', 'inactivo'])
+
+/**
+ * Renderiza un valor del log: si es booleano muestra un ícono bonito,
+ * si no, muestra el texto con el estilo correspondiente.
+ */
+function ValorAudit({ valor, tipo }: { valor: string | null; tipo: 'anterior' | 'nuevo' }) {
+  if (valor === null || valor === undefined) return null
+
+  const normalizado = valor.trim().toLowerCase()
+
+  if (VALORES_TRUE.has(normalizado)) {
+    return (
+      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${
+        tipo === 'anterior'
+          ? 'bg-slate-100 text-slate-400 line-through decoration-slate-300'
+          : 'bg-emerald-50 text-emerald-700'
+      }`}>
+        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+        {valor}
+      </span>
+    )
+  }
+
+  if (VALORES_FALSE.has(normalizado)) {
+    return (
+      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${
+        tipo === 'anterior'
+          ? 'bg-rose-50 text-rose-300 line-through decoration-rose-300'
+          : 'bg-rose-50 text-rose-600'
+      }`}>
+        <XCircle className="w-3.5 h-3.5 shrink-0" />
+        {valor}
+      </span>
+    )
+  }
+
+  // Valor de texto normal
+  if (tipo === 'anterior') {
+    return (
+      <span className="line-through decoration-slate-300 px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">
+        {valor}
+      </span>
+    )
+  }
+  return (
+    <span className="font-medium text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">
+      {valor}
+    </span>
+  )
 }
 
 export function HistorialDrawer({
@@ -74,7 +129,7 @@ export function HistorialDrawer({
                   <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-sky-50 text-sky-600 shadow-sm shrink-0 z-10">
                     <UserCircle2 className="w-5 h-5" />
                   </div>
-                  
+
                   <div className="flex-1 p-4 rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-semibold text-slate-800 text-sm">{item.accion}</span>
@@ -96,29 +151,35 @@ export function HistorialDrawer({
                         {item.detalle}
                       </p>
                     )}
-                    
-                    {item.accion !== 'CREATE' && item.cambios && item.cambios.filter(c => !['registroVersion', 'updatedAt'].includes(c.campo)).length > 0 && (
+
+                    {item.accion !== 'CREATE' && item.cambios &&
+                      item.cambios.filter(c => !['registroVersion', 'updatedAt'].includes(c.campo)).length > 0 && (
                       <div className="mt-3 space-y-2">
                         <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
                           Campos Modificados
                         </div>
                         <div className="border border-slate-100 rounded-md overflow-hidden bg-slate-50/50">
-                          {item.cambios.filter(c => !['registroVersion', 'updatedAt'].includes(c.campo)).map((c, i) => (
-                            <div key={i} className="flex flex-col sm:flex-row sm:items-center text-xs p-2 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
-                              <div className="font-medium text-slate-700 w-1/3 mb-1 sm:mb-0">
-                                {c.campo}
+                          {item.cambios
+                            .filter(c => !['registroVersion', 'updatedAt'].includes(c.campo))
+                            .map((c, i) => (
+                              <div
+                                key={i}
+                                className="flex flex-col sm:flex-row sm:items-center text-xs p-2 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors"
+                              >
+                                <div className="font-medium text-slate-700 w-1/3 mb-1 sm:mb-0">
+                                  {c.campo}
+                                </div>
+                                <div className="flex-1 flex items-center flex-wrap gap-1 text-slate-500">
+                                  {c.anterior && (
+                                    <>
+                                      <ValorAudit valor={c.anterior} tipo="anterior" />
+                                      <span className="text-slate-400">→</span>
+                                    </>
+                                  )}
+                                  <ValorAudit valor={c.nuevo} tipo="nuevo" />
+                                </div>
                               </div>
-                              <div className="flex-1 flex items-center flex-wrap gap-1 text-slate-500">
-                                {c.anterior && (
-                                  <>
-                                    <span className="line-through decoration-slate-300 px-1.5 py-0.5 rounded bg-slate-100">{c.anterior}</span>
-                                    <span className="text-slate-400">→</span>
-                                  </>
-                                )}
-                                <span className="font-medium text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">{c.nuevo}</span>
-                              </div>
-                            </div>
-                          ))}
+                            ))}
                         </div>
                       </div>
                     )}

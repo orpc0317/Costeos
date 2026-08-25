@@ -91,16 +91,16 @@ export type ErpRecetaItem = {
 }
 
 export type ErpCliente = {
-  id?: number          // clientId (opcional porque si es nuevo no tiene)
+  id?: string          // código del cliente en ERP (VARCHAR) → codigoErp en Costeos
   codigo?: string
   nit: string
   nombreComercial: string // cliente_nombre
   razonSocial: string     // razona_social
   direccion?: string
   pais?: string
-  departamentoId?: number // department_codigo
+  departamentoId?: number  // código DPI numérico del departamento
   departamentoNombre?: string
-  municipioId?: number    // municipio
+  municipioId?: number     // código DPI numérico del municipio
   municipioNombre?: string
   diasCredito: number
 }

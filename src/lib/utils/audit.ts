@@ -11,7 +11,7 @@
  *   ❌ "nit: 12345 → 67890 | razonSocial: ABC → XYZ | registroVersion: 1 → 2"
  */
 
-type CampoMap<T> = readonly { key: keyof T; label: string }[]
+type CampoMap<T> = readonly { key: keyof T; label: string; transform?: (val: unknown) => unknown }[]
 
 /**
  * Calcula el diff entre dos versiones de un objeto.
@@ -31,12 +31,12 @@ export function computeDiff<T extends Record<string, unknown>>(
   const antes:   Record<string, unknown> = {}
   const despues: Record<string, unknown> = {}
 
-  for (const { key, label } of campos) {
+  for (const { key, label, transform } of campos) {
     const valAntes   = anterior[key]
     const valDespues = nuevo[key]
     if (String(valAntes ?? '') !== String(valDespues ?? '')) {
-      antes[label]   = formatAuditValue(valAntes)
-      despues[label] = formatAuditValue(valDespues)
+      antes[label]   = formatAuditValue(transform ? transform(valAntes) : valAntes)
+      despues[label] = formatAuditValue(transform ? transform(valDespues) : valDespues)
     }
   }
 

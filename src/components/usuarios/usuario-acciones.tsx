@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { UsuarioDialog } from './usuario-dialog'
@@ -11,23 +10,14 @@ interface UsuarioAccionesProps {
 }
 
 export function UsuarioAcciones({ usuario }: UsuarioAccionesProps) {
-  const [editOpen, setEditOpen] = useState(false)
-
   return (
-    <>
-      <Button 
-        variant="ghost" 
-        size="icon" 
-        title="Ver detalles" 
-        onClick={() => setEditOpen(true)}
-      >
-        <Eye className="h-4 w-4 text-blue-600" />
-      </Button>
-      <UsuarioDialog
-        usuario={usuario}
-        open={editOpen}
-        onOpenChange={setEditOpen}
-      />
-    </>
+    <UsuarioDialog
+      usuario={usuario}
+      trigger={
+        <Button variant="ghost" size="icon" title="Ver detalles">
+          <Eye className="h-4 w-4 text-blue-600" />
+        </Button>
+      }
+    />
   )
 }

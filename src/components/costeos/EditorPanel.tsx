@@ -330,7 +330,7 @@ export default function EditorPanel() {
                     {proyecto?.estado === 'BORRADOR' ? (
                       <SearchableSelect
                         id="field-turno"
-                        options={turnos.map(t => ({ value: String(t.codigo), label: t.descripcion }))}
+                        options={turnos.map(t => ({ value: String(t.codigo), label: t.descripcion })).sort((a, b) => a.label.localeCompare(b.label))}
                         value={nodeData.turnoCodigo !== undefined ? String(nodeData.turnoCodigo) : ''}
                         onChange={(val) => {
                           const code = parseInt(val, 10);
@@ -377,7 +377,7 @@ export default function EditorPanel() {
                     {proyecto?.estado === 'BORRADOR' ? (
                       <SearchableSelect
                         id="field-uniforme"
-                        options={uniformes.map(u => ({ value: u.codigo, label: u.descripcion }))}
+                        options={uniformes.map(u => ({ value: u.codigo, label: u.descripcion })).sort((a, b) => a.label.localeCompare(b.label))}
                         value={nodeData.uniformeCodigo || ''}
                         onChange={(val) => handleChange('uniformeCodigo', val)}
                         placeholder="Seleccione..."
@@ -564,7 +564,7 @@ export default function EditorPanel() {
                   <div className="flex-1 flex flex-col gap-1.5">
                     <Label>Seleccionar Bono</Label>
                     <SearchableSelect
-                      options={bonosDisponibles.map(b => ({ value: b.codigo, label: b.descripcion }))}
+                      options={bonosDisponibles.map(b => ({ value: b.codigo, label: b.descripcion })).sort((a, b) => a.label.localeCompare(b.label))}
                       value={selectedBonoId}
                       onChange={(val) => setSelectedBonoId(val)}
                       placeholder="Seleccione..."
@@ -931,7 +931,7 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas, proye
                     Departamento {loadingDeptos && <span className="text-xs text-slate-400">(cargando...)</span>}
                   </Label>
                   <SearchableSelect
-                    options={departamentos.map(d => ({ value: String(d.codigo), label: d.nombre }))}
+                    options={departamentos.map(d => ({ value: String(d.codigo), label: d.nombre })).sort((a, b) => a.label.localeCompare(b.label))}
                     value={nodeData.departamento || ''}
                     onChange={(val) => handleChange('departamento', val)}
                     disabled={loadingDeptos || !isNewAddress}
@@ -944,7 +944,7 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas, proye
                     Municipio {loadingMunis && <span className="text-xs text-slate-400">(cargando...)</span>}
                   </Label>
                   <SearchableSelect
-                    options={municipios.map(m => ({ value: String(m.codigo), label: m.nombre }))}
+                    options={municipios.map(m => ({ value: String(m.codigo), label: m.nombre })).sort((a, b) => a.label.localeCompare(b.label))}
                     value={String(nodeData.municipio || '')}
                     onChange={(val) => handleChange('municipio', val)}
                     disabled={loadingMunis || !isNewAddress || !nodeData.departamento}

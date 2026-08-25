@@ -1,4 +1,3 @@
-import NextAuth from 'next-auth'
 import { auth } from '@/lib/auth'
 
 export default auth((req) => {
@@ -24,11 +23,12 @@ export const config = {
   matcher: [
     /*
      * Aplicar middleware a todo EXCEPTO:
+     * - api/* (rutas de API, incluyendo /api/auth de next-auth)
      * - _next/static (archivos estáticos)
      * - _next/image (optimización de imágenes)
      * - favicon.ico
      * - archivos de fuentes e imágenes públicas
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

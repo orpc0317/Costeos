@@ -124,7 +124,7 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
       setCargandoEmpresas(true)
       getEmpresasForUser()
         .then(data => {
-          setEmpresas(data.map(e => ({ value: e.id.toString(), label: e.nombre })))
+          setEmpresas(data.map(e => ({ value: e.id.toString(), label: e.nombre })).sort((a, b) => a.label.localeCompare(b.label)))
           if (!tc && data.length > 0) {
             setEmpresaId(data[0].id.toString())
           }
