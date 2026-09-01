@@ -129,6 +129,7 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
       currentNodos = nextNodos;
     }
 
+    // Crear el nodo DEFAULT para recursos raíz ANTES de consultar recursos actuales
     let defaultNodoRaizId: number | null = null;
     if (flatRecursos.some(r => r.nodoTempId === null)) {
       let defNodo = await tx.nodo.findFirst({ where: { contratoId: costeo.contratoId, nombre: 'DEFAULT', parentId: null } });
@@ -162,7 +163,13 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
         let nDbId = rFront.nodoTempId ? parseInt(idMap.nodos[rFront.nodoTempId] || rFront.nodoTempId, 10) : defaultNodoRaizId;
         if (!nDbId) continue;
 
+        // Resolver comboParentId: puede ser un ID temporal o un ID real de BD
+        const comboParentDbId = rFront.comboParentId
+          ? (parseInt(idMap.recursos[rFront.comboParentId] || rFront.comboParentId, 10) || null)
+          : null;
+
         if (isNaN(rId)) {
+          // ID temporal → crear nuevo registro
           const nuevoR = await tx.nodoRecurso.create({
             data: {
               nodo: { connect: { id: nDbId } },
@@ -181,13 +188,15 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
               personas: rFront.personas || 1,
               horasSemana: rFront.horasSemana || 0,
               bonos: (rFront.bonos && rFront.bonos.length > 0) ? (rFront.bonos as any) : null,
-            }
+              ...(comboParentDbId ? { comboParent: { connect: { id: comboParentDbId } } } : {}),
+            } as any
           });
           idMap.recursos[rFront.id] = nuevoR.id.toString();
         } else {
-          await tx.nodoRecurso.update({
+          // ID numérico → upsert (por si el registro fue borrado externamente)
+          await tx.nodoRecurso.upsert({
             where: { id: rId },
-            data: {
+            update: {
               nodo: { connect: { id: nDbId } },
               cantidad: rFront.cantidad,
               costoUnitarioErp: rFront.costoUnitario,
@@ -199,7 +208,27 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
               personas: rFront.personas || 1,
               horasSemana: rFront.horasSemana || 0,
               bonos: (rFront.bonos && rFront.bonos.length > 0) ? (rFront.bonos as any) : null,
-            }
+              ...(comboParentDbId ? { comboParent: { connect: { id: comboParentDbId } } } : { comboParent: { disconnect: true } }),
+            } as any,
+            create: {
+              nodo: { connect: { id: nDbId } },
+              item: { connect: { id: rFront.itemId } },
+              itemNombre: rFront.nombre,
+              itemTipo: rFront.categoria,
+              itemCategoria: 'N/A',
+              itemTipoCosto: rFront.tipoCosto,
+              cantidad: rFront.cantidad,
+              costoUnitarioErp: rFront.costoUnitario,
+              precioVenta: rFront.precioVentaUnitario || null,
+              precioVentaOrigen: rFront.precioVentaOrigen || 'MANUAL',
+              turnoCodigo: rFront.turnoCodigo || null,
+              uniformeCodigo: rFront.uniformeCodigo || null,
+              cubreDescanso: rFront.cubreDescanso || 0,
+              personas: rFront.personas || 1,
+              horasSemana: rFront.horasSemana || 0,
+              bonos: (rFront.bonos && rFront.bonos.length > 0) ? (rFront.bonos as any) : null,
+              ...(comboParentDbId ? { comboParent: { connect: { id: comboParentDbId } } } : {}),
+            } as any,
           });
         }
       }

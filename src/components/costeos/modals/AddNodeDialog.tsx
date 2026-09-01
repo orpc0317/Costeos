@@ -13,7 +13,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NumericInput } from '@/components/ui/numeric-input';
-import { Plus, Loader2, Trash } from 'lucide-react';
+import { FieldError } from '@/components/ui/field-error';
+import { Plus, Loader2, Trash, Settings2, Gift } from 'lucide-react';
 import { normalizeText } from '@/lib/utils/text';
 import { cn } from '@/lib/utils';
 import { SearchableSelect } from '@/components/ui/searchable-select';
@@ -68,14 +69,16 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
   // Dynamic Fields for Línea
   const [cantidad, setCantidad] = useState<number>(1);
   const [precioVenta, setPrecioVenta] = useState<number | undefined>();
+  const [costoUnitario, setCostoUnitario] = useState<number | undefined>(); // editable solo si manejoCostos=4
   const [turnoCodigo, setTurnoCodigo] = useState<number | undefined>();
   const [uniformeCodigo, setUniformeCodigo] = useState('');
   const [cubreDescanso, setCubreDescanso] = useState<number>(0);
   
-  const [bonosDisponibles, setBonosDisponibles] = useState<{ codigo: string; descripcion: string; costo: number }[]>([]);
+  const [bonosDisponibles, setBonosDisponibles] = useState<{ codigo: string; descripcion: string; costo: number; manejoCostos: number }[]>([]);
   const [bonosAgregados, setBonosAgregados] = useState<BonoCosteo[]>([]);
   const [selectedBonoId, setSelectedBonoId] = useState<string>('');
   const [selectedBonoPrecio, setSelectedBonoPrecio] = useState<number>(0);
+  const [selectedBonoCosto, setSelectedBonoCosto] = useState<number>(0);  // costo del bono (si manejoCostos=4)
   const [cantidadTurnos, setCantidadTurnos] = useState<number>(1);
 
   const [isAdding, setIsAdding] = useState(false);
@@ -138,7 +141,16 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
           getUniformesERP(proyecto.empresaId),
         ]).then(([itemsData, serviciosData, turnosData, uniformesData]) => {
           if (active) {
-            setItems(itemsData);
+            const itemsDeEmpresa = itemsData.filter(i => i.empresaId === proyecto!.empresaId);
+            // Separar bonos (tipoItem=5) del catálogo principal
+            const bonosItems = itemsDeEmpresa.filter(i => i.tipoItem === 5);
+            setItems(itemsDeEmpresa);
+            setBonosDisponibles(bonosItems.map(b => ({
+              codigo:       b.codigoErp ?? String(b.id),
+              descripcion:  b.descripcion,
+              costo:        0,
+              manejoCostos: b.manejoCostos,
+            })));
             setServicios(serviciosData);
             setTurnos(turnosData);
             setUniformes(uniformesData);
@@ -167,8 +179,10 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
       setShowAddressLookup(false);
       setSelectedItemId('');
       setError(null);
+      setFieldErrors({});
       setCantidad(1);
       setPrecioVenta(undefined);
+      setCostoUnitario(undefined);
       setTurnoCodigo(undefined);
       setUniformeCodigo('');
       setCubreDescanso(0);
@@ -176,6 +190,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
       setBonosAgregados([]);
       setSelectedBonoId('');
       setSelectedBonoPrecio(0);
+      setSelectedBonoCosto(0);
     }
     return () => { active = false; };
   }, [open, hasDireccion, proyecto?.empresaId, proyecto?.cliente?.id]);
@@ -242,15 +257,32 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
     }
   };
 
-  const servicioSeleccionado = servicios.find(s => s.codigo === selectedItemId);
+  // erpItem: ítem local (BD Costeos), selectedItemId es su id numérico como string
   const erpItem = items.find(i => i.id.toString() === selectedItemId);
+  // servicioSeleccionado: complemento del ERP — se busca por el codigoErp del ítem local,
+  // que coincide con el campo `codigo` del SP sp_buscar_servicios_venta
+  const servicioSeleccionado = erpItem?.codigoErp
+    ? servicios.find(s => s.codigo === erpItem.codigoErp)
+    : undefined;
   const isEstandar = servicioSeleccionado?.itemRegistro !== 1; // 0 o 2 (no RRHH)
 
+  // manejoCostos=4 → 'Solicitar Usuario': el campo Costo Un. es editable
+  const solicitarCosto = erpItem?.manejoCostos === 4;
+
+  // Bono actualmente seleccionado en el tab Bonos
+  const bonoSeleccionado = bonosDisponibles.find(b => b.codigo === selectedBonoId);
+  const bonoSolicitaCosto = bonoSeleccionado?.manejoCostos === 4;
+
   const turnoSeleccionado = turnos.find(t => t.codigo === turnoCodigo);
-  const diasTrabajo = turnoSeleccionado 
-    ? ((turnoSeleccionado.lunes || 0) + (turnoSeleccionado.martes || 0) + (turnoSeleccionado.miercoles || 0) + (turnoSeleccionado.jueves || 0) + (turnoSeleccionado.viernes || 0) + (turnoSeleccionado.sabado || 0) + (turnoSeleccionado.domingo || 0)) 
+  const diasTrabajo = turnoSeleccionado
+    ? ((turnoSeleccionado.lunes || 0) + (turnoSeleccionado.martes || 0) + (turnoSeleccionado.miercoles || 0) + (turnoSeleccionado.jueves || 0) + (turnoSeleccionado.viernes || 0) + (turnoSeleccionado.sabado || 0) + (turnoSeleccionado.domingo || 0))
     : 0;
   const trabaja7Dias = diasTrabajo === 7;
+
+  // Factor de multiplicación del costo (igual al de precio)
+  const factorCosto = isEstandar
+    ? (cantidad || 1)
+    : ((cantidadTurnos || 1) * (turnoSeleccionado?.personas || 1));
 
   useEffect(() => {
     if (!trabaja7Dias) {
@@ -258,16 +290,22 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
     }
   }, [trabaja7Dias]);
 
-  // Si cambia el item seleccionado, resetear precio si es 0 por defecto
+  // Al cambiar de item: resetear precio y costo
   useEffect(() => {
     if (servicioSeleccionado) {
       if (servicioSeleccionado.precioVentaCero === 1) {
         setPrecioVenta(0);
       } else {
-        setPrecioVenta(undefined); // Obligamos a que lo pongan si no es 0
+        setPrecioVenta(undefined);
       }
     }
+    setCostoUnitario(undefined); // siempre resetear al cambiar item
   }, [servicioSeleccionado]);
+
+  // Al cambiar el bono seleccionado: resetear costo del bono
+  useEffect(() => {
+    setSelectedBonoCosto(0);
+  }, [selectedBonoId]);
 
   const handleAdd = async () => {
     setError(null);
@@ -276,7 +314,9 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
     const cleanDireccion = normalizeText(direccion);
     
     const hasLineaInfo = !!selectedItemId;
-    const creatingNode = !isLineLevel && (!!cleanNombre || (hasDireccion && (!!cleanDireccion || !!direccionSecuencia || !!departamento || !!municipio)));
+    // creatingNode = true solo si el usuario llenó el nombre O ingresó datos de dirección explícitamente
+    const userFilledDireccion = hasDireccion && (!!cleanDireccion || !!direccionSecuencia);
+    const creatingNode = !isLineLevel && (!!cleanNombre || userFilledDireccion);
     
     let hasFieldErrors = false;
     const newFieldErrors: Record<string, string> = {};
@@ -385,7 +425,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                 categoria: catStr as any,
                 tipoCosto: 'MENSUAL',
                 cantidad: 1,
-                costoUnitario: 0,
+                costoUnitario: costoUnitario || 0,
                 precioVentaUnitario: precioVenta,
                 precioVentaOrigen: 'MANUAL',
                 itemServicio: servicioSeleccionado,
@@ -401,7 +441,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
               categoria: catStr as any,
               tipoCosto: 'MENSUAL',
               cantidad: cantidad,
-              costoUnitario: 0,
+              costoUnitario: costoUnitario || 0,
               precioVentaUnitario: precioVenta,
               precioVentaOrigen: 'MANUAL',
               itemServicio: servicioSeleccionado,
@@ -431,7 +471,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
             categoria: 'RECURSO_HUMANO',
             tipoCosto: 'MENSUAL',
             cantidad: cantidadTurnos,
-            costoUnitario: 0,
+            costoUnitario: costoUnitario || 0,
             precioVentaUnitario: precioVenta,
             precioVentaOrigen: 'MANUAL',
             itemServicio: servicioSeleccionado,
@@ -446,7 +486,46 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
         }
       }
 
+      // Auto-agregar ítems del combo si el ítem primario tiene combos definidos
+      if (hasLineaInfo && erpItem && erpItem.combosPrincipal && erpItem.combosPrincipal.length > 0 && recursosNuevos.length > 0) {
+        // El primario es siempre el primer recurso del array (para el caso de Activos, solo se enlaza al primero)
+        const primaryId = recursosNuevos[0].id;
+
+        for (const combo of erpItem.combosPrincipal) {
+          // Solo incluir combos con Incluir Nuevo activo y cantidad > 0
+          if (!combo.nuevoIncluido || Number(combo.nuevoCantidad) <= 0) continue;
+
+          const secItem = items.find(i => i.id === combo.productoSecundarioId);
+          if (!secItem) continue; // Item secundario no encontrado en el catálogo local
+
+          let secCat = 'SERVICIO';
+          if (secItem.tipoItem === 1) secCat = 'ARTICULO';
+          if (secItem.tipoItem === 3) secCat = 'EQUIPO';
+          if (secItem.tipoItem === 2) {
+            secCat = secItem.tipoServicio === 1 ? 'RECURSO_HUMANO' : 'SERVICIO';
+          }
+
+          const comboCantidad = Math.max(1, Math.round(Number(combo.nuevoCantidad) || 1));
+
+          recursosNuevos.push({
+            id: `REC-${Date.now()}-C${combo.productoSecundarioId}`,
+            itemId: secItem.id,
+            nombre: secItem.descripcion,
+            categoria: secCat as any,
+            tipoCosto: 'MENSUAL',
+            cantidad: comboCantidad,
+            costoUnitario: 0,
+            precioVentaUnitario: 0,
+            precioVentaOrigen: 'MANUAL',
+            esCombo: true,
+            comboParentId: primaryId,
+            recetas: [],
+          });
+        }
+      }
+
       if (creatingNode) {
+
         // Opción: Crear Nodo (y asignarle los recursos si los hay)
         const nuevoNodo: NodoCosteo = {
           id: `NOD-${Date.now()}`,
@@ -481,56 +560,118 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
 
   const renderBonosContent = () => (
     <div className="space-y-4 pt-2 pr-2 animate-in fade-in slide-in-from-top-2">
-      <div className="flex gap-2 items-end">
-        <div className="flex-1 flex flex-col gap-1.5">
-          <Label>Seleccionar Bono</Label>
-          <SearchableSelect
-            options={bonosDisponibles.map(b => ({ value: b.codigo, label: b.descripcion })).sort((a, b) => a.label.localeCompare(b.label))}
-            value={selectedBonoId}
-            onChange={(val) => setSelectedBonoId(val)}
-            placeholder="Seleccione..."
-          />
-        </div>
-        <div className="w-32 flex flex-col gap-1.5">
-          <Label>Precio Venta</Label>
-          <NumericInput
-            value={selectedBonoPrecio}
-            onChange={(val: number | undefined) => setSelectedBonoPrecio(val || 0)}
-            min="0"
-            className="flex h-8 w-full rounded-sm border border-slate-200 bg-transparent px-2.5 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950"
-          />
-        </div>
-        <Button 
-          type="button" 
-          variant="secondary"
-          onClick={() => {
-            if (!selectedBonoId) return;
-            const never = bonosDisponibles.find(b => b.codigo === selectedBonoId);
-            if (never) {
-              setBonosAgregados(prev => [...prev, {
-                id: crypto.randomUUID(),
-                erpBonoId: never.codigo,
-                nombre: never.descripcion,
-                costoUnitario: never.costo,
-                precioVentaUnitario: selectedBonoPrecio
-              }]);
-              setSelectedBonoId('');
-              setSelectedBonoPrecio(0);
-            }
-          }}
-          disabled={!selectedBonoId}
-        >
-          Agregar
-        </Button>
+
+      {/* Selector de bono */}
+      <div className="flex flex-col gap-1.5">
+        <Label>Seleccionar Bono</Label>
+        <SearchableSelect
+          options={bonosDisponibles.map(b => ({ value: b.codigo, label: b.descripcion })).sort((a, b) => a.label.localeCompare(b.label))}
+          value={selectedBonoId}
+          onChange={(val) => setSelectedBonoId(val)}
+          placeholder="Seleccione..."
+        />
       </div>
-      
+
+      {/* Sección FINANCIERO — siempre visible */}
+      <div className="pt-1">
+        <div className="flex items-center mb-3 min-h-[24px]">
+          <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider border-l-2 border-blue-500 pl-2 leading-none">
+            FINANCIERO
+          </h3>
+          <div className="flex-1 border-t border-blue-200 ml-3 mt-0.5" />
+        </div>
+
+        {/* Fila Venta */}
+        <div className="grid grid-cols-4 gap-4">
+          <div className="col-span-1 flex flex-col gap-1.5">
+            <Label>Precio Venta ({proyecto?.moneda || 'Q'})</Label>
+            <NumericInput
+              value={selectedBonoPrecio}
+              onChange={(val: number | undefined) => setSelectedBonoPrecio(val || 0)}
+              min="0"
+              className="flex h-8 w-full rounded-sm border border-slate-200 bg-transparent px-2.5 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950"
+            />
+            {!isEstandar && <p className="text-xs text-slate-500 italic">* Por Persona</p>}
+          </div>
+          <div className="col-span-1 flex flex-col gap-1.5">
+            <Label>SubTotal Venta</Label>
+            <input
+              type="text"
+              readOnly tabIndex={-1}
+              value={new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factorCosto * selectedBonoPrecio)}
+              className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
+            />
+          </div>
+          <div className="col-span-2" />
+        </div>
+
+        {/* Fila Costo */}
+        <div className="grid grid-cols-4 gap-4 mt-3">
+          <div className="col-span-1 flex flex-col gap-1.5">
+            <Label>Costo Unitario ({proyecto?.moneda || 'Q'})</Label>
+            {bonoSolicitaCosto ? (
+              <NumericInput
+                value={selectedBonoCosto}
+                onChange={(val: number | undefined) => setSelectedBonoCosto(val || 0)}
+                min="0"
+                className="flex h-8 w-full rounded-sm border border-indigo-300 bg-white px-2.5 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
+              />
+            ) : (
+              <input
+                type="text"
+                readOnly tabIndex={-1}
+                value={(0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
+              />
+            )}
+          </div>
+          <div className="col-span-1 flex flex-col gap-1.5">
+            <Label>SubTotal Costo</Label>
+            <input
+              type="text"
+              readOnly tabIndex={-1}
+              value={new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factorCosto * selectedBonoCosto)}
+              className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 font-bold text-red-600 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
+            />
+          </div>
+          <div className="col-span-2" />
+        </div>
+
+        {/* Botón Agregar */}
+        <div className="flex justify-end mt-3">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              const bono = bonosDisponibles.find(b => b.codigo === selectedBonoId);
+              if (bono) {
+                setBonosAgregados(prev => [...prev, {
+                  id: crypto.randomUUID(),
+                  erpBonoId: bono.codigo,
+                  nombre: bono.descripcion,
+                  costoUnitario: bonoSolicitaCosto ? selectedBonoCosto : bono.costo,
+                  precioVentaUnitario: selectedBonoPrecio,
+                }]);
+                setSelectedBonoId('');
+                setSelectedBonoPrecio(0);
+                setSelectedBonoCosto(0);
+              }
+            }}
+            disabled={!selectedBonoId}
+          >
+            Agregar Bono
+          </Button>
+        </div>
+      </div>
+
+      {/* Tabla de bonos agregados */}
       {bonosAgregados.length > 0 ? (
-        <div className="border rounded-md overflow-hidden">
+        <div className="-mt-2 border rounded-md overflow-hidden">
           <table className="w-full text-sm text-left">
             <thead className="bg-slate-50 text-slate-500 font-medium border-b">
               <tr>
                 <th className="px-3 py-2">Bono</th>
-                <th className="px-3 py-2 text-center">Personas</th>
+                <th className="px-3 py-2 text-center">Factor</th>
                 <th className="px-3 py-2 text-right">Costo</th>
                 <th className="px-3 py-2 text-right text-slate-700 font-semibold bg-slate-100">Total Costo</th>
                 <th className="px-3 py-2 text-right">Precio</th>
@@ -540,13 +681,12 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
             </thead>
             <tbody className="divide-y">
               {bonosAgregados.map((b, idx) => {
-                const factor = isEstandar ? (cantidad || 1) : ((cantidadTurnos || 1) * (turnoSeleccionado?.personas || 1));
-                const costoTotal = (b.costoUnitario || 0) * factor;
-                const ventaTotal = (b.precioVentaUnitario || 0) * factor;
+                const costoTotal = (b.costoUnitario || 0) * factorCosto;
+                const ventaTotal = (b.precioVentaUnitario || 0) * factorCosto;
                 return (
                   <tr key={idx} className="bg-white hover:bg-slate-50">
                     <td className="px-3 py-2">{b.nombre}</td>
-                    <td className="px-3 py-2 text-center text-slate-500">{factor}</td>
+                    <td className="px-3 py-2 text-center text-slate-500">{factorCosto}</td>
                     <td className="px-3 py-2 text-right text-slate-500">{b.costoUnitario.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
                     <td className="px-3 py-2 text-right text-slate-700 font-semibold bg-slate-100">{costoTotal.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
                     <td className="px-3 py-2 text-right text-slate-500">{(b.precioVentaUnitario || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</td>
@@ -572,7 +712,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<button className="p-1 hover:bg-slate-200 rounded text-slate-500" title={level === 1 ? `Agregar a Proyecto` : `Agregar a ${parentName || 'Nodo'}`} />}>
+      <DialogTrigger render={<button className="p-1 hover:bg-slate-200 rounded text-slate-500" title={level === 1 ? `Agregar Sitio` : `Agregar a ${parentName || 'Nodo'}`} />}>
         <Plus className="w-4 h-4" />
       </DialogTrigger>
       <DialogContent className={cn(!isLineLevel ? "sm:max-w-[1200px] w-[95vw]" : "sm:max-w-[1000px] w-[95vw]", "h-[90vh] sm:h-[600px] flex flex-col")}>
@@ -607,7 +747,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                   title={hasDireccion && !isNewAddress && !!direccionSecuencia ? "El nombre proviene de la dirección operativa seleccionada" : undefined}
                 />
 
-                {fieldErrors.nombre && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.nombre}</p>}
+                {fieldErrors.nombre && <FieldError message={fieldErrors.nombre} />}
               </div>
               
               {hasDireccion && (
@@ -667,7 +807,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                       aria-invalid={!!fieldErrors.direccion}
                       readOnly={!isNewAddress}
                     />
-                    {fieldErrors.direccion && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.direccion}</p>}
+                    {fieldErrors.direccion && <FieldError message={fieldErrors.direccion} />}
                   </div>
     
                   <div className="flex flex-col gap-1.5">
@@ -697,7 +837,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                       placeholder="Seleccione..."
                       error={!!fieldErrors.departamento}
                     />
-                    {fieldErrors.departamento && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.departamento}</p>}
+                    {fieldErrors.departamento && <FieldError message={fieldErrors.departamento} />}
                   </div>
   
                   <div className="flex flex-col gap-1.5">
@@ -717,7 +857,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                       placeholder="Seleccione..."
                       error={!!fieldErrors.municipio}
                     />
-                    {fieldErrors.municipio && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.municipio}</p>}
+                    {fieldErrors.municipio && <FieldError message={fieldErrors.municipio} />}
                   </div>
                 </div>
               </div>
@@ -737,7 +877,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                 <>
                   <SearchableSelect
                     id="field-selectedItemId"
-                    options={items.map(item => ({
+                    options={items.filter(item => item.tipoItem !== 5).map(item => ({
                       value: item.id.toString(),
                       label: `${item.codigoErp || item.id} - ${item.descripcion}`
                     })).sort((a, b) => a.label.localeCompare(b.label))}
@@ -750,7 +890,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                     placeholder={`Selecciona un Registro`}
                     error={!!fieldErrors.selectedItemId}
                   />
-                  {fieldErrors.selectedItemId && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.selectedItemId}</p>}
+                  {fieldErrors.selectedItemId && <FieldError message={fieldErrors.selectedItemId} />}
                 </>
               )}
               </div>
@@ -785,7 +925,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                             fieldErrors.cantidad ? "border-red-500 focus-visible:ring-red-500" : "border-slate-200 focus-visible:ring-slate-950"
                           )}
                         />
-                        {fieldErrors.cantidad && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.cantidad}</p>}
+                        {fieldErrors.cantidad && <FieldError message={fieldErrors.cantidad} />}
                       </div>
                       <div className="flex flex-col gap-1.5">
                         <Label>
@@ -827,7 +967,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                           placeholder="Seleccione..."
                           error={!!fieldErrors.turnoCodigo}
                         />
-                        {fieldErrors.turnoCodigo && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.turnoCodigo}</p>}
+                        {fieldErrors.turnoCodigo && <FieldError message={fieldErrors.turnoCodigo} />}
                       </div>
                     </div>
                   )}
@@ -852,7 +992,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                           placeholder="Seleccione..."
                           error={!!fieldErrors.cubreDescanso}
                         />
-                        {fieldErrors.cubreDescanso && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.cubreDescanso}</p>}
+                        {fieldErrors.cubreDescanso && <FieldError message={fieldErrors.cubreDescanso} />}
                       </div>
   
                       <div className="col-span-1 flex flex-col gap-1">
@@ -868,142 +1008,141 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                           placeholder="Seleccione..."
                           error={!!fieldErrors.uniformeCodigo}
                         />
-                        {fieldErrors.uniformeCodigo && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.uniformeCodigo}</p>}
+                        {fieldErrors.uniformeCodigo && <FieldError message={fieldErrors.uniformeCodigo} />}
                       </div>
                     </>
                   )}
+                         </div>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <div className="flex items-center mb-3 min-h-[24px]">
+                  <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider border-l-2 border-blue-500 pl-2 leading-none">
+                    FINANCIERO
+                  </h3>
+                  <div className="flex-1 border-t border-blue-200 ml-3 mt-0.5"></div>
+                </div>
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="col-span-1 flex flex-col gap-1.5">
+                    <Label>Precio Venta ({proyecto?.moneda || 'Q'})</Label>
+                    <NumericInput
+                      id="field-precioVenta"
+                      value={precioVenta ?? 0}
+                      onChange={(val: number | undefined) => { setPrecioVenta(val); setFieldErrors(prev => ({ ...prev, precioVenta: '' })); }}
+                      min="0"
+                      className={cn(
+                        "flex h-8 w-full rounded-sm border bg-transparent px-2.5 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-50",
+                        fieldErrors.precioVenta ? "border-red-500 focus-visible:ring-red-500" : "border-slate-200 focus-visible:ring-slate-950"
+                      )}
+                    />
+                    {fieldErrors.precioVenta && <FieldError message={fieldErrors.precioVenta} />}
+                    {!isEstandar && <p className="text-xs text-slate-500 italic">* Por Persona</p>}
+                  </div>
+                  <div className="col-span-1 flex flex-col gap-1.5">
+                    <Label>SubTotal Venta</Label>
+                    <input
+                      type="text"
+                      value={new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factorCosto * (precioVenta || 0))}
+                      readOnly tabIndex={-1}
+                      className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
+                    />
+                  </div>
+                  <div className="col-span-1 flex flex-col gap-1.5">
+                    <Label>Bonos Venta</Label>
+                    <input
+                      type="text"
+                      value={(() => {
+                        const bonosTotal = bonosAgregados.reduce((sum, b) => sum + (b.precioVentaUnitario || 0), 0);
+                        return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factorCosto * bonosTotal);
+                      })()}
+                      readOnly tabIndex={-1}
+                      className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
+                    />
+                  </div>
+                  <div className="col-span-1 flex flex-col gap-1.5">
+                    <Label>Total Venta</Label>
+                    <input
+                      type="text"
+                      value={(() => {
+                        const subtotal = factorCosto * (precioVenta || 0);
+                        const bonosTotal = factorCosto * bonosAgregados.reduce((sum, b) => sum + (b.precioVentaUnitario || 0), 0);
+                        return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(subtotal + bonosTotal);
+                      })()}
+                      readOnly tabIndex={-1}
+                      className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 font-bold text-blue-700 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
+                    />
                   </div>
                 </div>
-                  </div>
 
-                <div className="pt-2">
-                  <div className="flex items-center mb-3 min-h-[24px]">
-                    <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider border-l-2 border-blue-500 pl-2 leading-none">
-                      FINANCIERO
-                    </h3>
-                    <div className="flex-1 border-t border-blue-200 ml-3 mt-0.5"></div>
-                  </div>
-                  <div className="grid grid-cols-4 gap-4">
-                    <div className="col-span-1 flex flex-col gap-1.5">
-                      <Label>Precio Venta ({proyecto?.moneda || 'Q'})</Label>
+                <div className="grid grid-cols-4 gap-4 mt-4">
+                  <div className="col-span-1 flex flex-col gap-1.5">
+                    <Label>Costo Un. ({proyecto?.moneda || 'Q'})</Label>
+                    {solicitarCosto ? (
                       <NumericInput
-                        id="field-precioVenta"
-                        value={precioVenta ?? 0}
-                        onChange={(val: number | undefined) => { setPrecioVenta(val); setFieldErrors(prev => ({ ...prev, precioVenta: '' })); }}
+                        value={costoUnitario}
+                        onChange={(val) => setCostoUnitario(val)}
                         min="0"
-                        className={cn(
-                          "flex h-8 w-full rounded-sm border bg-transparent px-2.5 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-50",
-                          fieldErrors.precioVenta ? "border-red-500 focus-visible:ring-red-500" : "border-slate-200 focus-visible:ring-slate-950"
-                        )}
+                        className="flex h-8 w-full rounded-sm border border-indigo-300 bg-white px-2.5 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
                       />
-                      {fieldErrors.precioVenta && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.precioVenta}</p>}
-                      {!isEstandar && <p className="text-xs text-slate-500 italic">* Por Persona</p>}
-                    </div>
-                    <div className="col-span-1 flex flex-col gap-1.5">
-                      <Label>SubTotal Venta</Label>
-                      <input
-                        type="text"
-                        value={(() => {
-                          const factor = isEstandar ? (cantidad || 1) : ((cantidadTurnos || 1) * (turnoSeleccionado?.personas || 1));
-                          return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factor * (precioVenta || 0));
-                        })()}
-                        readOnly tabIndex={-1}
-                        className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
-                      />
-                    </div>
-                    <div className="col-span-1 flex flex-col gap-1.5">
-                      <Label>Bonos Venta</Label>
-                      <input
-                        type="text"
-                        value={(() => {
-                          const factor = isEstandar ? (cantidad || 1) : ((cantidadTurnos || 1) * (turnoSeleccionado?.personas || 1));
-                          const bonosTotal = bonosAgregados.reduce((sum, b) => sum + (b.precioVentaUnitario || 0), 0);
-                          return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factor * bonosTotal);
-                        })()}
-                        readOnly tabIndex={-1}
-                        className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
-                      />
-                    </div>
-                    <div className="col-span-1 flex flex-col gap-1.5">
-                      <Label>Total Venta</Label>
-                      <input
-                        type="text"
-                        value={(() => {
-                          const factor = isEstandar ? (cantidad || 1) : ((cantidadTurnos || 1) * (turnoSeleccionado?.personas || 1));
-                          const subtotal = factor * (precioVenta || 0);
-                          const bonosTotal = factor * bonosAgregados.reduce((sum, b) => sum + (b.precioVentaUnitario || 0), 0);
-                          return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(subtotal + bonosTotal);
-                        })()}
-                        readOnly tabIndex={-1}
-                        className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 font-bold text-blue-700 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-4 gap-4 mt-4">
-                    <div className="col-span-1 flex flex-col gap-1.5">
-                      <Label>Costo Un. ({proyecto?.moneda || 'Q'})</Label>
+                    ) : (
                       <input
                         type="text"
                         value={(0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                         readOnly tabIndex={-1}
                         className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
                       />
-                    </div>
-                    <div className="col-span-1 flex flex-col gap-1.5">
-                      <Label>SubTotal Costo</Label>
-                      <input
-                        type="text"
-                        value={(() => {
-                          const factor = isEstandar ? (cantidad || 1) : ((cantidadTurnos || 1) * (turnoSeleccionado?.personas || 1));
-                          return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factor * 0);
-                        })()}
-                        readOnly tabIndex={-1}
-                        className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
-                      />
-                    </div>
-                    <div className="col-span-1 flex flex-col gap-1.5">
-                      <Label>Bonos Costo</Label>
-                      <input
-                        type="text"
-                        value={(() => {
-                          const factor = isEstandar ? (cantidad || 1) : ((cantidadTurnos || 1) * (turnoSeleccionado?.personas || 1));
-                          const bonosTotal = bonosAgregados.reduce((sum, b) => sum + (b.costoUnitario || 0), 0);
-                          return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factor * bonosTotal);
-                        })()}
-                        readOnly tabIndex={-1}
-                        className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
-                      />
-                    </div>
-                    <div className="col-span-1 flex flex-col gap-1.5">
-                      <Label>Total Costo</Label>
-                      <input
-                        type="text"
-                        value={(() => {
-                          const factor = isEstandar ? (cantidad || 1) : ((cantidadTurnos || 1) * (turnoSeleccionado?.personas || 1));
-                          const subtotal = factor * 0;
-                          const bonosTotal = factor * bonosAgregados.reduce((sum, b) => sum + (b.costoUnitario || 0), 0);
-                          return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(subtotal + bonosTotal);
-                        })()}
-                        readOnly tabIndex={-1}
-                        className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 font-bold text-red-600 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
-                      />
-                    </div>
+                    )}
                   </div>
+                  <div className="col-span-1 flex flex-col gap-1.5">
+                    <Label>SubTotal Costo</Label>
+                    <input
+                      type="text"
+                      value={new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factorCosto * (costoUnitario || 0))}
+                      readOnly tabIndex={-1}
+                      className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
+                    />
+                  </div>
+                  <div className="col-span-1 flex flex-col gap-1.5">
+                    <Label>Bonos Costo</Label>
+                    <input
+                      type="text"
+                      value={(() => {
+                        const bonosTotal = bonosAgregados.reduce((sum, b) => sum + (b.costoUnitario || 0), 0);
+                        return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factorCosto * bonosTotal);
+                      })()}
+                      readOnly tabIndex={-1}
+                      className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
+                    />
+                  </div>
+                  <div className="col-span-1 flex flex-col gap-1.5">
+                    <Label>Total Costo</Label>
+                    <input
+                      type="text"
+                      value={(() => {
+                        const subtotal = factorCosto * (costoUnitario || 0);
+                        const bonosTotal = factorCosto * bonosAgregados.reduce((sum, b) => sum + (b.costoUnitario || 0), 0);
+                        return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(subtotal + bonosTotal);
+                      })()}
+                      readOnly tabIndex={-1}
+                      className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 font-bold text-red-600 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
+                    />
                   </div>
                 </div>
+              </div>
+            </div>
               );
 
               return !isEstandar ? (
                 <div className="flex-1 flex flex-col min-h-0 animate-in fade-in slide-in-from-top-2">
                   <Tabs defaultValue="general" className="w-full flex-1 flex flex-col min-h-0">
-                    <TabsList variant="line" className="mb-2 shrink-0">
-                      <TabsTrigger value="general">General</TabsTrigger>
+                    <TabsList variant="line" className="mb-4 shrink-0">
+                      <TabsTrigger value="general"><Settings2 className="w-4 h-4 mr-2" />General</TabsTrigger>
                       <TabsTrigger value="bonos">
-                        Bonos {bonosAgregados.length > 0 && `(${bonosAgregados.length})`}
+                        <Gift className="w-4 h-4 mr-2" />Bonos {bonosAgregados.length > 0 && `(${bonosAgregados.length})`}
                       </TabsTrigger>
                     </TabsList>
-                    <TabsContent value="general" className="flex-1 overflow-visible outline-none">
+                    <TabsContent value="general" keepMounted className="flex-1 overflow-visible outline-none">
                       {generalContent}
                     </TabsContent>
                     <TabsContent value="bonos" className="flex-1 overflow-visible outline-none">
@@ -1020,7 +1159,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
           </div>
         </div>
 
-        <div className="mt-auto flex justify-end gap-3 pt-4 border-t shrink-0">
+        <div className="flex justify-end gap-3 px-6 py-4 border-t bg-slate-50 sm:rounded-b-xl shrink-0">
           <Button 
             variant="outline"
             onClick={() => setOpen(false)}
@@ -1049,3 +1188,4 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
     </Dialog>
   );
 }
+

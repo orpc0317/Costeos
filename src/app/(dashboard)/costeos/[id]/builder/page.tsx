@@ -80,6 +80,8 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
           horasSemana: r.horasSemana || 0,
           recetas: [],
           bonos: r.bonos ? (typeof r.bonos === 'string' ? JSON.parse(r.bonos) : r.bonos) : [],
+          esCombo: !!r.comboParentId,
+          comboParentId: r.comboParentId?.toString() ?? undefined,
         })),
         nodos: buildNodoTree(n.id)
       }));

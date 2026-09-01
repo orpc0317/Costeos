@@ -26,50 +26,90 @@ export async function createCosteo(formData: FormData) {
   const userId = parseInt(session.user.id as string, 10)
 
   const result = await prisma.$transaction(async (tx) => {
+    // Parsear datos del cliente (puede incluir fuente/clienteLocalId del nuevo wizard)
+    const clienteData: {
+      fuente?: 'LOCAL' | 'ERP'
+      clienteLocalId?: number
+      id?: string           // codigoErp en el ERP
+      codigo?: string
+      nit: string
+      razonSocial: string
+      direccion?: string
+      departamentoId?: number
+      municipioId?: number
+      diasCredito?: number
+    } = JSON.parse(erpClienteDataStr)
+
+    const empresaIdNum = parseInt(formData.get('empresa') as string || '0', 10)
+
     let clienteLocal
-    
-    if (isNewClient) {
+
+    if (clienteData.fuente === 'LOCAL' && clienteData.clienteLocalId) {
+      // ── Cliente ya existe en Costeos — ir directo por ID ──────────────────────
+      // No hay nada que crear. El registro ya está completo en la BD local.
+      clienteLocal = await tx.cliente.findUnique({ where: { id: clienteData.clienteLocalId } })
+      if (!clienteLocal) throw new Error('Cliente local no encontrado')
+
+    } else if (isNewClient) {
+      // ── Cliente nuevo (digitado manualmente) ─────────────────────────────────
       const codigoTemp = `TEMP-${Date.now()}`
       clienteLocal = await tx.cliente.create({
         data: {
-          codigoTemp: codigoTemp,
-          nit: erpCliente.nit,
-          razonSocial: erpCliente.razonSocial,
-          direccionFiscal: erpCliente.direccion,
+          empresaId:       empresaIdNum,
+          codigoTemp:      codigoTemp,
+          nit:             clienteData.nit,
+          razonSocial:     clienteData.razonSocial,
+          direccionFiscal: clienteData.direccion ?? null,
         }
       })
+
     } else {
-      clienteLocal = await tx.cliente.findFirst({
-        where: { codigoErp: erpCliente.id ?? null }
-      })
+      // ── Cliente del ERP: buscar o crear por codigoErp ─────────────────────────
+      const codigoErp = clienteData.id ?? clienteData.codigo ?? null
+
+      clienteLocal = codigoErp
+        ? await tx.cliente.findFirst({ where: { codigoErp, empresaId: empresaIdNum } })
+        : null
 
       if (!clienteLocal) {
+        // Crear en Costeos con todos los datos disponibles del ERP
         clienteLocal = await tx.cliente.create({
           data: {
-            codigoErp: erpCliente.id ?? null,
-            nit: erpCliente.nit,
-            razonSocial: erpCliente.razonSocial,
-            direccionFiscal: erpCliente.direccion,
+            empresaId:               empresaIdNum,                      // P1: asignar empresa
+            codigoErp:               codigoErp,
+            nit:                     clienteData.nit,
+            razonSocial:             clienteData.razonSocial,
+            direccionFiscal:         clienteData.direccion ?? null,
+            direccionPaisId:         1,                                 // P2: Guatemala
+            direccionDepartamentoId: clienteData.departamentoId ?? 0,   // P2: del ERP
+            direccionMunicipioId:    clienteData.municipioId ?? 0,      // P2: del ERP
+            diasCredito:             clienteData.diasCredito ?? 0,      // P2: del ERP
+            sincronizadoEn:          new Date(),                        // marca importación ERP
           }
         })
       } else {
+        // Actualizar con datos frescos del ERP (sincronización)
         clienteLocal = await tx.cliente.update({
           where: { id: clienteLocal.id },
           data: {
-            nit: erpCliente.nit,
-            razonSocial: erpCliente.razonSocial,
-            direccionFiscal: erpCliente.direccion,
+            nit:                     clienteData.nit,
+            razonSocial:             clienteData.razonSocial,
+            direccionFiscal:         clienteData.direccion ?? null,
+            // Solo actualizar geo si el ERP trae datos (no pisar datos locales con 0)
+            ...(clienteData.departamentoId ? { direccionDepartamentoId: clienteData.departamentoId } : {}),
+            ...(clienteData.municipioId    ? { direccionMunicipioId:    clienteData.municipioId }    : {}),
+            ...(clienteData.diasCredito != null ? { diasCredito: clienteData.diasCredito }           : {}),
+            sincronizadoEn: new Date(),
           }
         })
       }
     }
 
-    const empresaId = formData.get('empresa') as string
-    
+
     const contrato = await tx.contrato.create({
       data: {
         clienteId: clienteLocal.id,
-        empresaId: empresaId ? parseInt(empresaId, 10) : 1,
+        empresaId: empresaIdNum,
         numero: `TEMP-${Date.now()}`,
         nombre: nombreProyecto,
         fechaInicio: new Date(),

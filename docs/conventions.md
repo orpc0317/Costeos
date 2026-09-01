@@ -428,7 +428,50 @@ Clases clave: `border-t bg-slate-50 sm:rounded-b-xl shrink-0`. El `shrink-0` evi
 - `className="mb-4 shrink-0"` siempre.
 - Cada `TabsTrigger` lleva ícono de `lucide-react` (`w-4 h-4 mr-2`) a la izquierda del texto.
 - Siempre existe la pestaña `"general"` como pestaña inicial.
-- Si hay error de validación con `field` retornado del servidor → navegar a la pestaña que contiene ese campo + enfocar el input: `setTimeout(() => document.getElementById(id)?.focus(), 100)`.
+
+### 5.1 R20 — Navegación Automática a la Tab con Error
+
+**Regla obligatoria:** En todo modal con pestañas, al guardar y detectar un error de campo (ya sea local o del servidor), el sistema **DEBE** navegar automáticamente a la pestaña que contiene ese campo. El usuario nunca debe tener que adivinar dónde está el error.
+
+**Patrón de implementación:**
+
+```tsx
+// 1. Definir el mapa campo → tab (ajustar según las pestañas del modal)
+const CAMPOS_POR_TAB: Record<string, string> = {
+  // Tab "general" es el default — no necesita listarse
+  // Solo listar los campos que NO están en "general":
+  tipoItem:        'parametros',
+  tipoServicio:    'parametros',
+  precioVentaCero: 'parametros',
+  // ... otros campos de otras tabs
+}
+
+// 2. Función utilitaria (declarar dentro del componente)
+const irATabConError = (campo: string) => {
+  setActiveTab(CAMPOS_POR_TAB[campo] ?? 'general')
+}
+
+// 3. Llamar en los 3 puntos donde se setean fieldErrors:
+
+// A) Validaciones locales (antes del submit)
+setFieldErrors(errors)
+if (Object.keys(errors).length > 0) {
+  irATabConError(Object.keys(errors)[0])  // primer campo con error
+  return
+}
+
+// B) Error de campo retornado por el servidor (res.field)
+if (!res.ok && res.field) {
+  setFieldErrors(prev => ({ ...prev, [res.field!]: res.error }))
+  irATabConError(res.field)
+}
+
+// C) Error de negocio post-validación (ej. duplicado exacto detectado vía search)
+setFieldErrors(prev => ({ ...prev, descripcion: 'Ya existe...' }))
+irATabConError('descripcion')
+```
+
+**Implementación de referencia:** [`item-modal.tsx`](file:///c:/Proyectos/Costeos/src/components/items/item-modal.tsx) — buscar `irATabConError`.
 
 ---
 
@@ -561,60 +604,77 @@ El componente `<SearchableSelect>` soporta la prop `searchable` (default `true`)
 
 ### 7.5 Detección de Similares / Anti-duplicados (R18)
 
-**Regla:** En toda pantalla de catálogo que tenga un campo Nombre o Descripción libre, se debe verificar si existe un registro similar antes de guardar. El objetivo es minimizar la creación de duplicados.
+**Regla:** En toda pantalla CRUD que tenga un campo Nombre o Descripción libre, se debe verificar si existe un registro similar antes de guardar. El objetivo es minimizar duplicados sin impedir trabajo legítimo.
 
-#### Alcance por Empresa
-
-> **CRÍTICO:** La comparación de similitud se realiza **únicamente contra registros de la misma empresa**. Dos empresas distintas SÍ pueden tener registros con nombres iguales o similares — eso es válido y no debe generar advertencia.
-
-El `empresaId` debe siempre filtrarse antes de comparar:
-
-```typescript
-// ✅ CORRECTO — filtrar por empresa antes de comparar
-const deEmpresa = todos
-  .filter(i => i.empresaId === empresaId)  // ← OBLIGATORIO
-  .map(i => ({ id: i.id, descripcion: i.descripcion }))
-return detectarSimilares(descripcion, deEmpresa, 0.85, excluirId)
-
-// ❌ INCORRECTO — comparar contra toda la BD mezclaría empresas
-return detectarSimilares(descripcion, todos, 0.85, excluirId)
-```
-
-#### Cuándo Activar la Validación
-
-- Al intentar **Guardar** un registro nuevo o editado (no en onBlur, no en onChange).
-- Solo para campos de texto libre (Nombre, Descripción). No aplica a códigos, IDs ni campos codificados.
-- Solo en catálogos propios de Costeos. No aplica a búsquedas de ítems dentro de costeos (allí la lista puede ser enorme y la búsqueda es intencional).
-
-#### Comportamiento Esperado
+#### Comportamiento Estándar (dos niveles)
 
 | Situación | Acción |
 |---|---|
-| No se encuentran similares (< 85%) | Guardar procede normalmente |
-| Se encuentran similares (≥ 85%) | Se muestra advertencia con la lista y porcentaje. El guardado se **detiene**. |
-| Porcentaje 100% (texto idéntico) | El porcentaje aparece en **rojo** |
-| Usuario acepta igualmente | Clic en "Sí, guardar de todas formas" → guarda sin re-verificar |
-| Usuario cancela | Clic en "Cancelar" → cierra la advertencia para corregir el nombre |
+| Sin similares (< 85%) | Guarda sin interrupciones |
+| **Similares (≥ 85%, < 100%)** | ⚠️ **Warning**: muestra panel amarillo con lista y % — el usuario **puede guardar de todas formas** |
+| **100% idéntico** | 🚫 **Bloqueado**: error de campo en rojo debajo del input — no puede guardar |
+
+> **Justificación:** Existen ítems legítimos que difieren por una letra, número o sufijo (A/B/C). El sistema advierte pero respeta la decisión del usuario para casos como "JEFE GRUPO A" vs "JEFE GRUPO B".
+
+#### Flujo para Creación (2 pasos)
+
+1. **Paso 1 — Búsqueda previa:** Antes de mostrar el formulario completo, solicitar empresa + nombre mínimo y buscar similares. Si hay 100% → bloquear. Si hay similares → mostrarlos y permitir continuar o seleccionar uno existente (ej. del ERP). Si no hay → ir directo al formulario.
+2. **Paso 2 — Formulario:** El nombre ya fue validado en Paso 1, no se re-verifica al guardar (a menos que el campo sea editable en Paso 2).
+
+#### Flujo para Edición
+
+En `handleSave`, después de validaciones locales y **antes** de llamar al service:
+
+```ts
+// 1. Duplicado exacto → bloquear con error de campo
+const duplicadoExacto = found.find(s => s.pct === 100 && s.id !== entidad?.id)
+if (duplicadoExacto) {
+  setFieldErrors(prev => ({ ...prev, nombre: `Ya existe: "${duplicadoExacto.descripcion}"` }))
+  irATabConError('nombre')   // R20
+  return
+}
+
+// 2. Similares → warning, usuario decide
+if (found.length > 0) {
+  setSimilares(found)
+  irATabConError('nombre')   // R20 — navegar al tab con el panel de warning
+  return
+}
+```
+
+#### Alcance por Empresa
+
+> **CRÍTICO:** La comparación se realiza **únicamente contra registros de la misma empresa**. Dos empresas distintas SÍ pueden tener nombres iguales — eso es válido y NO genera advertencia.
+
+```typescript
+// ✅ CORRECTO — siempre filtrar por empresa antes de comparar
+const deEmpresa = todos
+  .filter(r => r.empresaId === empresaId)
+  .map(r => ({ id: r.id, descripcion: r.nombre }))
+return detectarSimilares(nombre, deEmpresa, 0.85, excluirId)
+```
 
 #### Algoritmo
 
-Ubicado en `src/lib/utils/similarity.ts`. Combina dos estrategias y toma el máximo:
+`src/lib/utils/similarity.ts` — combina dos estrategias y toma el máximo:
 
 1. **Levenshtein normalizado** sobre el texto completo.
-2. **Levenshtein normalizado** sobre el texto **sin stopwords** (preposiciones y artículos del español: `DE`, `DEL`, `LA`, `EL`, `LOS`, `CON`, `POR`, etc.).
+2. **Levenshtein normalizado** sobre el texto **sin stopwords** (`DE`, `DEL`, `LA`, `EL`, `LOS`, `CON`, `POR`...).
 
-Esto permite detectar variantes semánticas:
 ```
-"JEFE DE GRUPO"  vs  "JEFE GRUPO"  →  100% (idénticos sin stopwords)
-"COORDINADOR DE AREA"  vs  "COORDINADOR AREA"  →  100%
+"JEFE DE GRUPO"  vs  "JEFE GRUPO"   →  100% (idénticos sin stopwords) → bloquea
+"JEFE GRUPO A"   vs  "JEFE GRUPO B" →  ~91% → warning, usuario decide ✅
+"JEFE GRUPO A"   vs  "JEFE DE GRUPO"→  ~88% → warning, usuario decide ✅
 ```
 
-El umbral es **85%** por defecto. Al editar, se excluye el propio registro de la comparación (`excluirId`).
+> ⚠️ `'A'` y `'O'` **no son stopwords** en este contexto — en nombres de ítems actúan como diferenciadores (`GRUPO A`, `GRUPO B`, `TIPO O`), no como preposiciones.
 
-#### Implementación Estándar
+Umbral: **85%**. Al editar, se excluye el propio registro (`excluirId`).
+
+#### Implementación — Server Action
 
 ```typescript
-// server action (actions/mi-entidad.ts)
+// src/app/actions/mi-entidad.ts
 export async function buscarMiEntidadSimilares(
   nombre: string,
   empresaId: number,
@@ -624,52 +684,80 @@ export async function buscarMiEntidadSimilares(
   if (!guard.ok) return []
   const todos = await MiEntidadRepository.findAll()
   const deEmpresa = todos
-    .filter(r => r.empresaId === empresaId)  // ← siempre filtrar por empresa
+    .filter(r => r.empresaId === empresaId)
     .map(r => ({ id: r.id, descripcion: r.nombre }))
   return detectarSimilares(nombre, deEmpresa, 0.85, excluirId)
 }
 ```
 
+#### Implementación — Modal (handleSave)
+
 ```typescript
-// En el modal (components/mi-entidad/mi-entidad-modal.tsx)
 const [similares, setSimilares] = useState<SimilarItem[]>([])
 
-// doSave() — lógica pura de guardado, sin verificación de similares
 const doSave = async () => { /* crearMiEntidad / actualizarMiEntidad */ }
 
-// handleSave — verifica similares PRIMERO
 const handleSave = async (e: React.FormEvent) => {
   e.preventDefault()
   setSimilares([])
   // ... validaciones de campo ...
 
-  // Verificar similares
-  const found = await buscarMiEntidadSimilares(normalizeText(nombre), parseInt(empresa, 10), miEntidad?.id)
-  if (found.length > 0) { setSimilares(found); return }
+  const found = await buscarMiEntidadSimilares(normalizeText(nombre), parseInt(empresa, 10), entidad?.id)
+
+  // 100% → bloquear
+  const exacto = found.find(s => s.pct === 100)
+  if (exacto) {
+    setFieldErrors(prev => ({ ...prev, nombre: `Ya existe: "${exacto.descripcion}"` }))
+    irATabConError('nombre')
+    return
+  }
+
+  // Similares → advertir
+  if (found.length > 0) {
+    setSimilares(found)
+    irATabConError('nombre')
+    return
+  }
 
   await doSave()
 }
 ```
 
+#### Implementación — Panel de Warning (JSX)
+
+Colocar inmediatamente debajo del `<FieldError>` del campo nombre:
+
 ```tsx
-{/* JSX del aviso — debajo del input de Nombre/Descripción */}
 {similares.length > 0 && mode === 'edit' && (
   <div className="mt-1 rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
     <p className="text-xs font-semibold text-amber-800">
-      ⚠️ Se encontraron {similares.length} registro(s) similar(es) — ¿Desea guardar de todas formas?
+      ⚠️ Advertencia — Nombre similar a {similares.length} registro{similares.length > 1 ? 's' : ''} existente{similares.length > 1 ? 's' : ''}
     </p>
-    <ul className="space-y-1">
-      {similares.map(s => (
-        <li key={s.id} className="flex justify-between text-xs text-amber-900">
-          <span className="font-mono">{s.descripcion}</span>
-          <span className={`font-bold ml-2 ${s.pct === 100 ? 'text-red-600' : 'text-amber-700'}`}>{s.pct}%</span>
-        </li>
-      ))}
-    </ul>
-    <div className="flex gap-3 pt-1">
+    <p className="text-xs text-amber-700">
+      Verifique que no sea un error de tipeo. Si son registros distintos, puede guardar de todas formas.
+    </p>
+    <table className="w-full text-xs">
+      <thead>
+        <tr className="text-amber-700 border-b border-amber-200">
+          <th className="text-left pb-1 font-semibold">Nombre existente</th>
+          <th className="text-center pb-1 font-semibold w-14">Sim.</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-amber-100">
+        {similares.map((s, idx) => (
+          <tr key={idx}>
+            <td className="font-mono py-1 pr-2 text-amber-900">{s.descripcion}</td>
+            <td className="text-center">
+              <span className={`font-bold ${s.pct === 100 ? 'text-red-600' : 'text-amber-700'}`}>{s.pct}%</span>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    <div className="flex gap-3 pt-1 border-t border-amber-200">
       <button type="button" onClick={() => { setSimilares([]); doSave() }}
         className="text-xs bg-amber-700 text-white px-3 py-1 rounded hover:bg-amber-800 font-medium">
-        Sí, guardar de todas formas
+        Guardar de todas formas
       </button>
       <button type="button" onClick={() => setSimilares([])}
         className="text-xs text-amber-800 underline hover:text-amber-900">
@@ -680,12 +768,16 @@ const handleSave = async (e: React.FormEvent) => {
 )}
 ```
 
-#### Pantallas que ya tienen R18 implementado
+#### Pantallas con R18
 
-| Pantalla | Campo verificado | Scope |
-|---|---|---|
-| Items (`item-modal.tsx`) | Descripción | Por empresa |
-| Categorias (`categoria-modal.tsx`) | Nombre | Por empresa |
+| Pantalla | Campo verificado | Scope | Estado |
+|---|---|---|---|
+| `item-modal.tsx` | `descripcion` | Por empresa + ERP | ✅ Implementado (referencia) |
+| `categoria-modal.tsx` | `nombre` | Por empresa | ✅ Implementado |
+| `cliente-modal.tsx` | `nombre` | Por empresa + ERP | ✅ Implementado |
+| `empresa-modal.tsx` | `nombre` | Global | ✅ Implementado |
+| `tipo-costeo-dialog.tsx` | `nombre` | Por empresa | ✅ Implementado |
+| `usuario-dialog.tsx` | N/A | — | ❌ No aplica (unicidad por email) |
 
 ---
 
@@ -712,6 +804,17 @@ import { FieldError } from '@/components/ui/field-error'
 | Validación local (campo vacío, formato) | `errors.campo = 'Requerido'` → `setFieldErrors(errors)` |
 | Servidor / base de datos | `res.field` + `res.error` → `setFieldErrors({ [res.field]: res.error })` |
 | ERP u otro servicio externo | Dentro del handler del lookup → `setFieldErrors(prev => ({ ...prev, campo: 'Mensaje' }))` |
+
+- La verificación se dispara **al guardar**, no en `onBlur`/`onChange`.
+- **Solo se verifica si el campo de nombre/descripción cambió** respecto al valor guardado. Si el usuario modifica otro campo (combo, parámetros, etc.) sin tocar el nombre, se guarda directo sin ninguna verificación de similares. Patrón obligatorio:
+  ```ts
+  const nombreNormalizado = normalizeText(nombre)
+  const nombreOriginal    = entidad?.nombre ?? ''
+  if (!entidad || nombreNormalizado !== nombreOriginal) {
+    // ... verificar similares
+  }
+  await doSave()
+  ```
 
 **Regla de preservación al guardar:** Al ejecutar `handleSave`, NO limpiar `fieldErrors` con `setFieldErrors({})` al inicio. En cambio, construir los errores de validación local Y preservar errores de servicios externos que ya estén en `fieldErrors`:
 

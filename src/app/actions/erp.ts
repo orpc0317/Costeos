@@ -3,6 +3,8 @@
 import { requireAuth } from '@/lib/auth-helpers'
 import { getUsuarioErp } from '@/lib/auth-helpers'
 import { erp } from '@/lib/erp'
+import { prisma } from '@/lib/prisma'
+import type { ErpCliente } from '@/lib/erp'
 
 /**
  * erp.ts — Server Actions para consultas al ERP externo.
@@ -20,11 +22,117 @@ export async function getEmpresasForUser() {
   return erp.getEmpresas(usuarioErp.usuarioErp)
 }
 
-export async function searchClientes(empresaId: number, busqueda: string) {
+/**
+ * Retorna todas las empresas del sistema (desde Prisma) con su flag
+ * de sincronización de clientes con ERP. Usado en el wizard Nuevo Costeo.
+ */
+export async function getEmpresasConSync(): Promise<{ id: number; nombre: string; syncClientes: boolean }[]> {
+  const guard = await requireAuth()
+  if (!guard.ok) return []
+
+  const empresas = await prisma.empresa.findMany({
+    include: { configuracionesSync: true },
+    orderBy: { nombre: 'asc' },
+  })
+
+  return empresas.map(e => ({
+    id:           e.id,
+    nombre:       e.nombre,
+    syncClientes: e.configuracionesSync.some(
+      s => s.catalogo === 'CLIENTES' && s.sincronizar
+    ),
+  }))
+}
+
+// ─── Tipos para la búsqueda combinada de clientes ─────────────────────────────
+
+export type ClienteWizardResultado = ErpCliente & {
+  /** 'LOCAL' = ya existe en Costeos · 'ERP' = solo en el ERP (cliente nuevo para Costeos) */
+  fuente: 'LOCAL' | 'ERP'
+  /** ID local en costeos_cliente (solo si fuente = 'LOCAL') */
+  clienteLocalId?: number
+}
+
+/**
+ * Búsqueda combinada de clientes para el wizard de Nuevo Costeo.
+ *
+ * Flujo:
+ *  1. Siempre busca en costeos_cliente (BD local) por NIT, razón social o código.
+ *  2. Si syncClientes = true → también busca en ERP.
+ *     Dedup: se excluyen del resultado ERP los clientes cuyo codigoERP
+ *     ya aparezca en los resultados locales (evita duplicados).
+ *  3. Combina: primero los locales, luego los exclusivos del ERP.
+ *
+ * @param empresaId   ID local de la empresa (costeos_empresa.id)
+ * @param busqueda    Texto de búsqueda normalizado (sin tildes, mayúsculas)
+ * @param syncClientes Si true, también consulta el ERP
+ */
+export async function searchClientesWizard(
+  empresaId: number,
+  busqueda: string,
+  syncClientes: boolean,
+): Promise<ClienteWizardResultado[]> {
   const guard = await requireAuth()
   if (!guard.ok) throw new Error('No autorizado')
-  if (busqueda.trim().length < 2) return []
-  return erp.getClientes(empresaId, busqueda)
+
+  const texto = busqueda.trim()
+  if (texto.length < 2) return []
+
+  const resultado: ClienteWizardResultado[] = []
+
+  // ── 1. Buscar en Costeos local ────────────────────────────────────────────────
+  const locales = await prisma.cliente.findMany({
+    where: {
+      empresaId,
+      OR: [
+        { nit:         { contains: texto } },
+        { razonSocial: { contains: texto } },
+        { codigoTemp:  { contains: texto } },
+        { codigoErp:   { contains: texto } },
+      ],
+    },
+    take: 20,
+  })
+
+  // Construir set de codigosErp locales para deduplicar con ERP
+  const codigosErpLocales = new Set(
+    locales.map(c => c.codigoErp).filter(Boolean) as string[]
+  )
+
+  for (const c of locales) {
+    resultado.push({
+      fuente:          'LOCAL',
+      clienteLocalId:  c.id,
+      id:              c.codigoErp ?? undefined,
+      codigo:          c.codigoErp ?? undefined,
+      nit:             c.nit,
+      razonSocial:     c.razonSocial,
+      nombreComercial: c.razonSocial,
+      direccion:       c.direccionFiscal ?? undefined,
+      diasCredito:     c.diasCredito,
+    })
+  }
+
+  // ── 2. Si sync ON → también buscar en ERP ────────────────────────────────────
+  if (syncClientes) {
+    try {
+      const erpClientes = await erp.getClientes(empresaId, texto)
+
+      for (const ec of erpClientes) {
+        // Excluir si ya tenemos ese cliente localmente (por codigoErp)
+        if (ec.codigo && codigosErpLocales.has(ec.codigo)) continue
+
+        resultado.push({
+          ...ec,
+          fuente: 'ERP',
+        })
+      }
+    } catch {
+      // Si el ERP no responde, continuar solo con locales
+    }
+  }
+
+  return resultado
 }
 
 export async function getCatalogoItems(empresaId: number, busqueda?: string, categoriaId?: number) {

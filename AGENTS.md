@@ -1,4 +1,4 @@
-﻿<!-- BEGIN:nextjs-agent-rules -->
+<!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
@@ -14,6 +14,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 - **Selects (Comboboxes):** Usar SIEMPRE el componente `<SearchableSelect>` (`src/components/ui/searchable-select.tsx`), mapeando las opciones a `{value, label}`. Siempre se debe auto-seleccionar el primer registro disponible, a menos que sean búsquedas de Clientes/Ítems o se indique lo contrario. Deben mostrar el nombre al usuario pero el componente manejará internamente el código.
   - **Ordenamiento Obligatorio (R17):** Todo select que cargue datos desde la BD o ERP DEBE ordenarse alfabéticamente ascendente usando `.sort((a, b) => a.label.localeCompare(b.label))` al construir las opciones. **Excepción:** selects hardcoded (ej. `OPCIONES_CUBRE_DESCANSO`, estados fijos) y selects que representen jerarquías/árboles respetan su orden definido — NO aplicar sort.
+  - **Capitalización Selects Hardcoded (R21):** Las opciones de selects definidas en el código (no provenientes de BD/ERP) deben mostrarse en **Title Case**: primera letra de cada palabra en mayúscula, el resto en minúsculas. Ejemplos: `'Producto'`, `'Recurso Humano'`, `'No Aplica'`. **NUNCA** en `ALL_CAPS` (`'PRODUCTO'`, `'ESTANDAR'`). Esta regla es la excepción explícita a la regla de normalización de textos, que aplica solo al texto libre ingresado por el usuario, no a labels de UI.
   - **Prop `searchable`:** El componente acepta `searchable={false}` para ocultar el input de búsqueda. Usar en listas cortas y predecibles (ej. Categorías de Items). Por defecto es `true`.
 - **Labels y Títulos (Naming):** Todos los labels, botones y títulos deben omitir preposiciones ("de", "y", "del") y usar de 1 a 3 palabras. Siempre en Title Case (ej. "Tipos Costeos" en lugar de "Tipos de Costeos").
 - **Normalización de Textos:** Todo el texto libre ingresado por el usuario debe guardarse SIEMPRE en MAYÚSCULAS y SIN TILDES (usando `normalizeText` de `src/lib/utils/text.ts`).
@@ -35,6 +36,12 @@ This version has breaking changes — APIs, conventions, and file structure may 
   1. **Errores de Campo (Validaciones / Missing):** Los mensajes relacionados con un input específico deben almacenarse en un estado (ej. `fieldErrors`) y mostrarse inmediatamente debajo del input utilizando EXCLUSIVAMENTE las clases: `<p className="text-xs text-red-500 !mt-0.5 leading-none">{error}</p>`.
   2. **Errores Globales (del Servidor / Try-Catch):** Aquellos mensajes genéricos que provienen de la API o servidor (ej. error 500) se deben almacenar en un estado y mostrarse "inline" al tope del formulario (ej. `<div className="text-red-500 text-sm">{error}</div>`), sin borrar los campos.
 - **Errores de Campo:** SIEMPRE usar `<FieldError message={fieldErrors.campo} />` de `src/components/ui/field-error.tsx`. NUNCA escribir el `<p className="text-xs text-red-500 !mt-0.5 leading-none">` directamente. `fieldErrors` es la fuente única de errores de campo sin importar su origen (validación local, servidor, ERP). Al ejecutar `handleSave`, NO limpiar `fieldErrors` con `setFieldErrors({})` al inicio — construir los errores de validación local y **preservar** los errores de lookups externos que ya estén en `fieldErrors`.
+
+- **Anti-duplicados / Similares (R18):** En toda pantalla CRUD con campo Nombre o Descripción libre, verificar similares al guardar. Comportamiento en **dos niveles**:
+  - **100% idéntico** → Error de campo rojo, no puede guardar.
+  - **≥ 85% similar (no idéntico)** → Panel amarillo de advertencia con lista de similares y % — el usuario puede elegir **"Guardar de todas formas"** o cancelar para corregir.
+  - La comparación siempre filtra por empresa (`empresaId`). Dos empresas distintas pueden tener nombres iguales sin advertencia.
+  - Implementación de referencia: `src/components/items/item-modal.tsx` + `buscarItemsSimilaresConERP`. Ver `docs/conventions.md §7.5`.
 
 - **Estructura de Modales (Acciones):** En modo vista, botones ("Historial" y "Editar") van agrupados a la derecha. En modo edición, el botón "Cancelar" debe resetear el estado a modo vista (sin cerrar el modal si es un registro existente).
 - **⚠️ Footer de Modal:** Los botones de acción del modal (Historial, Editar, Cancelar, Guardar) se colocan **SIEMPRE en un footer fijo al fondo** del `DialogContent`, con la clase `border-t bg-slate-50 sm:rounded-b-xl shrink-0`. **NUNCA** en el header ni dentro del área scrolleable del formulario.
@@ -77,6 +84,20 @@ This version has breaking changes — APIs, conventions, and file structure may 
   )
   ```
   Ver `docs/conventions.md` sección 1.3 para el anti-patrón completo con código.
+
+- **Navegación a Tab con Error (R20):** En todo modal con pestañas, al guardar y producirse cualquier error de campo (local, de servidor o de negocio), el modal DEBE navegar automáticamente a la pestaña que contiene ese campo. Patrón obligatorio:
+  ```tsx
+  // Declarar mapa campo→tab (solo los que NO son "general")
+  const CAMPOS_POR_TAB: Record<string, string> = {
+    miCampo: 'nombre-de-tab',
+  }
+  // Función utilitaria dentro del componente
+  const irATabConError = (campo: string) => {
+    setActiveTab(CAMPOS_POR_TAB[campo] ?? 'general')
+  }
+  // Llamar en los 3 puntos: validación local, error de campo del servidor, error de negocio.
+  ```
+  Implementación de referencia: `src/components/items/item-modal.tsx`. Ver `docs/conventions.md` §5.1.
 
 Para más detalle, consultar `docs/conventions.md`.
 

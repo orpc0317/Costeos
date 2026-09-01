@@ -13,7 +13,7 @@ import { prisma } from '@/lib/prisma'
 import { ItemRepository } from '@/lib/repositories/item.repository'
 import { AuditRepository } from '@/lib/repositories/audit.repository'
 import { computeDiff } from '@/lib/utils/audit'
-import { labelTipoItem, labelTipoServicio } from '@/lib/constants/items'
+import { labelTipoItem, labelTipoServicio, labelManejoCostos } from '@/lib/constants/items'
 import type { ActionResult } from '@/lib/types/common'
 import type { ItemInput, ItemRow } from '@/lib/types/items'
 
@@ -30,7 +30,7 @@ const CAMPOS_ITEM = [
   { key: 'precioVentaCero', label: 'Permitir Precio Cero' },
   { key: 'recurrente',      label: 'Recurrente' },
   { key: 'recurrenteGasto', label: 'Recurrente Gasto' },
-  { key: 'manejoCostos',    label: 'Manejo Costos' },
+  { key: 'manejoCostos',    label: 'Manejo Costos', transform: labelManejoCostos },
   { key: 'tipo',            label: 'Tipo' },
   { key: 'perfil',          label: 'Perfil' },
   { key: 'activo',          label: 'Activo' },
@@ -39,15 +39,31 @@ const CAMPOS_ITEM = [
 export const ItemService = {
 
   async listar(): Promise<ItemRow[]> {
-    const [rows, empresas] = await Promise.all([
+    const [rows, empresas, categorias] = await Promise.all([
       ItemRepository.findAll(),
       prisma.empresa.findMany({ select: { id: true, nombre: true } }),
+      prisma.categoriaItem.findMany({ select: { id: true, nombre: true } }),
     ])
-    const empresaMap = new Map(empresas.map(e => [e.id, e.nombre]))
-    return rows.map(r => ({
+    const empresaMap  = new Map(empresas.map(e  => [e.id,  e.nombre]))
+    const categoriaMap = new Map(categorias.map(c => [c.id, c.nombre]))
+    return rows.map(r => this._serializarItem({
       ...r,
       empresaNombre: empresaMap.get(r.empresaId) ?? `Empresa ${r.empresaId}`,
+      categoria: { nombre: categoriaMap.get(r.categoriaId) ?? String(r.categoriaId) },
     }))
+  },
+
+  /** Convierte los campos Decimal de combosPrincipal a number plano.
+   *  Necesario para que los datos sean serializables como props de Client Components. */
+  _serializarItem(item: any): ItemRow {
+    return {
+      ...item,
+      combosPrincipal: item.combosPrincipal?.map((c: any) => ({
+        ...c,
+        nuevoCantidad:      Number(c.nuevoCantidad),
+        renovacionCantidad: Number(c.renovacionCantidad),
+      })),
+    }
   },
 
   async crear(data: ItemInput, userId: number): Promise<ActionResult<ItemRow>> {
@@ -68,6 +84,7 @@ export const ItemService = {
           tipo:            data.tipo,
           perfil:          data.perfil,
           activo:          data.activo ?? true,
+          combos:          data.combos,
         },
         userId,
         tx as any,
@@ -76,7 +93,7 @@ export const ItemService = {
       return reg
     })
 
-    return { ok: true, data: nuevo as ItemRow }
+    return { ok: true, data: this._serializarItem(nuevo) }
   },
 
   async actualizar(
@@ -86,7 +103,7 @@ export const ItemService = {
   ): Promise<ActionResult<ItemRow>> {
     const [anterior, categorias] = await Promise.all([
       ItemRepository.findById(id),
-      prisma.categoriaItem.findMany({ select: { id: true, nombre: true } }),
+      prisma.categoriaItem.findMany({ where: { empresaId: data.empresaId }, select: { id: true, nombre: true } }),
     ])
     if (!anterior) return { ok: false, error: 'Ítem no encontrado' }
 
@@ -111,7 +128,9 @@ export const ItemService = {
           perfil:          data.perfil,
           activo:          data.activo ?? true,
           registroVersion: data.registroVersion,
+          combos:          data.combos,
         },
+        userId,
         tx as any,
       )
       if (!reg) return null
@@ -140,6 +159,6 @@ export const ItemService = {
       }
     }
 
-    return { ok: true, data: actualizado as ItemRow }
+    return { ok: true, data: this._serializarItem(actualizado) }
   },
 }

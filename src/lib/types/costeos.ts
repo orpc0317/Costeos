@@ -92,7 +92,12 @@ export interface RecursoCosteo {
   
   bonos?: BonoCosteo[];
 
+  // Combo: indica que este recurso es un sub-ítem de otro recurso en el mismo nodo
+  esCombo?: boolean;
+  comboParentId?: string; // ID del RecursoCosteo primario (puede ser temp 'REC-...' o ID real de BD)
+
 }
+
 
 export interface NodoCosteo {
   id: string;

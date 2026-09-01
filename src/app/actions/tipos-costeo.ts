@@ -9,6 +9,8 @@ import {
 } from '@/lib/types/tipos-costeo'
 import { TipoCosteoService } from '@/lib/services/tipo-costeo.service'
 import type { ActionResult } from '@/lib/types/common'
+import { detectarSimilares, type SimilarItem } from '@/lib/utils/similarity'
+import { TipoCosteoRepository } from '@/lib/repositories/tipo-costeo.repository'
 
 const PATH = '/dashboard/configuracion/tipos-costeo'
 
@@ -104,6 +106,20 @@ export async function toggleActivo(id: number, registroVersion: number): Promise
 }
 
 export async function getTiposCosteoActivosAction() {
-  const { TipoCosteoRepository } = await import('@/lib/repositories/tipo-costeo.repository')
   return TipoCosteoRepository.findActivos()
+}
+
+/** Busca tipos de costeo con nombre similar, filtrado por empresa. */
+export async function buscarTipoCosteoSimilares(
+  nombre: string,
+  empresaId: number,
+  excluirId?: number,
+): Promise<SimilarItem[]> {
+  const guard = await requireAdmin()
+  if (!guard.ok) return []
+  const todos = await TipoCosteoRepository.findAll()
+  const deEmpresa = todos
+    .filter(t => t.empresaId === empresaId)
+    .map(t => ({ id: t.id, descripcion: t.nombre }))
+  return detectarSimilares(nombre, deEmpresa, 0.85, excluirId)
 }

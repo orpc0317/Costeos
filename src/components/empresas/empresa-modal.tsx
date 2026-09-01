@@ -11,10 +11,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { HistorialDrawer } from '@/components/shared/historial-drawer'
 import { normalizeText } from '@/lib/utils/text'
-import { crearEmpresa, actualizarEmpresaCompleto } from '@/app/actions/empresas'
+import { crearEmpresa, actualizarEmpresaCompleto, buscarEmpresasSimilares } from '@/app/actions/empresas'
 import { buscarEmpresaErp } from '@/app/actions/erp'
 import { CATALOGOS_ERP, type CatalogoSyncRow } from '@/lib/types/empresas'
 import type { EmpresaRow } from '@/lib/types/empresas'
+import type { SimilarItem } from '@/lib/utils/similarity'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -64,6 +65,8 @@ export function EmpresaModal({
   const [globalError, setGlobalError]   = useState<string | null>(null)
   const [fieldErrors, setFieldErrors]   = useState<Record<string, string>>({})
   const [loading, setLoading]           = useState(false)
+  const [activeTab, setActiveTab]       = useState('general')
+  const [similares, setSimilares]       = useState<SimilarItem[]>([])
 
   // ── Reset del formulario ────────────────────────────────────────────────────
   const resetForm = (data?: EmpresaRow) => {
@@ -84,6 +87,8 @@ export function EmpresaModal({
     if (newOpen) {
       resetForm(empresa)
       setMode(isExisting ? 'view' : 'edit')
+      setActiveTab('general')
+      setSimilares([])
     }
     setOpen(newOpen)
   }
@@ -136,9 +141,54 @@ export function EmpresaModal({
   }
 
   // ── Submit ──────────────────────────────────────────────────────────────────
+
+  /** Ejecuta el guardado real (sin verificación de similares). */
+  async function doSave() {
+    setLoading(true)
+    try {
+      const data = {
+        nombre:      normalizeText(nombre),
+        razonSocial: normalizeText(razonSocial),
+        nit:         nit.trim().toUpperCase(),
+        codigoErp:   codigoErp.trim(),
+      }
+
+      const res = isExisting
+        ? await actualizarEmpresaCompleto(
+            empresa!.id,
+            { ...data, registroVersion: empresa!.registroVersion },
+            catalogosSync,
+          )
+        : await crearEmpresa(data)
+
+      if (!res.ok) {
+        if (res.field) {
+          setFieldErrors(prev => ({ ...prev, [res.field!]: res.error }))
+          setActiveTab('general')
+        } else {
+          setGlobalError(res.error)
+        }
+        return
+      }
+
+      resetForm(res.data ? { ...res.data, catalogosSync } : res.data)
+      if (!isExisting) {
+        setOpen(false)
+      } else {
+        setMode('view')
+      }
+      onSuccess?.()
+    } catch {
+      setGlobalError('Error inesperado del servidor. Intenta de nuevo.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setGlobalError(null)
+    setSimilares([])
 
     const codigoTrimmed = codigoErp.trim()
 
@@ -170,47 +220,30 @@ export function EmpresaModal({
     }
 
     setFieldErrors(errors)
-    if (Object.keys(errors).length > 0) return
+    if (Object.keys(errors).length > 0) {
+      setActiveTab('general')
+      return
+    }
 
-    setLoading(true)
-    try {
-      const data = {
-        nombre:      normalizeText(nombre),
-        razonSocial: normalizeText(razonSocial),
-        nit:         nit.trim().toUpperCase(),
-        codigoErp:   codigoErp.trim(),
-      }
-
-      const res = isExisting
-        ? await actualizarEmpresaCompleto(
-            empresa!.id,
-            { ...data, registroVersion: empresa!.registroVersion },
-            catalogosSync,
-          )
-        : await crearEmpresa(data)
-
-      if (!res.ok) {
-        if (res.field) {
-          setFieldErrors({ [res.field]: res.error })
-        } else {
-          setGlobalError(res.error)
-        }
+    // Verificar similares solo si el nombre cambió (R18)
+    const nombreNormalizado = normalizeText(nombre)
+    const nombreOriginal    = empresa?.nombre ?? ''
+    if (nombreNormalizado !== nombreOriginal) {
+      const found = await buscarEmpresasSimilares(nombreNormalizado, empresa?.id)
+      const exacto = found.find(s => s.pct === 100)
+      if (exacto) {
+        setFieldErrors(prev => ({ ...prev, nombre: `Ya existe una empresa con este nombre: "${exacto.descripcion}"` }))
+        setActiveTab('general')
         return
       }
-
-      // resetForm usa los catalogosSync que el usuario acaba de guardar
-      resetForm(res.data ? { ...res.data, catalogosSync } : res.data)
-      if (!isExisting) {
-        setOpen(false)
-      } else {
-        setMode('view')
+      if (found.length > 0) {
+        setSimilares(found)
+        setActiveTab('general')
+        return
       }
-      onSuccess?.()
-    } catch {
-      setGlobalError('Error inesperado del servidor. Intenta de nuevo.')
-    } finally {
-      setLoading(false)
     }
+
+    await doSave()
   }
 
   // ── Pestaña ERP: visible solo en empresa existente con codigoErp ─────────────
@@ -254,7 +287,7 @@ export function EmpresaModal({
           )}
 
           <form onSubmit={handleSave} noValidate className="flex-1 overflow-hidden flex flex-col pt-2">
-            <Tabs defaultValue="general" className="w-full flex-1 flex flex-col min-h-0">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
               <TabsList variant="line" className="mb-4 shrink-0">
                 <TabsTrigger value="general">
                   <Building2 className="w-4 h-4 mr-2" />
@@ -286,6 +319,45 @@ export function EmpresaModal({
                         aria-invalid={!!fieldErrors.nombre}
                       />
                       <FieldError message={fieldErrors.nombre} />
+                      {/* Panel R18 — similares */}
+                      {similares.length > 0 && mode === 'edit' && (
+                        <div className="mt-1 rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
+                          <p className="text-xs font-semibold text-amber-800">
+                            ⚠️ Advertencia — Nombre similar a {similares.length} empresa{similares.length > 1 ? 's' : ''} existente{similares.length > 1 ? 's' : ''}
+                          </p>
+                          <p className="text-xs text-amber-700">
+                            Verifique que no sea un error de tipeo. Si son empresas distintas, puede guardar de todas formas.
+                          </p>
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="text-amber-700 border-b border-amber-200">
+                                <th className="text-left pb-1 font-semibold">Nombre existente</th>
+                                <th className="text-center pb-1 font-semibold w-14">Sim.</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-amber-100">
+                              {similares.map((s, idx) => (
+                                <tr key={idx}>
+                                  <td className="font-mono py-1 pr-2 text-amber-900">{s.descripcion}</td>
+                                  <td className="text-center">
+                                    <span className={`font-bold ${s.pct === 100 ? 'text-red-600' : 'text-amber-700'}`}>{s.pct}%</span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                          <div className="flex gap-3 pt-1 border-t border-amber-200">
+                            <button type="button" onClick={() => { setSimilares([]); doSave() }}
+                              className="text-xs bg-amber-700 text-white px-3 py-1 rounded hover:bg-amber-800 font-medium">
+                              Guardar de todas formas
+                            </button>
+                            <button type="button" onClick={() => setSimilares([])}
+                              className="text-xs text-amber-800 underline hover:text-amber-900">
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Razón Social */}

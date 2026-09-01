@@ -23,8 +23,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { NumericInput } from '@/components/ui/numeric-input'
 import { getEmpresasForUser } from '@/app/actions/erp'
-import { crearTipoCosteo, editarTipoCosteo, toggleActivo } from '@/app/actions/tipos-costeo'
+import { crearTipoCosteo, editarTipoCosteo, toggleActivo, buscarTipoCosteoSimilares } from '@/app/actions/tipos-costeo'
 import type { TipoCosteoRow } from '@/lib/types/tipos-costeo'
+import type { SimilarItem } from '@/lib/utils/similarity'
 
 const PREDEFINED_COLORS = [
   'bg-white text-slate-900 border-slate-200',
@@ -83,6 +84,7 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [activeTab, setActiveTab] = useState('general')
+  const [similares, setSimilares] = useState<SimilarItem[]>([])
   
   const [empresas, setEmpresas] = useState<{value: string, label: string}[]>([])
   const [cargandoEmpresas, setCargandoEmpresas] = useState(false)
@@ -119,6 +121,7 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
       setFijarPlazo(tc?.fijarPlazo ?? 0)
       setError(null)
       setFieldErrors({})
+      setSimilares([])
 
       // Cargar empresas
       setCargandoEmpresas(true)
@@ -162,35 +165,8 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
     })
   }, [cantidadNiveles])
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
-    setFieldErrors({})
+  async function doSave(formData: FormData) {
     setLoading(true)
-
-    const formData = new FormData()
-    if (!empresaId) {
-      setFieldErrors({ empresaId: 'Requerido' })
-      setActiveTab('general')
-      setLoading(false)
-      return
-    }
-    formData.append('empresaId', empresaId)
-
-    formData.append('nombre', nombre)
-    formData.append('cantidadNiveles', cantidadNiveles.toString())
-    formData.append('etiquetasNiveles', etiquetasNiveles.join(','))
-    formData.append('coloresNiveles', coloresNiveles.join(','))
-    formData.append('iconosNiveles', iconosNiveles.join(','))
-    formData.append('nivelConDireccion', nivelConDireccion.toString())
-    formData.append('lineaEtiqueta', lineaEtiqueta)
-    formData.append('baseEvaluacion', baseEvaluacion)
-    formData.append('manejoPlazo', manejoPlazo)
-    formData.append('fijarPlazo', fijarPlazo.toString())
-    if (initialTipoCosteo?.registroVersion) {
-      formData.append('registroVersion', String(initialTipoCosteo.registroVersion))
-    }
-    
     try {
       let result
       if (mode === 'edit' && tipoCosteo) {
@@ -212,26 +188,20 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
           setTimeout(() => {
             let elementId = `tc-${result.field}`
             if (result.field === 'lineaEtiqueta') elementId = 'tc-linea'
-
             const el = document.getElementById(elementId) as HTMLInputElement | HTMLButtonElement
-            if (el) {
-              el.focus()
-            }
+            if (el) el.focus()
           }, 100)
 
           setFieldErrors({ [result.field]: result.error })
           setLoading(false)
           return
         }
-        
         throw new Error(result.error)
       }
 
       toast.success(tipoCosteo ? 'Tipo de costeo actualizado' : 'Tipo de costeo creado')
       if (mode === 'edit') {
-        if (result?.data) {
-          setInitialTipoCosteo(result.data as TipoCosteoRow)
-        }
+        if (result?.data) setInitialTipoCosteo(result.data as TipoCosteoRow)
         setMode('view')
       } else {
         setOpen(false)
@@ -241,6 +211,60 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
     } finally {
       setLoading(false)
     }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setFieldErrors({})
+    setSimilares([])
+
+    if (!empresaId) {
+      setFieldErrors({ empresaId: 'Requerido' })
+      setActiveTab('general')
+      return
+    }
+
+    // Verificar similares solo si el nombre cambió (R18)
+    const nombreNormalizado = normalizeText(nombre)
+    const nombreOriginal    = tipoCosteo?.nombre ?? ''
+    const nombreCambio      = !tipoCosteo || nombreNormalizado !== nombreOriginal
+    if (nombreCambio) {
+      const found = await buscarTipoCosteoSimilares(
+        nombreNormalizado,
+        parseInt(empresaId, 10),
+        tipoCosteo?.id,
+      )
+      const exacto = found.find(s => s.pct === 100)
+      if (exacto) {
+        setFieldErrors({ nombre: `Ya existe un tipo de costeo con este nombre: "${exacto.descripcion}"` })
+        setActiveTab('general')
+        return
+      }
+      if (found.length > 0) {
+        setSimilares(found)
+        setActiveTab('general')
+        return
+      }
+    }
+
+    // Construir FormData y guardar
+    const formData = new FormData()
+    formData.append('empresaId', empresaId)
+    formData.append('nombre', nombre)
+    formData.append('cantidadNiveles', cantidadNiveles.toString())
+    formData.append('etiquetasNiveles', etiquetasNiveles.join(','))
+    formData.append('coloresNiveles', coloresNiveles.join(','))
+    formData.append('iconosNiveles', iconosNiveles.join(','))
+    formData.append('nivelConDireccion', nivelConDireccion.toString())
+    formData.append('lineaEtiqueta', lineaEtiqueta)
+    formData.append('baseEvaluacion', baseEvaluacion)
+    formData.append('manejoPlazo', manejoPlazo)
+    formData.append('fijarPlazo', fijarPlazo.toString())
+    if (initialTipoCosteo?.registroVersion) {
+      formData.append('registroVersion', String(initialTipoCosteo.registroVersion))
+    }
+    await doSave(formData)
   }
 
   function handleUpdateEtiqueta(index: number, value: string) {
@@ -355,6 +379,61 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
                     }}
                   />
                   {fieldErrors.nombre && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.nombre}</p>}
+                  {/* Panel R18 — similares */}
+                  {similares.length > 0 && mode !== 'view' && (
+                    <div className="mt-1 rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
+                      <p className="text-xs font-semibold text-amber-800">
+                        ⚠️ Advertencia — Nombre similar a {similares.length} tipo{similares.length > 1 ? 's' : ''} existente{similares.length > 1 ? 's' : ''}
+                      </p>
+                      <p className="text-xs text-amber-700">
+                        Verifique que no sea un error de tipeo. Si son registros distintos, puede guardar de todas formas.
+                      </p>
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="text-amber-700 border-b border-amber-200">
+                            <th className="text-left pb-1 font-semibold">Nombre existente</th>
+                            <th className="text-center pb-1 font-semibold w-14">Sim.</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-amber-100">
+                          {similares.map((s, idx) => (
+                            <tr key={idx}>
+                              <td className="font-mono py-1 pr-2 text-amber-900">{s.descripcion}</td>
+                              <td className="text-center">
+                                <span className={`font-bold ${s.pct === 100 ? 'text-red-600' : 'text-amber-700'}`}>{s.pct}%</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <div className="flex gap-3 pt-1 border-t border-amber-200">
+                        <button type="button" onClick={() => {
+                          setSimilares([])
+                          const fd = new FormData()
+                          fd.append('empresaId', empresaId)
+                          fd.append('nombre', nombre)
+                          fd.append('cantidadNiveles', cantidadNiveles.toString())
+                          fd.append('etiquetasNiveles', etiquetasNiveles.join(','))
+                          fd.append('coloresNiveles', coloresNiveles.join(','))
+                          fd.append('iconosNiveles', iconosNiveles.join(','))
+                          fd.append('nivelConDireccion', nivelConDireccion.toString())
+                          fd.append('lineaEtiqueta', lineaEtiqueta)
+                          fd.append('baseEvaluacion', baseEvaluacion)
+                          fd.append('manejoPlazo', manejoPlazo)
+                          fd.append('fijarPlazo', fijarPlazo.toString())
+                          if (initialTipoCosteo?.registroVersion) fd.append('registroVersion', String(initialTipoCosteo.registroVersion))
+                          doSave(fd)
+                        }}
+                          className="text-xs bg-amber-700 text-white px-3 py-1 rounded hover:bg-amber-800 font-medium">
+                          Guardar de todas formas
+                        </button>
+                        <button type="button" onClick={() => setSimilares([])}
+                          className="text-xs text-amber-800 underline hover:text-amber-900">
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Línea Etiqueta */}

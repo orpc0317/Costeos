@@ -139,7 +139,8 @@ function costeoReducer(state: CosteoState, action: CosteoAction): CosteoState {
       if (!state.proyecto) return state;
       let proyectoMod = { ...state.proyecto };
       
-      if (!action.payload.nodoId) {
+      if (!action.payload.nodoId || action.payload.nodoId === state.proyecto.id) {
+        // Agregar a la raíz del proyecto
         proyectoMod.recursos = [...proyectoMod.recursos, action.payload.recurso];
       } else {
         proyectoMod.nodos = mapNodos(proyectoMod.nodos, n => {
@@ -182,7 +183,9 @@ function costeoReducer(state: CosteoState, action: CosteoAction): CosteoState {
       const rId = action.payload.recursoId;
       let proyectoMod = { ...state.proyecto };
       
-      const filterRecursos = (recursos: RecursoCosteo[]) => recursos.filter(r => r.id !== rId);
+      // Eliminar el recurso y todos sus combos hijos
+      const filterRecursos = (recursos: RecursoCosteo[]) =>
+        recursos.filter(r => r.id !== rId && r.comboParentId !== rId);
 
       proyectoMod.recursos = filterRecursos(proyectoMod.recursos);
       proyectoMod.nodos = mapNodos(proyectoMod.nodos, n => {
@@ -213,11 +216,17 @@ function costeoReducer(state: CosteoState, action: CosteoAction): CosteoState {
         }
       }
 
+      const replaceRecurso = (r: RecursoCosteo): RecursoCosteo => ({
+        ...r,
+        id: recursos[r.id] || r.id,
+        comboParentId: r.comboParentId ? (recursos[r.comboParentId] || r.comboParentId) : undefined,
+      });
+
       const replaceNodos = (nodosArr: NodoCosteo[]): NodoCosteo[] => {
         return nodosArr.map(n => ({
           ...n,
           id: nodos[n.id] || n.id,
-          recursos: n.recursos.map(r => ({ ...r, id: recursos[r.id] || r.id })),
+          recursos: n.recursos.map(replaceRecurso),
           nodos: replaceNodos(n.nodos)
         }));
       };
@@ -225,7 +234,7 @@ function costeoReducer(state: CosteoState, action: CosteoAction): CosteoState {
       const proyectoMod = {
         ...state.proyecto,
         nodos: replaceNodos(state.proyecto.nodos),
-        recursos: state.proyecto.recursos.map(r => ({ ...r, id: recursos[r.id] || r.id }))
+        recursos: state.proyecto.recursos.map(replaceRecurso)
       };
 
       return {
@@ -290,22 +299,44 @@ function costeoReducer(state: CosteoState, action: CosteoAction): CosteoState {
       
       const recursoToMove = findRecurso(state.proyecto, id);
       if (!recursoToMove) return state;
-      
-      // 1. Remove
+
+      // 1. Recopilar combos hijos del recurso primario (en todo el árbol)
+      const collectCombosHijos = (proyecto: ProyectoCosteo, parentId: string): RecursoCosteo[] => {
+        const result: RecursoCosteo[] = [];
+        const search = (recursos: RecursoCosteo[]) => {
+          for (const r of recursos) {
+            if (r.comboParentId === parentId) result.push(r);
+          }
+        };
+        search(proyecto.recursos);
+        const walkNodos = (nodos: NodoCosteo[]) => {
+          for (const n of nodos) {
+            search(n.recursos);
+            walkNodos(n.nodos);
+          }
+        };
+        walkNodos(proyecto.nodos);
+        return result;
+      };
+      const combosHijos = collectCombosHijos(state.proyecto, id);
+
+      // 2. Remove primary + combos from their current location
       let proyectoMod = { ...state.proyecto };
-      const filterRecursos = (recursos: RecursoCosteo[]) => recursos.filter(r => r.id !== id);
+      const idsAMover = new Set([id, ...combosHijos.map(c => c.id)]);
+      const filterRecursos = (recursos: RecursoCosteo[]) => recursos.filter(r => !idsAMover.has(r.id));
       proyectoMod.recursos = filterRecursos(proyectoMod.recursos);
       proyectoMod.nodos = mapNodos(proyectoMod.nodos, n => {
         return { ...n, recursos: filterRecursos(n.recursos) };
       });
       
-      // 2. Add
+      // 3. Add primary + combos to new location
+      const recursosAInsertar = [recursoToMove, ...combosHijos];
       if (!newParentId) {
-        proyectoMod.recursos = [...proyectoMod.recursos, recursoToMove];
+        proyectoMod.recursos = [...proyectoMod.recursos, ...recursosAInsertar];
       } else {
         proyectoMod.nodos = mapNodos(proyectoMod.nodos, n => {
           if (n.id === newParentId) {
-            return { ...n, recursos: [...n.recursos, recursoToMove] };
+            return { ...n, recursos: [...n.recursos, ...recursosAInsertar] };
           }
           return n;
         });

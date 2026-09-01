@@ -736,7 +736,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                           <div className="flex flex-col gap-1.5 col-span-2">
                             <Label>País</Label>
                             <SearchableSelect
-                              options={[{ value: '1', label: 'GUATEMALA' }]}
+                              options={[{ value: '1', label: 'Guatemala' }]}
                               value="1"
                               onChange={() => {}}
                               disabled

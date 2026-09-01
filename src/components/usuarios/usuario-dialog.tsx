@@ -64,7 +64,7 @@ export function UsuarioDialog({ usuario, trigger }: UsuarioDialogProps) {
   const [nombre, setNombre] = useState('')
   const [email, setEmail] = useState('')
   const [usuarioErp, setUsuarioErp] = useState('')
-  const [rol, setRol] = useState(ROLES.ANALISTA)
+  const [rol, setRol] = useState<string>(ROLES.ANALISTA)
 
   // Versión congelada del usuario al abrir (para cancelar y para concurrencia)
   const [snapUsuario, setSnapUsuario] = useState<UsuarioRow | null>(null)
@@ -159,7 +159,7 @@ export function UsuarioDialog({ usuario, trigger }: UsuarioDialogProps) {
       if (result && !result.ok) {
         if (result.field) {
           // Error de campo del servidor — preservar otros fieldErrors
-          setFieldErrors(prev => ({ ...prev, [result.field]: result.error }))
+          setFieldErrors(prev => ({ ...prev, [result.field!]: result.error! }))
           setActiveTab('general')
           return
         }

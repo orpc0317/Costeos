@@ -21,6 +21,7 @@ interface SearchableSelectProps {
   autoFocus?: boolean
   id?: string
   searchable?: boolean
+  maxRenderOptions?: number
 }
 
 export function SearchableSelect({
@@ -34,6 +35,7 @@ export function SearchableSelect({
   autoFocus = false,
   id,
   searchable = true,
+  maxRenderOptions = 50,
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -41,9 +43,11 @@ export function SearchableSelect({
 
   const selectedOption = options.find(opt => opt.value === value)
 
-  const filteredOptions = options.filter(opt => 
-    opt.label.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Filtramos y limitamos la cantidad de nodos que se dibujan en el DOM
+  // para mantener el rendimiento alto aunque hayan miles de opciones
+  const filteredOptions = options
+    .filter(opt => opt.label.toLowerCase().includes(searchQuery.toLowerCase()))
+    .slice(0, maxRenderOptions)
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -86,7 +90,7 @@ export function SearchableSelect({
         }}
         className={cn(
           UI_THEME.forms.inputBase,
-          "flex w-full items-center justify-between shadow-sm ring-offset-background aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
+          "flex w-full min-w-0 items-center justify-between shadow-sm ring-offset-background aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
           !selectedOption && "text-muted-foreground",
           error && "border-red-400 focus:ring-red-400 focus-visible:ring-red-400"
         )}
@@ -139,6 +143,13 @@ export function SearchableSelect({
                   <span className="truncate">{opt.label}</span>
                 </div>
               ))
+            )}
+            
+            {/* Si hay más resultados de los que mostramos, avisarle al usuario */}
+            {options.filter(opt => opt.label.toLowerCase().includes(searchQuery.toLowerCase())).length > maxRenderOptions && (
+              <div className="py-2 text-center text-xs text-muted-foreground border-t mt-1">
+                Mostrando primeros {maxRenderOptions} resultados. Continúa escribiendo para buscar...
+              </div>
             )}
           </div>
         </div>

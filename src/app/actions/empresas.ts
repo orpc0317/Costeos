@@ -5,6 +5,7 @@ import { requireManagerOrAdmin } from '@/lib/auth-helpers'
 import { empresaSchema, type EmpresaInput, type EmpresaRow, type CatalogoSyncRow } from '@/lib/types/empresas'
 import { EmpresaService } from '@/lib/services/empresa.service'
 import type { ActionResult } from '@/lib/types/common'
+import { detectarSimilares, type SimilarItem } from '@/lib/utils/similarity'
 
 const PATH = '/dashboard/configuracion/empresas'
 
@@ -71,4 +72,16 @@ export async function actualizarEmpresaCompleto(
     console.error('[actualizarEmpresaCompleto]', err)
     return { ok: false, error: 'Error al guardar la empresa. Intenta de nuevo.' }
   }
+}
+
+/** Busca empresas con nombre similar (scope global — las empresas son la entidad raíz). */
+export async function buscarEmpresasSimilares(
+  nombre: string,
+  excluirId?: number,
+): Promise<SimilarItem[]> {
+  const guard = await requireManagerOrAdmin()
+  if (!guard.ok) return []
+  const todas = await EmpresaService.listar()
+  const paraComparar = todas.map(e => ({ id: e.id, descripcion: e.nombre }))
+  return detectarSimilares(nombre, paraComparar, 0.85, excluirId)
 }

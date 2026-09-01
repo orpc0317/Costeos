@@ -13,7 +13,7 @@ import { getDepartamentosERP, getMunicipiosERP, getTurnosERP, getUniformesERP, g
 import type { ErpTurno, ErpUniforme, ErpServicioVenta, ErpDireccionOperativa } from '@/lib/erp';
 import { AddressLookupModal } from './modals/AddressLookupModal';
 import { Search } from 'lucide-react';
-import { MapPin, Settings2, Calculator, Trash2, CornerUpRight } from 'lucide-react';
+import { MapPin, Settings2, Calculator, Trash2, CornerUpRight, Gift } from 'lucide-react';
 import { RecursosSummaryTable } from './RecursosSummaryTable';
 import { ConfirmDeleteDialog } from './modals/ConfirmDeleteDialog';
 import { MoveNodeDialog } from './modals/MoveNodeDialog';
@@ -188,7 +188,7 @@ export default function EditorPanel() {
           <div className="p-6 pt-4 overflow-y-auto h-full w-full">
           <div className="max-w-4xl">
             <Tabs defaultValue="general" className="w-full">
-              <TabsList variant="line" className="mb-4">
+              <TabsList variant="line" className="mb-4 shrink-0">
                 <TabsTrigger value="general">
                   <Settings2 className="w-4 h-4 mr-2" />
                   General
@@ -202,7 +202,7 @@ export default function EditorPanel() {
               <TabsContent value="general" className="space-y-3 outline-none min-h-[250px]">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Nombre Proyecto</label>
+                    <Label className="block text-sm font-medium text-slate-700 mb-1">Nombre Proyecto</Label>
                     <input 
                       type="text" 
                       className={`w-full border rounded-md p-2 outline-none transition-all ${!nodeData.nombreProyecto?.trim() ? 'border-red-400 focus:ring-2 focus:ring-red-400' : 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}`} 
@@ -211,7 +211,7 @@ export default function EditorPanel() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Plazo (meses)</label>
+                    <Label className="block text-sm font-medium text-slate-700 mb-1">Plazo (meses)</Label>
                     <NumericInput 
                       className="w-full border rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-white disabled:bg-slate-50" 
                       value={nodeData.plazoMeses}
@@ -221,7 +221,7 @@ export default function EditorPanel() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Overhead (%)</label>
+                    <Label className="block text-sm font-medium text-slate-700 mb-1">Overhead (%)</Label>
                     <NumericInput 
                       className="w-full border rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
                       value={nodeData.porcentajeOverhead} 
@@ -229,7 +229,7 @@ export default function EditorPanel() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Contingencia (%)</label>
+                    <Label className="block text-sm font-medium text-slate-700 mb-1">Contingencia (%)</Label>
                     <NumericInput 
                       className="w-full border rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
                       value={nodeData.porcentajeContingencia} 
@@ -275,13 +275,14 @@ export default function EditorPanel() {
         {selectedNode.type === 'RECURSO' && (
           <Tabs defaultValue="general" className="flex-1 flex flex-col min-h-0 w-full">
             <div className="px-6 pt-4 shrink-0">
-              <TabsList variant="line" className="mb-4">
+              <TabsList variant="line" className="mb-4 shrink-0">
                 <TabsTrigger value="general">
                   <Settings2 className="w-4 h-4 mr-2" />
                   General
                 </TabsTrigger>
                 {nodeData.categoria === 'RECURSO_HUMANO' && (
                   <TabsTrigger value="bonos">
+                    <Gift className="w-4 h-4 mr-2" />
                     Bonos {(nodeData.bonos?.length || 0) > 0 && `(${nodeData.bonos.length})`}
                   </TabsTrigger>
                 )}
@@ -664,7 +665,7 @@ export default function EditorPanel() {
       {selectedNode.type !== 'PROYECTO' && (
         <div className="flex flex-row items-center justify-between px-6 py-4 border-t bg-slate-50 shrink-0">
           <div className="flex items-center gap-2">
-            {!(selectedNode.type === 'NODO' && nodeData?.nivel === 1) && (
+          {!(selectedNode.type === 'NODO' && nodeData?.nivel === 1) && !nodeData?.esCombo && (
               <Button 
                 variant="outline"
                 onClick={() => setIsMoveModalOpen(true)}
@@ -841,7 +842,7 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas, proye
   return (
     <div className="max-w-4xl">
       <Tabs defaultValue="general" className="w-full">
-        <TabsList variant="line" className="mb-4">
+        <TabsList variant="line" className="mb-4 shrink-0">
           <TabsTrigger value="general">
             <Settings2 className="w-4 h-4 mr-2" />
             General

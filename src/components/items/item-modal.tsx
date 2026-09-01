@@ -17,22 +17,23 @@ import { getEmpresasForUser } from '@/app/actions/erp'
 import { normalizeText } from '@/lib/utils/text'
 import type { ItemInput, ItemRow } from '@/lib/types/items'
 import type { CategoriaRow } from '@/lib/types/categorias'
-import { TIPOS_ITEM, TIPOS_SERVICIO } from '@/lib/constants/items'
+import { TIPOS_ITEM, TIPOS_SERVICIO, MANEJO_COSTOS_OPCIONES } from '@/lib/constants/items'
+import { ComboTab } from './combo-tab'
 
 interface ItemModalProps {
   item?: ItemRow
   categorias: CategoriaRow[]
+  todosItems?: ItemRow[]
   trigger?: React.ReactNode
   open?: boolean
   onOpenChange?: (open: boolean) => void
 }
 
-
 const MIN_BUSQUEDA_CHARS = 3
 
 type ItemModalStep = 'busqueda' | 'formulario'
 
-export function ItemModal({ item, categorias, trigger, open: controlledOpen, onOpenChange }: ItemModalProps) {
+export function ItemModal({ item, categorias, todosItems = [], trigger, open: controlledOpen, onOpenChange }: ItemModalProps) {
   const [internalOpen, setInternalOpen] = useState(false)
   const isControlled = controlledOpen !== undefined
   const open = isControlled ? controlledOpen : internalOpen
@@ -59,10 +60,11 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
   const [precioVentaCero, setPrecioVentaCero] = useState(false)
   const [recurrente, setRecurrente] = useState(false)
   const [recurrenteGasto, setRecurrenteGasto] = useState(false)
-  const [manejoCostos, setManejoCostos] = useState(false)
+  const [manejoCostos, setManejoCostos] = useState<string>('99')
   const [tipo, setTipo] = useState(false)
   const [perfil, setPerfil] = useState(false)
   const [activo, setActivo] = useState(true)
+  const [combos, setCombos] = useState<import('@/lib/types/items').DetalleComboInput[]>([])
 
   // Errores y estado
   const [globalError, setGlobalError] = useState<string | null>(null)
@@ -114,8 +116,10 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
     }
   }, [tipoItem])
 
-  // Lista de categorías ordenada alfabéticamente — debe estar antes de resetForm
+  // Lista de categorías filtrada por empresa y ordenada alfabéticamente.
+  // fallback false: si aún no hay empresa seleccionada no se muestra ninguna categoría.
   const opcionesCategoria = categorias
+    .filter(c => empresa ? c.empresaId === parseInt(empresa, 10) : false)
     .map(c => ({ value: c.id.toString(), label: c.nombre }))
     .sort((a, b) => a.label.localeCompare(b.label))
 
@@ -133,10 +137,27 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
     setPrecioVentaCero(data?.precioVentaCero ?? false)
     setRecurrente(data ? Boolean(data.recurrente) : false)
     setRecurrenteGasto(data ? Boolean(data.recurrenteGasto) : false)
-    setManejoCostos(data ? Boolean(data.manejoCostos) : false)
+    setManejoCostos(data ? String(data.manejoCostos) : '99')
     setTipo(data ? Boolean(data.tipo) : false)
     setPerfil(data ? Boolean(data.perfil) : false)
     setActivo(data?.activo ?? true)
+    
+    // Mapear combos
+    if (data?.combosPrincipal) {
+      setCombos(data.combosPrincipal.map(c => ({
+        id: c.id,
+        productoSecundarioId: c.productoSecundarioId,
+        nuevoCantidad: Number(c.nuevoCantidad),
+        nuevoIncluido: Boolean(c.nuevoIncluido),
+        nuevoRequerido: Boolean(c.nuevoRequerido),
+        renovacionCantidad: Number(c.renovacionCantidad),
+        renovacionIncluido: Boolean(c.renovacionIncluido),
+        renovacionRequerido: Boolean(c.renovacionRequerido)
+      })))
+    } else {
+      setCombos([])
+    }
+
     setGlobalError(null)
     setFieldErrors({})
     setActiveTab('general')
@@ -172,7 +193,7 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
     setRecurrente(Boolean(erpData.recurrente))
     setPrecioVentaCero(Boolean(erpData.precioVentaCero))
     setPerfil(Boolean(erpData.perfil))
-    setManejoCostos(Boolean(erpData.manejoCostos))
+    setManejoCostos(String(erpData.manejoCostos))
     setCodigoErp(erpData.codigo)
     setErpVinculado(erpData)
     setSimilares([])
@@ -222,9 +243,8 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
   const has100EnERP     = resultadosBusqueda.some(r => r.pct === 100 && r.source === 'erp')
   const bloqueaCrear    = has100EnCosteos || has100EnERP
 
-  // Campo bloqueado si: modo vista, ERP vinculado, o es un ítem nuevo en paso 2
-  // (la descripción ya fue validada en el Paso 1 y no debe modificarse)
-  const disabledPorERP = (mode === 'view') || (erpVinculado !== null)
+  // Campo bloqueado si: modo vista, ERP vinculado (al crearlo), o si el registro ya existía con un código ERP
+  const disabledPorERP = (mode === 'view') || (erpVinculado !== null) || Boolean(item?.codigoErp)
   const disabledDescripcion = disabledPorERP || (!isEditing && step === 'formulario')
 
   /** Badge que indica que el campo vino del ERP */
@@ -233,6 +253,15 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
       ERP
     </span>
   ) : null
+
+  /** Campos que viven en la pestaña "parámetros" — todos los demás están en "general". */
+  const PARAM_FIELDS = ['tipoItem', 'tipoServicio', 'precioVentaCero', 'recurrente', 'recurrenteGasto', 'manejoCostos', 'tipo', 'perfil', 'activo']
+
+  /** Navega a la pestaña que contiene el campo con error. */
+  const irATabConError = (campo: string) => {
+    if (PARAM_FIELDS.includes(campo)) setActiveTab('parametros')
+    else setActiveTab('general')
+  }
 
   /** Ejecuta el guardado real (sin verificación de similares) */
   const doSave = async () => {
@@ -248,10 +277,11 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
       precioVentaCero,
       recurrente,
       recurrenteGasto,
-      manejoCostos,
+      manejoCostos: Number(manejoCostos),
       tipo,
       perfil,
       activo,
+      combos: combos.length > 0 ? combos : undefined,
     }
 
     let res
@@ -266,8 +296,7 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
     if (!res.ok) {
       if (res.field) {
         setFieldErrors(prev => ({ ...prev, [res.field!]: res.error }))
-        const paramFields = ['tipoServicio', 'precioVentaCero']
-        setActiveTab(paramFields.includes(res.field) ? 'parametros' : 'general')
+        irATabConError(res.field)
       } else {
         setGlobalError(res.error)
       }
@@ -300,33 +329,37 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
 
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) {
-      const paramFields = ['tipoServicio', 'precioVentaCero']
-      const firstError = Object.keys(errors)[0]
-      setActiveTab(paramFields.includes(firstError) ? 'parametros' : 'general')
+      irATabConError(Object.keys(errors)[0])
       return
     }
 
-    // Solo para edición: verificar similares (el usuario puede estar renombrando el ítem)
+    // Solo para edición: verificar similares si el nombre cambió
     if (isEditing) {
-      setLoading(true)
-      const found = await buscarItemsSimilaresConERP(
-        normalizeText(descripcion),
-        parseInt(empresa, 10),
-        item?.id,
-      )
-      setLoading(false)
+      const descripcionNormalizada = normalizeText(descripcion)
+      const descripcionOriginal    = item?.descripcion ?? ''
+      if (descripcionNormalizada !== descripcionOriginal) {
+        setLoading(true)
+        const found = await buscarItemsSimilaresConERP(
+          descripcionNormalizada,
+          parseInt(empresa, 10),
+          item?.id,
+        )
+        setLoading(false)
 
-      const duplicadoExacto = found.find(s => s.pct === 100 && s.source !== 'erp')
-      if (duplicadoExacto) {
-        setFieldErrors(prev => ({
-          ...prev,
-          descripcion: `Ya existe un ítem con este nombre: "${duplicadoExacto.descripcion}"`,
-        }))
-        return
-      }
-      if (found.length > 0) {
-        setSimilares(found)
-        return
+        const duplicadoExacto = found.find(s => s.pct === 100 && s.source !== 'erp')
+        if (duplicadoExacto) {
+          setFieldErrors(prev => ({
+            ...prev,
+            descripcion: `Ya existe un ítem con este nombre: "${duplicadoExacto.descripcion}"`,
+          }))
+          irATabConError('descripcion')
+          return
+        }
+        if (found.length > 0) {
+          setSimilares(found)
+          irATabConError('descripcion')
+          return
+        }
       }
     }
 
@@ -376,6 +409,7 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
                   value={empresa}
                   onChange={v => {
                     setEmpresa(v)
+                    setCategoriaId('')   // resetear categoría al cambiar empresa
                     setBusquedaRealizada(false)
                     setResultadosBusqueda([])
                   }}
@@ -528,6 +562,10 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
                     <SlidersHorizontal className="w-4 h-4 mr-2" />
                     Parametros
                   </TabsTrigger>
+                  <TabsTrigger value="combo">
+                    <Package className="w-4 h-4 mr-2" />
+                    Combo
+                  </TabsTrigger>
                 </TabsList>
 
                 <div className="flex-1 overflow-y-auto pr-2 pb-4">
@@ -547,6 +585,7 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
                             onChange={setEmpresa}
                             disabled={mode === 'view' || cargandoEmpresas || isEditing}
                             placeholder={cargandoEmpresas ? 'Cargando...' : 'Seleccionar empresa'}
+                            error={!!fieldErrors.empresa}
                           />
                           <FieldError message={fieldErrors.empresa} />
                         </div>
@@ -581,12 +620,15 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
                         {similares.length > 0 && isEditing && mode === 'edit' && (
                           <div className="mt-1 rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
                             <p className="text-xs font-semibold text-amber-800">
-                              ⚠️ Se encontraron {similares.length} registro{similares.length > 1 ? 's' : ''} similar{similares.length > 1 ? 'es' : ''}
+                              ⚠️ Advertencia — Nombre similar a {similares.length} registro{similares.length > 1 ? 's' : ''} existente{similares.length > 1 ? 's' : ''}
+                            </p>
+                            <p className="text-xs text-amber-700">
+                              Verifique que no sea un error de tipeo antes de continuar. Si son registros distintos, puede guardar de todas formas.
                             </p>
                             <table className="w-full text-xs">
                               <thead>
                                 <tr className="text-amber-700 border-b border-amber-200">
-                                  <th className="text-left pb-1 font-semibold">Nombre</th>
+                                  <th className="text-left pb-1 font-semibold">Nombre existente</th>
                                   <th className="text-center pb-1 font-semibold w-14">Sim.</th>
                                   <th className="text-center pb-1 font-semibold w-16">Origen</th>
                                   <th className="w-28" />
@@ -631,7 +673,7 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
                                 onClick={() => { setSimilares([]); doSave() }}
                                 className="text-xs bg-amber-700 text-white px-3 py-1 rounded hover:bg-amber-800 font-medium"
                               >
-                                Sí, es un registro diferente
+                                Guardar de todas formas
                               </button>
                               <button
                                 type="button"
@@ -643,22 +685,7 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
                             </div>
                           </div>
                         )}
-                      </div>
 
-                      {/* Categoría */}
-                      <div className="flex flex-col gap-1.5 col-span-2">
-                        <Label htmlFor="categoria">
-                          Categoría <span className="text-red-500">*</span>
-                        </Label>
-                        <SearchableSelect
-                          options={opcionesCategoria}
-                          value={categoriaId}
-                          onChange={setCategoriaId}
-                          disabled={mode === 'view'}
-                          placeholder="Seleccione..."
-                          searchable={false}
-                        />
-                        <FieldError message={fieldErrors.categoriaId} />
                       </div>
 
                       {/* Unidad Medida */}
@@ -686,9 +713,27 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
                           options={TIPOS_ITEM}
                           value={tipoItem}
                           onChange={setTipoItem}
-                          disabled={mode === 'view' || erpVinculado !== null}
+                          disabled={disabledPorERP}
                           placeholder="Seleccione..."
+                          searchable={false}
                         />
+                      </div>
+
+                      {/* Categoría */}
+                      <div className="flex flex-col gap-1.5 col-span-2">
+                        <Label htmlFor="categoria">
+                          Categoría <span className="text-red-500">*</span>
+                        </Label>
+                        <SearchableSelect
+                          options={opcionesCategoria}
+                          value={categoriaId}
+                          onChange={setCategoriaId}
+                          disabled={mode === 'view'}
+                          placeholder="Seleccione..."
+                          searchable={false}
+                          error={!!fieldErrors.categoriaId}
+                        />
+                        <FieldError message={fieldErrors.categoriaId} />
                       </div>
 
                       {/* Código ERP */}
@@ -698,7 +743,7 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
                           id="codigoErp"
                           value={codigoErp}
                           onChange={e => setCodigoErp(e.target.value)}
-                          disabled={mode === 'view' || erpVinculado !== null || !syncItemsHabilitado}
+                          disabled={disabledPorERP || !syncItemsHabilitado}
                           className={`h-8 py-1 uppercase ${erpVinculado ? 'bg-blue-50 border-blue-200 text-blue-800 font-medium' : ''}`}
                           title={!syncItemsHabilitado ? 'El Código ERP es asignado automáticamente cuando la empresa tiene sync con ERP habilitado' : undefined}
                         />
@@ -725,8 +770,8 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
                   {/* ── PESTAÑA PARÁMETROS ── */}
                   <TabsContent value="parametros" className="mt-0">
                     <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-                      {/* Tipo Servicio */}
-                      <div className="flex flex-col gap-1.5 col-span-2">
+                      {/* Tipo Servicio y Manejo Costos */}
+                      <div className="flex flex-col gap-1.5 col-span-1">
                         <Label htmlFor="tipoServicio">
                           Tipo Servicio
                         </Label>
@@ -736,6 +781,19 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
                           onChange={setTipoServicio}
                           disabled={mode === 'view' || tipoItem !== '2' || erpVinculado !== null}
                           placeholder="Seleccione..."
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1.5 col-span-1">
+                        <Label htmlFor="manejoCostos">
+                          Manejo Costos
+                        </Label>
+                        <SearchableSelect
+                          options={MANEJO_COSTOS_OPCIONES}
+                          value={manejoCostos}
+                          onChange={setManejoCostos}
+                          disabled={mode === 'view' || erpVinculado !== null}
+                          searchable={false}
                         />
                       </div>
 
@@ -774,17 +832,6 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
                         </div>
                         <div className="flex items-center gap-2">
                           <Checkbox
-                            id="manejoCostos"
-                            checked={manejoCostos}
-                            onCheckedChange={checked => setManejoCostos(checked as boolean)}
-                            disabled={mode === 'view' || erpVinculado !== null}
-                          />
-                          <Label htmlFor="manejoCostos" className="font-normal cursor-pointer">
-                            Manejo Costos
-                          </Label>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Checkbox
                             id="tipo"
                             checked={tipo}
                             onCheckedChange={checked => setTipo(checked as boolean)}
@@ -805,6 +852,18 @@ export function ItemModal({ item, categorias, trigger, open: controlledOpen, onO
                         </div>
                       </div>
                     </div>
+                  </TabsContent>
+
+                  {/* ── PESTAÑA COMBO ── */}
+                  <TabsContent value="combo" className="mt-0 h-full">
+                    <ComboTab
+                      combos={combos}
+                      setCombos={setCombos}
+                      todosItems={todosItems.filter(i => i.empresaId === parseInt(empresa, 10))}
+                      itemId={item?.id}
+                      isEditing={isEditing}
+                      mode={mode}
+                    />
                   </TabsContent>
                 </div>
               </Tabs>

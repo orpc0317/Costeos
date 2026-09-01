@@ -75,8 +75,9 @@ export function ItemsClient({ data, categorias }: { data: ItemRow[], categorias:
           <ItemModal
             item={row.original}
             categorias={categorias}
+            todosItems={data}
             trigger={
-              <button className="p-2 hover:bg-slate-100 rounded-md transition-colors">
+              <button className="flex h-7 w-7 items-center justify-center rounded-md border border-blue-200 bg-blue-50/50 hover:bg-blue-100 transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-blue-600"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
               </button>
             }
@@ -90,6 +91,7 @@ export function ItemsClient({ data, categorias }: { data: ItemRow[], categorias:
   const toolbarActions = (
     <ItemModal
       categorias={categorias}
+      todosItems={data}
       trigger={
         <Button className="gap-2">
           <Plus className="w-4 h-4" /> Nuevo Ítem

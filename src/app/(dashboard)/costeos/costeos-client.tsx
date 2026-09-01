@@ -125,7 +125,7 @@ export function CosteosClient({ costeos }: { costeos: CosteoListRow[] }) {
             <h1 className="text-2xl font-bold tracking-tight">Costeos</h1>
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Gestiona los costeos y presupuestos de tus contratos.
+            {costeos.length === 1 ? '1 registro' : `${costeos.length} registros`}
           </p>
         </div>
       </div>

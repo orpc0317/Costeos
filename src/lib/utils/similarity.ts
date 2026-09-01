@@ -6,8 +6,9 @@
  *   2. Levenshtein sobre el texto SIN stopwords (preposiciones / artículos del español).
  *
  * Se toma el MÁXIMO de ambas similitudes, lo que permite detectar variantes como:
- *   "JEFE DE GRUPO" ≈ "JEFE GRUPO"  →  100% (idénticos sin stopwords)
- *   "JEFE DE GUARDIA" ≈ "JEFE GUARDIA"  →  100%
+ *   "JEFE DE GRUPO" ≈ "JEFE GRUPO"    → 100% (idénticos sin stopwords)
+ *   "JEFE GRUPO A"  vs "JEFE GRUPO B" → ~91% (similar, no idéntico — usuario decide)
+ *   "JEFE GRUPO A"  vs "JEFE DE GRUPO"→ ~88% (similar, no idéntico — usuario decide)
  *
  * Umbral por defecto: 0.85 (85%).
  *
@@ -27,8 +28,10 @@ import { stripDesignacionSocietaria, sanitizeForMatch } from '@/lib/utils/text'
 /** Palabras vacías del español que no aportan diferencia semántica */
 const STOPWORDS = new Set([
   'DE', 'DEL', 'LA', 'EL', 'LOS', 'LAS', 'UN', 'UNA', 'UNOS', 'UNAS',
-  'EN', 'Y', 'O', 'A', 'AL', 'CON', 'POR', 'PARA', 'SIN', 'SOBRE',
+  'EN', 'Y', 'AL', 'CON', 'POR', 'PARA', 'SIN', 'SOBRE',
   'ENTRE', 'DESDE', 'HASTA', 'SE', 'QUE', 'ES', 'SON',
+  // NOTA: 'A' y 'O' NO son stopwords aquí — en nombres de ítems actúan como
+  // diferenciadores (GRUPO A, GRUPO B, TIPO I, TIPO O) no como preposiciones.
 ])
 
 /** Elimina stopwords y colapsa espacios múltiples */

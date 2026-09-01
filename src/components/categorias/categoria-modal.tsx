@@ -135,18 +135,27 @@ export function CategoriaModal({
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) return
 
-    // Verificar similares antes de guardar
-    setLoading(true)
-    const found = await buscarCategoriasSimilares(
-      normalizeText(nombre),
-      parseInt(empresa, 10),
-      categoria?.id,
-    )
-    setLoading(false)
+    // Verificar similares solo si el nombre cambió (R18)
+    const nombreNormalizado = normalizeText(nombre)
+    const nombreOriginal    = categoria?.nombre ?? ''
+    if (!categoria || nombreNormalizado !== nombreOriginal) {
+      setLoading(true)
+      const found = await buscarCategoriasSimilares(
+        nombreNormalizado,
+        parseInt(empresa, 10),
+        categoria?.id,
+      )
+      setLoading(false)
 
-    if (found.length > 0) {
-      setSimilares(found)
-      return // Detener: mostrar advertencia, el usuario debe confirmar
+      if (found.length > 0) {
+        const exacto = found.find(s => s.pct === 100)
+        if (exacto) {
+          setFieldErrors(prev => ({ ...prev, nombre: `Ya existe una categoría con este nombre: "${exacto.descripcion}"` }))
+          return
+        }
+        setSimilares(found)
+        return
+      }
     }
 
     await doSave()
