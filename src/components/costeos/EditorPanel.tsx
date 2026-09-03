@@ -13,12 +13,16 @@ import { getDepartamentosERP, getMunicipiosERP, getTurnosERP, getUniformesERP, g
 import type { ErpTurno, ErpUniforme, ErpServicioVenta, ErpDireccionOperativa } from '@/lib/erp';
 import { AddressLookupModal } from './modals/AddressLookupModal';
 import { Search } from 'lucide-react';
-import { MapPin, Settings2, Calculator, Trash2, CornerUpRight, Gift } from 'lucide-react';
+import { MapPin, Settings2, Calculator, Trash2, CornerUpRight, Gift, Layers } from 'lucide-react';
 import { RecursosSummaryTable } from './RecursosSummaryTable';
 import { ConfirmDeleteDialog } from './modals/ConfirmDeleteDialog';
 import { MoveNodeDialog } from './modals/MoveNodeDialog';
 import { TurnoCard } from './TurnoCard';
-import { NodoCosteo, RecursoCosteo } from '@/lib/types/costeos';
+import { ComboTab } from './ComboTab';
+import { NodoCosteo, RecursoCosteo, ComboDisponible } from '@/lib/types/costeos';
+import { listarItems, getCostosUltimosManual } from '@/app/actions/items';
+import type { ItemRow } from '@/lib/types/items';
+import { buildCombosDisponibles } from '@/lib/utils/combos';
 
 const OPCIONES_CUBRE_DESCANSO = [
   { value: '0', label: '0 - No Aplica' },
@@ -149,6 +153,11 @@ export default function EditorPanel() {
   const [selectedBonoId, setSelectedBonoId] = useState<string>('');
   const [selectedBonoPrecio, setSelectedBonoPrecio] = useState<number>(0);
 
+  // Catálogo de ítems: se carga una sola vez para computar combosDisponibles
+  // en recursos que vienen de BD y no traen el campo precomputado
+  const [catalogoItems, setCatalogoItems] = useState<ItemRow[]>([]);
+  const [combosComputados, setCombosComputados] = useState<ComboDisponible[] | null>(null);
+
   useEffect(() => {
     let active = true;
     if (proyecto?.empresaId) {
@@ -157,6 +166,56 @@ export default function EditorPanel() {
     }
     return () => { active = false; };
   }, [proyecto?.empresaId]);
+
+  // Cargar catálogo de ítems una sola vez (no depende de empresaId — el filtro lo hace el service)
+  useEffect(() => {
+    let active = true;
+    listarItems().then(data => { if (active) setCatalogoItems(data); });
+    return () => { active = false; };
+  }, []);
+
+  // Cuando se selecciona un recurso primario sin combosDisponibles (cargado desde BD),
+  // computarlo a partir del catálogo
+  useEffect(() => {
+    if (
+      selectedNode?.type !== 'RECURSO' ||
+      nodeData?.esCombo ||
+      !nodeData?.itemId ||
+      catalogoItems.length === 0
+    ) {
+      setCombosComputados(null);
+      return;
+    }
+    // Si ya viene precomputado (recurso creado en esta sesión), no hacer nada
+    if (nodeData.combosDisponibles) {
+      setCombosComputados(null);
+      return;
+    }
+    // Buscar el ítem en el catálogo por itemId
+    const item = catalogoItems.find(i => i.id === nodeData.itemId);
+    if (!item?.combosPrincipal?.length) {
+      setCombosComputados(null);
+      return;
+    }
+    // Obtener costos manuales de los sub-ítems que los necesiten
+    const idsConManual = item.combosPrincipal
+      .filter(c => {
+        const sec = catalogoItems.find(i => i.id === c.productoSecundarioId);
+        return sec?.manejoCostos === 2;
+      })
+      .map(c => c.productoSecundarioId);
+
+    let active = true;
+    if (idsConManual.length > 0) {
+      getCostosUltimosManual(idsConManual).then(costos => {
+        if (!active) return;
+        setCombosComputados(buildCombosDisponibles(item.combosPrincipal!, catalogoItems, costos));
+      });
+    } else {
+      setCombosComputados(buildCombosDisponibles(item.combosPrincipal, catalogoItems, {}));
+    }
+    return () => { active = false; };
+  }, [selectedNode?.id, nodeData?.itemId, nodeData?.combosDisponibles, catalogoItems]);
 
   const confirmDelete = () => {
     if (selectedNode.type === 'NODO') {
@@ -283,9 +342,19 @@ export default function EditorPanel() {
                 {nodeData.categoria === 'RECURSO_HUMANO' && (
                   <TabsTrigger value="bonos">
                     <Gift className="w-4 h-4 mr-2" />
-                    Bonos {(nodeData.bonos?.length || 0) > 0 && `(${nodeData.bonos.length})`}
+                    Bonos {(nodeData.bonos?.length || 0) > 0 && nodeData.bonos.length}
                   </TabsTrigger>
                 )}
+                {(() => {
+                  // combosEfectivos: usa el campo precomputado (sesión actual) o el calculado dinámicamente (desde BD)
+                  const combosEfectivos = nodeData.combosDisponibles ?? combosComputados;
+                  return !nodeData.esCombo && (combosEfectivos?.length ?? 0) > 0 && (
+                    <TabsTrigger value="combo">
+                      <Layers className="w-4 h-4 mr-2" />
+                      Combo
+                    </TabsTrigger>
+                  );
+                })()}
               </TabsList>
             </div>
             
@@ -531,12 +600,12 @@ export default function EditorPanel() {
                     </div>
                     <div className="p-0">
                       <table className="w-full text-sm">
-                        <thead className="bg-slate-50 text-slate-500">
+                        <thead className="bg-slate-50 border-b">
                           <tr>
-                            <th className="text-left py-2 px-3 font-medium">Item</th>
-                            <th className="text-right py-2 px-3 font-medium">Cant. Base</th>
-                            <th className="text-right py-2 px-3 font-medium">Costo Un.</th>
-                            <th className="text-right py-2 px-3 font-medium">Costo Tot.</th>
+                            <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500">Item</th>
+                            <th className="text-right py-2 px-3 text-xs font-semibold text-slate-500">Cant. Base</th>
+                            <th className="text-right py-2 px-3 text-xs font-semibold text-slate-500">Costo Un.</th>
+                            <th className="text-right py-2 px-3 text-xs font-semibold text-slate-500">Costo Tot.</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -608,13 +677,13 @@ export default function EditorPanel() {
                 {(nodeData.bonos || []).length > 0 ? (
                   <div className="border rounded-md overflow-hidden bg-white">
                     <table className="w-full text-sm text-left">
-                      <thead className="bg-slate-50 text-slate-500 font-medium border-b">
+                      <thead className="bg-slate-50 border-b">
                         <tr>
-                          <th className="px-3 py-2">Bono</th>
-                          <th className="px-3 py-2 text-right">Costo Un.</th>
-                          <th className="px-3 py-2 text-right text-slate-700 font-semibold bg-slate-100">SubTotal Costo</th>
-                          <th className="px-3 py-2 text-right">Venta Un.</th>
-                          <th className="px-3 py-2 text-right text-blue-700 font-semibold bg-blue-50/50">SubTotal Venta</th>
+                          <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500">Bono</th>
+                          <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500">Costo Un.</th>
+                          <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500 bg-slate-100">SubTotal Costo</th>
+                          <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500">Venta Un.</th>
+                          <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500 bg-blue-50/50">SubTotal Venta</th>
                           <th className="px-3 py-2 w-10"></th>
                         </tr>
                       </thead>
@@ -657,6 +726,39 @@ export default function EditorPanel() {
               </div>
             </TabsContent>
           )}
+
+          {/* ── Pestaña COMBO ─────────────────────────────────── */}
+          {!nodeData.esCombo && (() => {
+            const combosEfectivos = nodeData.combosDisponibles ?? combosComputados;
+            if (!combosEfectivos?.length) return null;
+
+            // Obtener recursos hermanos del mismo nodo para detectar cuáles combos ya están en el árbol
+            let hermanos: RecursoCosteo[] = [];
+            if (!parentId) {
+              hermanos = proyecto.recursos;
+            } else {
+              const findNodoById = (nodos: NodoCosteo[], id: string): NodoCosteo | null => {
+                for (const n of nodos) {
+                  if (n.id === id) return n;
+                  const f = findNodoById(n.nodos, id);
+                  if (f) return f;
+                }
+                return null;
+              };
+              const nodoPadre = findNodoById(proyecto.nodos, parentId);
+              hermanos = nodoPadre?.recursos ?? [];
+            }
+            return (
+              <TabsContent value="combo" className="flex-1 overflow-y-auto px-6 pb-6 outline-none m-0">
+                <ComboTab
+                  recurso={{ ...nodeData, combosDisponibles: combosEfectivos }}
+                  parentId={parentId}
+                  esBorrador={proyecto?.estado === 'BORRADOR'}
+                  hermanos={hermanos}
+                />
+              </TabsContent>
+            );
+          })()}
         </Tabs>
         )}
 

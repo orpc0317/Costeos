@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useCosteo } from '@/lib/context/CosteoContext';
-import { NodoCosteo, RecursoCosteo, BonoCosteo } from '@/lib/types/costeos';
+import { NodoCosteo, RecursoCosteo, BonoCosteo, ComboDisponible } from '@/lib/types/costeos';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -23,8 +23,9 @@ import type { ErpTurno, ErpUniforme, ErpServicioVenta, ErpDireccionOperativa } f
 import { AddressLookupModal } from './AddressLookupModal';
 import { Search } from 'lucide-react';
 import { TurnoCard } from '../TurnoCard';
-import { listarItems } from '@/app/actions/items';
-import { ItemRow } from '@/lib/types/items';
+import { listarItems, getCostosUltimosManual } from '@/app/actions/items';
+import { ItemRow, DetalleComboRow } from '@/lib/types/items';
+import { buildCombosDisponibles } from '@/lib/utils/combos';
 
 export interface AddNodeDialogProps {
   level: number;
@@ -74,16 +75,20 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
   const [uniformeCodigo, setUniformeCodigo] = useState('');
   const [cubreDescanso, setCubreDescanso] = useState<number>(0);
   
-  const [bonosDisponibles, setBonosDisponibles] = useState<{ codigo: string; descripcion: string; costo: number; manejoCostos: number }[]>([]);
+  const [bonosDisponibles, setBonosDisponibles] = useState<{ codigo: string; descripcion: string; costo: number; manejoCostos: number; precioVentaCero: boolean }[]>([]);
   const [bonosAgregados, setBonosAgregados] = useState<BonoCosteo[]>([]);
   const [selectedBonoId, setSelectedBonoId] = useState<string>('');
   const [selectedBonoPrecio, setSelectedBonoPrecio] = useState<number>(0);
   const [selectedBonoCosto, setSelectedBonoCosto] = useState<number>(0);  // costo del bono (si manejoCostos=4)
   const [cantidadTurnos, setCantidadTurnos] = useState<number>(1);
 
+  // Mapa itemId → último costo manual (manejoCostos=2) cargado al abrir el dialog
+  const [costosManuales, setCostosManuales] = useState<Record<number, number>>({});
+
   const [isAdding, setIsAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [activeTab, setActiveTab] = useState<string>('general');
 
   const tc = proyecto?.tipoCosteo;
   const maxNiveles = tc?.cantidadNiveles ?? 2;
@@ -139,17 +144,29 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
           getServiciosVentaERP(proyecto.empresaId),
           getTurnosERP(proyecto.empresaId),
           getUniformesERP(proyecto.empresaId),
-        ]).then(([itemsData, serviciosData, turnosData, uniformesData]) => {
+        ]).then(async ([itemsData, serviciosData, turnosData, uniformesData]) => {
+          if (!active) return;
+          const itemsDeEmpresa = itemsData.filter(i => i.empresaId === proyecto!.empresaId);
+
+          // Cargar costos manuales en batch para todos los ítems con manejoCostos=2
+          const idsManual = itemsDeEmpresa
+            .filter(i => i.manejoCostos === 2)
+            .map(i => i.id);
+          const costosMap = idsManual.length > 0
+            ? await getCostosUltimosManual(idsManual)
+            : {};
+          if (active) setCostosManuales(costosMap);
+
+          // Separar bonos (tipoItem=5) del catálogo principal
+          const bonosItems = itemsDeEmpresa.filter(i => i.tipoItem === 5);
           if (active) {
-            const itemsDeEmpresa = itemsData.filter(i => i.empresaId === proyecto!.empresaId);
-            // Separar bonos (tipoItem=5) del catálogo principal
-            const bonosItems = itemsDeEmpresa.filter(i => i.tipoItem === 5);
             setItems(itemsDeEmpresa);
             setBonosDisponibles(bonosItems.map(b => ({
-              codigo:       b.codigoErp ?? String(b.id),
-              descripcion:  b.descripcion,
-              costo:        0,
-              manejoCostos: b.manejoCostos,
+              codigo:          b.codigoErp ?? String(b.id),
+              descripcion:     b.descripcion,
+              costo:           b.manejoCostos === 2 ? (costosMap[b.id] ?? 0) : 0,
+              manejoCostos:    b.manejoCostos,
+              precioVentaCero: b.precioVentaCero,
             })));
             setServicios(serviciosData);
             setTurnos(turnosData);
@@ -180,6 +197,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
       setSelectedItemId('');
       setError(null);
       setFieldErrors({});
+      setActiveTab('general');
       setCantidad(1);
       setPrecioVenta(undefined);
       setCostoUnitario(undefined);
@@ -259,15 +277,27 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
 
   // erpItem: ítem local (BD Costeos), selectedItemId es su id numérico como string
   const erpItem = items.find(i => i.id.toString() === selectedItemId);
+
+  // sinErp: el ítem no tiene codigoErp — no existe en el ERP (aún o nunca)
+  // Se trata siempre como Estándar simple, costo según manejoCostos
+  const sinErp = !!erpItem && !erpItem.codigoErp;
+
+  // manejoCostos=99 → 'No Aplica': el ítem no tiene manejo de costos en este sistema
+  // Se incluye en la estructura con Costo 0.00 (campo bloqueado, no editable)
+  const sinManejoCotos = erpItem?.manejoCostos === 99;
+
   // servicioSeleccionado: complemento del ERP — se busca por el codigoErp del ítem local,
   // que coincide con el campo `codigo` del SP sp_buscar_servicios_venta
   const servicioSeleccionado = erpItem?.codigoErp
     ? servicios.find(s => s.codigo === erpItem.codigoErp)
     : undefined;
-  const isEstandar = servicioSeleccionado?.itemRegistro !== 1; // 0 o 2 (no RRHH)
+
+  // ítems sinErp se tratan siempre como Estándar (no RRHH)
+  const isEstandar = sinErp || servicioSeleccionado?.itemRegistro !== 1; // 0 o 2 (no RRHH)
 
   // manejoCostos=4 → 'Solicitar Usuario': el campo Costo Un. es editable
-  const solicitarCosto = erpItem?.manejoCostos === 4;
+  // manejoCostos=99 → No Aplica: nunca editable, siempre 0
+  const solicitarCosto = !sinManejoCotos && erpItem?.manejoCostos === 4;
 
   // Bono actualmente seleccionado en el tab Bonos
   const bonoSeleccionado = bonosDisponibles.find(b => b.codigo === selectedBonoId);
@@ -292,15 +322,26 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
 
   // Al cambiar de item: resetear precio y costo
   useEffect(() => {
-    if (servicioSeleccionado) {
-      if (servicioSeleccionado.precioVentaCero === 1) {
-        setPrecioVenta(0);
-      } else {
-        setPrecioVenta(undefined);
-      }
+    // Precio: usar precioVentaCero del servicio ERP (si existe) o del ítem local
+    const esPrecioVentaCero = servicioSeleccionado
+      ? servicioSeleccionado.precioVentaCero === 1
+      : erpItem?.precioVentaCero === true;
+
+    if (esPrecioVentaCero) {
+      setPrecioVenta(0);
+    } else {
+      setPrecioVenta(undefined);
     }
-    setCostoUnitario(undefined); // siempre resetear al cambiar item
-  }, [servicioSeleccionado]);
+    // manejoCostos=2 (Manual): auto-cargar el último costo registrado
+    // manejoCostos=99 (No Aplica): forzar siempre 0
+    if (erpItem?.manejoCostos === 2) {
+      setCostoUnitario(costosManuales[erpItem.id] ?? 0);
+    } else if (erpItem?.manejoCostos === 99) {
+      setCostoUnitario(0);
+    } else {
+      setCostoUnitario(undefined); // siempre resetear al cambiar item
+    }
+  }, [servicioSeleccionado, erpItem?.id, erpItem?.manejoCostos]);
 
   // Al cambiar el bono seleccionado: resetear costo del bono
   useEffect(() => {
@@ -358,12 +399,24 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
     }
     
     if (hasLineaInfo) {
-      if (!servicioSeleccionado || !erpItem) {
-        newFieldErrors.selectedItemId = "Item no válido.";
+      // Inválido solo si: (a) no hay erpItem en BD local, o
+      // (b) tiene codigoErp pero no se encontró en el ERP (puede ser código obsoleto)
+      if (!erpItem || (erpItem.codigoErp && !servicioSeleccionado)) {
+        newFieldErrors.selectedItemId = !erpItem
+          ? "Item no encontrado en el catálogo."
+          : "Item no válido: el código ERP ya no existe en el sistema.";
         hasFieldErrors = true;
       } else {
-        if (precioVenta === undefined) {
-          newFieldErrors.precioVenta = "El Precio de Venta es requerido.";
+        // Precio Venta: requerido; solo puede ser 0 si el item tiene precioVentaCero=true
+        if (precioVenta === undefined || (precioVenta === 0 && !erpItem.precioVentaCero)) {
+          newFieldErrors.precioVenta = precioVenta === 0
+            ? "El Precio de Venta no puede ser 0.00 para este item."
+            : "El Precio de Venta es requerido.";
+          hasFieldErrors = true;
+        }
+        // Costo Unitario: requerido y > 0 cuando manejoCostos = 4 (Solicitar Usuario)
+        if (solicitarCosto && (!costoUnitario || costoUnitario <= 0)) {
+          newFieldErrors.costoUnitario = "El Costo Unitario es requerido y debe ser mayor a 0.00.";
           hasFieldErrors = true;
         }
         if (isEstandar) {
@@ -388,11 +441,38 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
       }
     }
 
+    // Validar bonos agregados: si el bono tiene manejoCostos=4 y costoUnitario=0 → error
+    const bonosConCostoFaltante = bonosAgregados.filter(b => {
+      const bonoConfig = bonosDisponibles.find(bd => bd.codigo === b.erpBonoId);
+      return bonoConfig?.manejoCostos === 4 && (b.costoUnitario ?? 0) <= 0;
+    });
+    if (bonosConCostoFaltante.length > 0) {
+      newFieldErrors.bonosCosto = `${bonosConCostoFaltante.length > 1 ? `${bonosConCostoFaltante.length} bonos requieren` : `El bono "${bonosConCostoFaltante[0].nombre}" requiere`} un Costo Unitario mayor a 0.00.`;
+      hasFieldErrors = true;
+    }
+
+    // Validar bonos agregados: Precio Venta 0 solo si el bono tiene precioVentaCero=true
+    const bonosConPrecioInvalido = bonosAgregados.filter(b => {
+      const bonoConfig = bonosDisponibles.find(bd => bd.codigo === b.erpBonoId);
+      return (b.precioVentaUnitario ?? 0) <= 0 && !bonoConfig?.precioVentaCero;
+    });
+    if (bonosConPrecioInvalido.length > 0) {
+      newFieldErrors.bonosPrecio = `${bonosConPrecioInvalido.length > 1 ? `${bonosConPrecioInvalido.length} bonos tienen` : `El bono "${bonosConPrecioInvalido[0].nombre}" tiene`} Precio de Venta en 0.00.`;
+      hasFieldErrors = true;
+    }
+
     if (hasFieldErrors) {
       setFieldErrors(newFieldErrors);
+      // Navegar al tab que contiene el primer error
+      const camposBonos = ['bonosCosto', 'bonosPrecio'];
+      const primerError = Object.keys(newFieldErrors)[0];
+      if (camposBonos.includes(primerError)) {
+        setActiveTab('bonos');
+      } else {
+        setActiveTab('general');
+      }
       setTimeout(() => {
-        const firstErrorField = Object.keys(newFieldErrors)[0];
-        const el = document.getElementById(`field-${firstErrorField}`);
+        const el = document.getElementById(`field-${primerError}`);
         if (el) el.focus();
       }, 100);
       return;
@@ -402,7 +482,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
     try {
       const recursosNuevos: RecursoCosteo[] = [];
 
-      if (hasLineaInfo && servicioSeleccionado && erpItem) {
+      if (hasLineaInfo && erpItem) {
         let recetasDelRecurso: any[] = [];
         
         // Determinar categoría basada en tipoItem y tipoServicio
@@ -414,8 +494,13 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
           catStr = erpItem.tipoServicio === 1 ? 'RECURSO_HUMANO' : 'SERVICIO';
         }
 
+        // costoFinal: 0 cuando manejoCostos=99, de lo contrario el valor ingresado/auto-cargado
+        const costoFinal = sinManejoCotos ? 0 : (costoUnitario || 0);
+
         if (isEstandar) {
-          if (servicioSeleccionado.itemRegistro === 2) {
+          // Para ítems sinErp o itemRegistro !== 2: 1 recurso de cantidad N
+          // Para Activos (itemRegistro === 2): N recursos de cantidad 1
+          if (!sinErp && servicioSeleccionado?.itemRegistro === 2) {
             // Activo: N recursos de cantidad 1
             for(let i = 0; i < cantidad; i++) {
               recursosNuevos.push({
@@ -425,7 +510,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                 categoria: catStr as any,
                 tipoCosto: 'MENSUAL',
                 cantidad: 1,
-                costoUnitario: costoUnitario || 0,
+                costoUnitario: costoFinal,
                 precioVentaUnitario: precioVenta,
                 precioVentaOrigen: 'MANUAL',
                 itemServicio: servicioSeleccionado,
@@ -433,7 +518,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
               });
             }
           } else {
-            // Estándar u otros: 1 recurso de cantidad N
+            // Estándar u otros (incluyendo sinErp): 1 recurso de cantidad N
             recursosNuevos.push({
               id: `REC-${Date.now()}`,
               itemId: erpItem.id,
@@ -441,7 +526,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
               categoria: catStr as any,
               tipoCosto: 'MENSUAL',
               cantidad: cantidad,
-              costoUnitario: costoUnitario || 0,
+              costoUnitario: costoFinal,
               precioVentaUnitario: precioVenta,
               precioVentaOrigen: 'MANUAL',
               itemServicio: servicioSeleccionado,
@@ -471,7 +556,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
             categoria: 'RECURSO_HUMANO',
             tipoCosto: 'MENSUAL',
             cantidad: cantidadTurnos,
-            costoUnitario: costoUnitario || 0,
+            costoUnitario: costoFinal,
             precioVentaUnitario: precioVenta,
             precioVentaOrigen: 'MANUAL',
             itemServicio: servicioSeleccionado,
@@ -484,6 +569,15 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
             recetas: recetasDelRecurso
           });
         }
+      }
+
+      // Adjuntar combosDisponibles al recurso primario (árbol completo del catálogo,
+      // incluidos opcionales e hijos anidados) para que el EditorPanel pueda mostrarlos
+      if (recursosNuevos.length > 0 && erpItem.combosPrincipal?.length) {
+        recursosNuevos[0] = {
+          ...recursosNuevos[0],
+          combosDisponibles: buildCombosDisponibles(erpItem.combosPrincipal, items, costosManuales),
+        };
       }
 
       // Auto-agregar ítems del combo si el ítem primario tiene combos definidos
@@ -505,7 +599,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
             secCat = secItem.tipoServicio === 1 ? 'RECURSO_HUMANO' : 'SERVICIO';
           }
 
-          const comboCantidad = Math.max(1, Math.round(Number(combo.nuevoCantidad) || 1));
+          const comboCantidad = Math.max(1, Math.round((Number(combo.nuevoCantidad) || 1) * factorCosto));
 
           recursosNuevos.push({
             id: `REC-${Date.now()}-C${combo.productoSecundarioId}`,
@@ -514,7 +608,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
             categoria: secCat as any,
             tipoCosto: 'MENSUAL',
             cantidad: comboCantidad,
-            costoUnitario: 0,
+            costoUnitario: secItem.manejoCostos === 2 ? (costosManuales[secItem.id] ?? 0) : 0,
             precioVentaUnitario: 0,
             precioVentaOrigen: 'MANUAL',
             esCombo: true,
@@ -665,6 +759,16 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
       </div>
 
       {/* Tabla de bonos agregados */}
+      {fieldErrors.bonosCosto && (
+        <div id="field-bonosCosto">
+          <FieldError message={fieldErrors.bonosCosto} />
+        </div>
+      )}
+      {fieldErrors.bonosPrecio && (
+        <div id="field-bonosPrecio">
+          <FieldError message={fieldErrors.bonosPrecio} />
+        </div>
+      )}
       {bonosAgregados.length > 0 ? (
         <div className="-mt-2 border rounded-md overflow-hidden">
           <table className="w-full text-sm text-left">
@@ -896,7 +1000,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
               </div>
             </div>
 
-            {selectedItemId && servicioSeleccionado && (() => {
+            {selectedItemId && erpItem && (() => {
               const generalContent = (
                 <div className="space-y-4 animate-in fade-in slide-in-from-top-2 pr-2">
                   <div className="w-full lg:w-[60%]">
@@ -933,7 +1037,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                         </Label>
                         <input
                           type="text"
-                          value={servicioSeleccionado?.unidadMedida || ''}
+                          value={servicioSeleccionado?.unidadMedida || erpItem?.unidadMedida || ''}
                           readOnly
                           tabIndex={-1}
                           className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm shadow-sm outline-none cursor-not-allowed uppercase"
@@ -1080,19 +1184,21 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                     <Label>Costo Un. ({proyecto?.moneda || 'Q'})</Label>
                     {solicitarCosto ? (
                       <NumericInput
+                        id="field-costoUnitario"
                         value={costoUnitario}
-                        onChange={(val) => setCostoUnitario(val)}
+                        onChange={(val) => { setCostoUnitario(val); setFieldErrors(prev => ({ ...prev, costoUnitario: '' })); }}
                         min="0"
-                        className="flex h-8 w-full rounded-sm border border-indigo-300 bg-white px-2.5 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
+                        className={`flex h-8 w-full rounded-sm border px-2.5 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 ${fieldErrors.costoUnitario ? 'border-red-400 focus-visible:ring-red-400' : 'border-indigo-300 focus-visible:ring-indigo-500'} bg-white`}
                       />
                     ) : (
                       <input
                         type="text"
-                        value={(0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        value={(sinManejoCotos ? 0 : (costoUnitario || 0)).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                         readOnly tabIndex={-1}
                         className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
                       />
                     )}
+                    {fieldErrors.costoUnitario && <FieldError message={fieldErrors.costoUnitario} />}
                   </div>
                   <div className="col-span-1 flex flex-col gap-1.5">
                     <Label>SubTotal Costo</Label>
@@ -1135,7 +1241,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
 
               return !isEstandar ? (
                 <div className="flex-1 flex flex-col min-h-0 animate-in fade-in slide-in-from-top-2">
-                  <Tabs defaultValue="general" className="w-full flex-1 flex flex-col min-h-0">
+                  <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
                     <TabsList variant="line" className="mb-4 shrink-0">
                       <TabsTrigger value="general"><Settings2 className="w-4 h-4 mr-2" />General</TabsTrigger>
                       <TabsTrigger value="bonos">

@@ -2,8 +2,9 @@
 
 import { revalidatePath } from 'next/cache'
 import { requireManagerOrAdmin } from '@/lib/auth-helpers'
-import { itemSchema, type ItemInput, type ItemRow } from '@/lib/types/items'
+import { itemSchema, itemCostoSchema, type ItemInput, type ItemRow, type ItemCostoInput, type ItemCostoRow } from '@/lib/types/items'
 import { ItemService } from '@/lib/services/item.service'
+import { ItemCostoService } from '@/lib/services/item-costo.service'
 import { ItemRepository } from '@/lib/repositories/item.repository'
 import { detectarSimilares, type SimilarItem, type SimilarItemConOrigen, type ErpSimilarData } from '@/lib/utils/similarity'
 import { erp } from '@/lib/erp'
@@ -193,3 +194,66 @@ export async function buscarItemsSimilaresConERP(
     .slice(0, 8) // máximo 8 similares en total
 }
 
+// ─── Costos manuales del ítem ────────────────────────────────────────────────
+
+export async function listarCostosItem(itemId: number): Promise<ItemCostoRow[]> {
+  const guard = await requireManagerOrAdmin()
+  if (!guard.ok) return []
+  return ItemCostoService.listar(itemId)
+}
+
+export async function agregarCostoItem(
+  itemId: number,
+  data: ItemCostoInput,
+): Promise<ActionResult<ItemCostoRow[]>> {
+  const guard = await requireManagerOrAdmin()
+  if (!guard.ok) return guard
+
+  const parsed = itemCostoSchema.safeParse(data)
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0].message,
+      field: parsed.error.issues[0].path[0]?.toString(),
+    }
+  }
+
+  return ItemCostoService.agregar(itemId, parsed.data, guard.userId)
+}
+
+export async function eliminarCostoItem(
+  id: number,
+  itemId: number,
+): Promise<ActionResult<ItemCostoRow[]>> {
+  const guard = await requireManagerOrAdmin()
+  if (!guard.ok) return guard
+  return ItemCostoService.eliminar(id, itemId, guard.userId)
+}
+
+/**
+ * Retorna el costo manual más reciente para cada itemId del array dado.
+ * Solo incluye ítems que tengan al menos un registro en costeo_item_costo.
+ * Clave: itemId, Valor: costo (número).
+ */
+export async function getCostosUltimosManual(
+  itemIds: number[],
+): Promise<Record<number, number>> {
+  const guard = await requireManagerOrAdmin()
+  if (!guard.ok || itemIds.length === 0) return {}
+
+  // Traer todos los registros de los ítems pedidos, ordenados por fecha DESC
+  const costos = await prisma.itemCosto.findMany({
+    where: { itemId: { in: itemIds } },
+    orderBy: { fecha: 'desc' },
+    select: { itemId: true, costo: true },
+  })
+
+  // Conservar solo el primero (más reciente) por itemId
+  const result: Record<number, number> = {}
+  for (const c of costos) {
+    if (result[c.itemId] === undefined) {
+      result[c.itemId] = Number(c.costo)
+    }
+  }
+  return result
+}

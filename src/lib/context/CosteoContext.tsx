@@ -182,14 +182,28 @@ function costeoReducer(state: CosteoState, action: CosteoAction): CosteoState {
       if (!state.proyecto) return state;
       const rId = action.payload.recursoId;
       let proyectoMod = { ...state.proyecto };
-      
-      // Eliminar el recurso y todos sus combos hijos
-      const filterRecursos = (recursos: RecursoCosteo[]) =>
-        recursos.filter(r => r.id !== rId && r.comboParentId !== rId);
 
-      proyectoMod.recursos = filterRecursos(proyectoMod.recursos);
+      // Elimina recursivamente un recurso y todos sus descendientes combo
+      const filterRecursosDeep = (recursos: RecursoCosteo[], idsAEliminar: Set<string>): RecursoCosteo[] => {
+        // Primero identificar todos los IDs a eliminar (el recurso + hijos directos + nietos, etc.)
+        const collectIds = (id: string) => {
+          recursos.forEach(r => {
+            if (r.comboParentId === id && !idsAEliminar.has(r.id)) {
+              idsAEliminar.add(r.id);
+              collectIds(r.id);
+            }
+          });
+        };
+        collectIds(rId);
+        return recursos.filter(r => !idsAEliminar.has(r.id));
+      };
+
+      const idsAEliminar = new Set([rId]);
+      proyectoMod.recursos = filterRecursosDeep(proyectoMod.recursos, idsAEliminar);
+      // Reconstruir el set para cada nodo (los IDs pueden ser distintos entre nodos)
       proyectoMod.nodos = mapNodos(proyectoMod.nodos, n => {
-        return { ...n, recursos: filterRecursos(n.recursos) };
+        const ids = new Set([rId]);
+        return { ...n, recursos: filterRecursosDeep(n.recursos, ids) };
       });
 
       return {

@@ -158,15 +158,71 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
         });
       }
 
-      for (const rFront of flatRecursos) {
+      // Set de IDs que EXISTEN en BD (tras la borrada), para validar comboParentId
+      const idsRecursosEnBD = new Set(
+        recursosActuales
+          .filter(r => !recABorrar.some(b => b.id === r.id))
+          .map(r => r.id)
+      );
+
+      /**
+       * Ordenar recursos: primarios primero, luego combos hijos por niveles.
+       * Esto garantiza que el comboParentId ya exista en BD (o en idMap)
+       * cuando se procese el hijo.
+       */
+      const sortedRecursos: typeof flatRecursos = [];
+      const pending = [...flatRecursos];
+
+      // Pasada 1: todos los que NO son combo (o cuyo comboParentId ya está resuelto)
+      let prevLength = -1;
+      while (pending.length > 0 && pending.length !== prevLength) {
+        prevLength = pending.length;
+        const nextPending: typeof flatRecursos = [];
+        for (const r of pending) {
+          if (!r.comboParentId) {
+            // Recurso primario: siempre va primero
+            sortedRecursos.push(r);
+          } else {
+            // Combo hijo: solo si su padre ya está en sortedRecursos O su padre tiene ID numérico real
+            const padreYaProcesado =
+              sortedRecursos.some(s => s.id === r.comboParentId) ||
+              !isNaN(parseInt(r.comboParentId, 10));
+            if (padreYaProcesado) {
+              sortedRecursos.push(r);
+            } else {
+              nextPending.push(r);
+            }
+          }
+        }
+        pending.length = 0;
+        pending.push(...nextPending);
+      }
+      // Si quedaron pendientes (ciclos o referencias rotas), agregarlos al final
+      sortedRecursos.push(...pending);
+
+      for (const rFront of sortedRecursos) {
         const rId = parseInt(rFront.id, 10);
         let nDbId = rFront.nodoTempId ? parseInt(idMap.nodos[rFront.nodoTempId] || rFront.nodoTempId, 10) : defaultNodoRaizId;
         if (!nDbId) continue;
 
-        // Resolver comboParentId: puede ser un ID temporal o un ID real de BD
-        const comboParentDbId = rFront.comboParentId
-          ? (parseInt(idMap.recursos[rFront.comboParentId] || rFront.comboParentId, 10) || null)
-          : null;
+        // Resolver comboParentId: primero en idMap (padre temporal ya procesado),
+        // luego como ID numérico directo validado contra los registros existentes en BD.
+        // Si el padre no existe (fue eliminado), forzar null para evitar P2025.
+        let comboParentDbId: number | null = null;
+        if (rFront.comboParentId) {
+          const mappedParent = idMap.recursos[rFront.comboParentId];
+          if (mappedParent) {
+            // Padre temporal → su ID real ya fue guardado en idMap en esta misma pasada
+            comboParentDbId = parseInt(mappedParent, 10) || null;
+          } else {
+            const directId = parseInt(rFront.comboParentId, 10);
+            if (!isNaN(directId) && idsRecursosEnBD.has(directId)) {
+              // Padre numérico real que aún existe en BD
+              comboParentDbId = directId;
+            }
+            // Si directId no existe en BD (fue borrado) → comboParentDbId queda null
+          }
+        }
 
         if (isNaN(rId)) {
           // ID temporal → crear nuevo registro
@@ -191,13 +247,14 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
               ...(comboParentDbId ? { comboParent: { connect: { id: comboParentDbId } } } : {}),
             } as any
           });
+          // Registrar siempre en idMap para que sus hijos puedan resolverlo
           idMap.recursos[rFront.id] = nuevoR.id.toString();
         } else {
-          // ID numérico → upsert (por si el registro fue borrado externamente)
+          // ID numérico → upsert
           await tx.nodoRecurso.upsert({
             where: { id: rId },
             update: {
-              nodo: { connect: { id: nDbId } },
+              nodoId: nDbId,
               cantidad: rFront.cantidad,
               costoUnitarioErp: rFront.costoUnitario,
               precioVenta: rFront.precioVentaUnitario || null,
@@ -208,7 +265,7 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
               personas: rFront.personas || 1,
               horasSemana: rFront.horasSemana || 0,
               bonos: (rFront.bonos && rFront.bonos.length > 0) ? (rFront.bonos as any) : null,
-              ...(comboParentDbId ? { comboParent: { connect: { id: comboParentDbId } } } : { comboParent: { disconnect: true } }),
+              comboParentId: comboParentDbId,
             } as any,
             create: {
               nodo: { connect: { id: nDbId } },
@@ -230,6 +287,8 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
               ...(comboParentDbId ? { comboParent: { connect: { id: comboParentDbId } } } : {}),
             } as any,
           });
+          // Registrar ID numérico real en idMap para que sus hijos también puedan resolverlo
+          idMap.recursos[rFront.id] = rId.toString();
         }
       }
     }

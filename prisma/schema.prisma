@@ -350,10 +350,24 @@ model Item {
   recetaSnaps      RecetaSnap[]
   combosPrincipal  DetalleCombo[] @relation("ItemPrincipal")
   combosSecundario DetalleCombo[] @relation("ItemSecundario")
+  costos           ItemCosto[]
 
   @@index([categoriaId], map: "CATEGORIA")
   @@index([empresaId], map: "costeos_item_empresa_id_fkey")
   @@map("costeos_item")
+}
+
+model ItemCosto {
+  id          Int      @id @default(autoincrement())
+  itemId      Int      @map("item_id")
+  costo       Decimal  @db.Decimal(18, 4)
+  fecha       DateTime @db.Date
+  fechaAgrego DateTime @default(now()) @map("fecha_agrego")
+  usuarioId   Int      @map("usuario_id")
+  item        Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId], map: "costeo_item_costo_item_id_fkey")
+  @@map("costeo_item_costo")
 }
 
 model Pais {

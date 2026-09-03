@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { FieldError } from '@/components/ui/field-error'
-import { Package, Settings2, Save, Pencil, History, SlidersHorizontal, Search, ArrowLeft } from 'lucide-react'
+import { Package, Settings2, Save, Pencil, History, SlidersHorizontal, Search, ArrowLeft, DollarSign } from 'lucide-react'
 import { HistorialDrawer } from '@/components/shared/historial-drawer'
 import { crearItem, actualizarItem, buscarItemsSimilaresConERP, getItemSyncHabilitado } from '@/app/actions/items'
 import type { SimilarItemConOrigen, ErpSimilarData } from '@/lib/utils/similarity'
@@ -19,6 +19,8 @@ import type { ItemInput, ItemRow } from '@/lib/types/items'
 import type { CategoriaRow } from '@/lib/types/categorias'
 import { TIPOS_ITEM, TIPOS_SERVICIO, MANEJO_COSTOS_OPCIONES } from '@/lib/constants/items'
 import { ComboTab } from './combo-tab'
+import { CostoTab } from './costo-tab'
+
 
 interface ItemModalProps {
   item?: ItemRow
@@ -562,10 +564,18 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                     <SlidersHorizontal className="w-4 h-4 mr-2" />
                     Parametros
                   </TabsTrigger>
-                  <TabsTrigger value="combo">
-                    <Package className="w-4 h-4 mr-2" />
-                    Combo
-                  </TabsTrigger>
+                  {isEditing && (
+                    <TabsTrigger value="combo">
+                      <Package className="w-4 h-4 mr-2" />
+                      Combo
+                    </TabsTrigger>
+                  )}
+                  {isEditing && manejoCostos === '2' && (
+                    <TabsTrigger value="costo">
+                      <DollarSign className="w-4 h-4 mr-2" />
+                      Costo
+                    </TabsTrigger>
+                  )}
                 </TabsList>
 
                 <div className="flex-1 overflow-y-auto pr-2 pb-4">
@@ -865,6 +875,16 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                       mode={mode}
                     />
                   </TabsContent>
+
+                  {/* ── PESTAÑA COSTO (solo cuando Manejo Costos = Manual) ── */}
+                  {isEditing && manejoCostos === '2' && item && (
+                    <TabsContent value="costo" className="mt-0 h-full">
+                      <CostoTab
+                        itemId={item.id}
+                        mode={mode}
+                      />
+                    </TabsContent>
+                  )}
                 </div>
               </Tabs>
 
