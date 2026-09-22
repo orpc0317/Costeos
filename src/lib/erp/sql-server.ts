@@ -54,7 +54,7 @@ export class SqlServerErpRepository implements ErpRepository {
       .request()
       .input('PrmEmpresa', filtros.empresaId)
       .input('PrmSearchText', filtros.busqueda ?? '')
-      .execute('sp_buscar_servicios_venta')
+      .execute('sp_buscar_items')
 
     return result.recordset.map((r) => ({
       id:              String(r.codigo),
@@ -357,20 +357,21 @@ export class SqlServerErpRepository implements ErpRepository {
       const result = await pool.request()
         .input('PrmEmpresa', empresaId)
         .input('PrmSearchText', searchText)
-        .execute('sp_buscar_servicios_venta')
+        .execute('sp_buscar_items')
 
       return result.recordset.map(r => ({
         codigo:            String(r.codigo),
         descripcion:       r.descripcion || '',
         unidadMedida:      r.unidad_medida || '',
-        tipoBien:          r.tipo_item  || 0, // SP: tipo_item  → tipoBien (Tipo Servicio)
-        tipoItem:          r.tipo_bien  || 0, // SP: tipo_bien  → tipoItem (Tipo Ítem: 1=Prod,2=Serv…)
-        itemRegistro:      r.item_registro || 0,
+        tipoItem:          r.tipo_item    || 0,
+        tipoProducto:      r.tipo_producto || 0,
+        venta:             r.venta || 0,
         recurrente:        r.recurrente || 0,
         requiereDireccion: r.requiere_direccion || 0,
         precioVentaCero:   r.precio_venta_cero || 0,
         perfil:            r.perfil || 0,
         manejoCostos:      r.manejo_costos || 0,
+        uniforme:          r.uniforme || 0,
       }))
     } catch (err) {
       console.error('[SqlServerErpRepository] getServiciosVenta:', err)

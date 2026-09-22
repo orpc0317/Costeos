@@ -429,6 +429,24 @@ Clases clave: `border-t bg-slate-50 sm:rounded-b-xl shrink-0`. El `shrink-0` evi
 - Cada `TabsTrigger` lleva ícono de `lucide-react` (`w-4 h-4 mr-2`) a la izquierda del texto.
 - Siempre existe la pestaña `"general"` como pestaña inicial.
 
+### 5.0 Scroll Horizontal Automático (R23)
+
+El componente `<TabsList variant="line">` soporta **scroll horizontal nativo** cuando las pestañas no caben en el ancho del modal. Esto es transparente: no se requiere ningún wrapper extra ni clase adicional en el código del modal.
+
+**Implementación en `src/components/ui/tabs.tsx`:**
+- El variant `"line"` incluye `overflow-x-auto scrollbar-none pb-px` en su CVA.
+- La clase `.scrollbar-none` está definida en `globals.css` con cobertura cross-browser (Firefox, Chrome/Safari, Edge).
+- El `pb-px` evita que el borde inferior del tab activo quede recortado por el overflow.
+
+**Comportamiento por dispositivo:**
+| Dispositivo | Gesto de scroll |
+|---|---|
+| Desktop — trackpad | Dos dedos horizontalmente sobre las tabs |
+| Desktop — mouse | `Shift` + rueda del ratón |
+| Touch / tablet | Deslizar con el dedo |
+
+**Consecuencia de diseño:** Nunca limitar artificialmente el número de pestañas de un modal por miedo a que no quepan. El sistema escala automáticamente. Agregar todas las pestañas que la entidad necesite.
+
 ### 5.1 R20 — Navegación Automática a la Tab con Error
 
 **Regla obligatoria:** En todo modal con pestañas, al guardar y detectar un error de campo (ya sea local o del servidor), el sistema **DEBE** navegar automáticamente a la pestaña que contiene ese campo. El usuario nunca debe tener que adivinar dónde está el error.
@@ -1177,3 +1195,199 @@ if (Object.keys(antes).length > 0) {
 | Cambiar entidad + sub-entidades en un solo guardado | Diff consolidado manual (ver §16.5) |
 | Ningún campo cambió | NO llamar `logUpdate` (verificar con `Object.keys(antes).length > 0`) |
 | Booleanos | `computeDiff` los formatea automáticamente como `"Sí"` / `"No"` |
+
+---
+
+## 17. SELECTS (Comboboxes) — Estándar Definitivo
+
+### 17.1 Componente Estándar: `<SearchableSelect>`
+
+**SIEMPRE** usar el componente `<SearchableSelect>` de `src/components/ui/searchable-select.tsx`.
+**NUNCA** usar `<select>` HTML nativo para selects de la aplicación, salvo las excepciones del §17.3.
+
+```tsx
+import { SearchableSelect } from '@/components/ui/searchable-select'
+
+<SearchableSelect
+  options={[{ value: '1', label: 'Opción A' }, ...]}
+  value={miEstado}
+  onChange={(val) => setMiEstado(val)}
+  placeholder="Seleccione..."
+/>
+```
+
+### 17.2 Por qué usa Portal (técnica obligatoria)
+
+Todos los modales del proyecto tienen la estructura:
+
+```
+DialogContent (overflow-hidden)
+  └── div.flex-1.overflow-y-auto    ← contenedor scrolleable
+        └── SearchableSelect        ← dropdown con position:absolute
+```
+
+Un `position:absolute` es **recortado** por cualquier ancestro con `overflow:hidden` / `overflow-y:auto`.
+CSS ignora el `z-index` — el recorte ocurre antes de la composición.
+
+**La solución correcta (implementada desde sep-2026):** el dropdown de `SearchableSelect` se renderiza
+vía `createPortal` en `document.body` con `position:fixed`, calculando la posición exacta con
+`getBoundingClientRect()`. Esto garantiza que:
+
+- El dropdown cae **directamente debajo del trigger**, igual que un `<select>` nativo
+- Escapa cualquier `overflow` de cualquier ancestro (modales, paneles, tablas)
+- Es la técnica usada por React Select, Radix UI, shadcn Combobox y todas las librerías modernas
+
+**No hay nada que configurar.** El componente lo maneja internamente.
+
+### 17.3 Cuándo sí usar `<select>` HTML nativo
+
+Usar `<select>` nativo **ÚNICAMENTE** en tablas de datos donde el select forma parte de una celda,
+y la lista de opciones es corta (< 10 ítems) y no requiere búsqueda. Ejemplo:
+
+```tsx
+// ✅ Aceptable en celdas de tabla (tabla Tipos Combo en Costeo Builder)
+<select
+  value={valorActual}
+  onChange={(e) => actualizarValor(e.target.value)}
+  className="h-8 w-full rounded-sm border border-slate-200 bg-white px-2 py-1 text-sm ..."
+>
+  <option value="">— Sin seleccionar —</option>
+  {opciones.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+</select>
+```
+
+En cualquier otro contexto (modales, formularios, paneles) → **siempre `<SearchableSelect>`**.
+
+### 17.4 Props del componente
+
+| Prop | Tipo | Default | Descripción |
+|---|---|---|---|
+| `options` | `SelectOption[]` | — | `{ value: string, label: string }[]` |
+| `value` | `string` | — | Valor seleccionado actualmente |
+| `onChange` | `(val: string) => void` | — | Callback al seleccionar |
+| `placeholder` | `string` | `"Seleccionar..."` | Texto cuando no hay selección |
+| `disabled` | `boolean` | `false` | Deshabilita el select |
+| `error` | `boolean` | `false` | Borde rojo de error |
+| `id` | `string` | — | Para asociar con `<Label>` |
+| `searchable` | `boolean` | `true` | Mostrar input de búsqueda. Usar `false` para listas < 8 ítems fijas |
+| `maxRenderOptions` | `number` | `50` | Máximo de opciones visibles (trunca con aviso) |
+| `onSearchChange` | `(q: string) => void` | — | Para búsquedas asíncronas en el padre |
+| `autoFocus` | `boolean` | `false` | Foco automático al montar |
+
+### 17.5 Reglas adicionales vigentes
+
+- **Ordenamiento (R17):** Toda lista cargada de BD/ERP: `.sort((a, b) => a.label.localeCompare(b.label))`
+- **Capitalización (R21):** Opciones hardcoded en Title Case (`'Producto'`, `'No Aplica'`) — nunca `ALL_CAPS`
+- **Auto-selección:** El primer ítem se auto-selecciona en listas de referencia (excepto búsquedas de Cliente / Ítem)
+- **`searchable={false}`:** Solo para listas cortas (< 8 opciones) y predecibles
+
+---
+
+## 18. SISTEMA DE DISEÑO — `UI_THEME` (Fuente Única de Verdad)
+
+### 18.1 Principio
+
+**Todo string de clases CSS recurrente DEBE definirse en `src/lib/theme.ts` y referenciarse desde los componentes.** Nunca hardcodear strings de clases que ya estén en `UI_THEME`.
+
+Cambiar un token en `theme.ts` lo propaga automáticamente a todos los componentes que lo usan.
+
+### 18.2 Tabla de tokens disponibles
+
+| Sección | Token | Usado en |
+|---|---|---|
+| `forms.inputBase` | Base de todos los inputs, selects | `Input`, `SearchableSelect` (trigger), `NumericInput` |
+| `forms.labelBase` | Estilo del label de campo | `Label` |
+| `forms.fieldError` | Mensaje de error de campo | `FieldError` |
+| `forms.globalError` | Error global del servidor (top del form) | Todos los modales |
+| `forms.warningSimilar` | Panel de advertencia similares (R18) | Modales con campo Nombre |
+| `forms.warningSimilarTitle` | Encabezado del panel de similares | Modales con campo Nombre |
+| `forms.warningSimilarRow` | Fila de ítem en lista de similares | Modales con campo Nombre |
+| `table.headerBg` | Fondo del `<thead>` | `DataTable`, `DraggableTableHead` |
+| `table.headerText` | Tipografía de encabezados de columna | `TableHead` |
+| `table.cellText` | Tipografía de celdas de datos | `TableCell` |
+| `table.rowHover` | Hover sobre filas | `DataTable` |
+| `table.border` | Color de borde entre filas | `DataTable` |
+| `table.emptyState` | Estado vacío (sin resultados) | `DataTable` |
+| `table.container` | Contenedor de la tabla | `DataTable` |
+| `modal.title` | Título del modal (`DialogTitle`) | `dialog.tsx` → todos los modales |
+| `modal.footer` | Footer fijo al fondo del modal | Todos los modales |
+| `modal.scrollArea` | Área scrolleable de campos | Todos los modales |
+| `badge.active` | Badge "Activo" | `*-client.tsx` con columna Estado |
+| `badge.inactive` | Badge "Inactivo" | `*-client.tsx` con columna Estado |
+| `badge.warning` | Badge de advertencia | Disponible para uso futuro |
+| `badge.info` | Badge informativo | Disponible para uso futuro |
+| `select.dropdown` | Contenedor del dropdown portal | `SearchableSelect` |
+| `select.searchArea` | Área sticky de búsqueda en dropdown | `SearchableSelect` |
+| `select.searchInput` | Input de búsqueda en dropdown | `SearchableSelect` |
+| `select.optionItem` | Ítem de opción (normal) | `SearchableSelect` |
+| `select.optionItemSelected` | Ítem de opción (seleccionado) | `SearchableSelect` |
+| `select.emptyState` | Estado vacío del dropdown | `SearchableSelect` |
+| `page.headingRow` | Fila de encabezado de página | `PageHeader` |
+| `page.headingIcon` | Ícono en encabezado de página | `PageHeader` |
+| `page.headingText` | Título principal de página | `PageHeader` |
+| `page.subtitle` | Subtítulo / conteo de registros | `PageHeader` |
+| `action.viewButton` | Botón de "ver" en columna de acciones | `*-client.tsx` |
+
+### 18.3 Reglas de uso
+
+#### ❌ NO hacer (hardcodear):
+```tsx
+// MAL — si queremos cambiar el estilo del globalError, hay que buscarlo en 10 modales
+<div className="bg-red-50 text-red-500 text-sm p-3 rounded-md border border-red-200">
+  {globalError}
+</div>
+```
+
+#### ✅ SÍ hacer (token):
+```tsx
+// BIEN — cambiar UI_THEME.forms.globalError en theme.ts actualiza todos los modales
+<div className={UI_THEME.forms.globalError}>
+  {globalError}
+</div>
+```
+
+#### Importar siempre así:
+```tsx
+import { UI_THEME } from '@/lib/theme'
+```
+
+### 18.4 Cómo agregar un nuevo token
+
+1. Editar `src/lib/theme.ts` y agregar el token en la sección correspondiente con un comentario descriptivo.
+2. Referenciar el nuevo token desde el componente o archivo que lo usa.
+3. Actualizar esta tabla en `docs/conventions.md`.
+
+### 18.5 Componente `<PageHeader>`
+
+El encabezado estándar de páginas CRUD debe implementarse con `<PageHeader>` (`src/components/ui/page-header.tsx`), **NUNCA** con markup inline repetido.
+
+```tsx
+// ✅ CORRECTO
+import { PageHeader } from '@/components/ui/page-header'
+
+<PageHeader
+  icon={Tags}
+  title="Categorias"
+  subtitle={`${data.length} categorías registradas`}
+/>
+
+// ❌ MAL — markup repetido en cada client.tsx
+<div className="flex items-center justify-between">
+  <div>
+    <div className="flex items-center gap-2 text-indigo-900">
+      <Tags className="h-6 w-6" />
+      <h1 className="text-2xl font-bold tracking-tight">Categorias</h1>
+    </div>
+    <p className="text-sm text-muted-foreground mt-0.5">...</p>
+  </div>
+</div>
+```
+
+### 18.6 Globals CSS vs theme.ts
+
+- **`globals.css`** → Variables CSS de color y tipografía base (oklch), modo oscuro, scrollbar.  
+  Cambiar aquí afecta el sistema de color completo (paleta, radio de bordes).
+- **`theme.ts`** → Composiciones de clases Tailwind para tipos de objeto (input, label, tabla).  
+  Cambiar aquí afecta el estilo visual de los elementos de UI.
+
+Ambos son complementarios. `theme.ts` referencia las variables definidas en `globals.css` a través de los tokens de color de Tailwind (`bg-slate-100`, `text-foreground`, etc.).

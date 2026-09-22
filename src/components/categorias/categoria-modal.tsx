@@ -14,6 +14,7 @@ import { crearCategoria, actualizarCategoria, buscarCategoriasSimilares } from '
 import type { SimilarItem } from '@/lib/utils/similarity'
 import { getEmpresasForUser } from '@/app/actions/erp'
 import { normalizeText } from '@/lib/utils/text'
+import { UI_THEME } from '@/lib/theme'
 import type { CategoriaInput, CategoriaRow } from '@/lib/types/categorias'
 
 interface CategoriaModalProps {
@@ -181,12 +182,12 @@ export function CategoriaModal({
           </DialogHeader>
 
           {globalError && (
-            <div className="bg-red-50 text-red-500 text-sm p-3 rounded-md border border-red-200 shrink-0">
+            <div className={`${UI_THEME.forms.globalError} shrink-0`}>
               {globalError}
             </div>
           )}
 
-          <form onSubmit={handleSave} noValidate className="flex-1 overflow-hidden flex flex-col pt-2">
+          <form onSubmit={handleSave} noValidate className="flex-1 min-h-0 flex flex-col pt-2">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
               <TabsList variant="line" className="mb-4 shrink-0">
                 <TabsTrigger value="general">
@@ -234,13 +235,13 @@ export function CategoriaModal({
                       />
                       <FieldError message={fieldErrors.nombre} />
                       {similares.length > 0 && mode === 'edit' && (
-                        <div className="mt-1 rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
-                          <p className="text-xs font-semibold text-amber-800">
+                        <div className={UI_THEME.forms.warningSimilar}>
+                          <p className={UI_THEME.forms.warningSimilarTitle}>
                             ⚠️ Se encontraron {similares.length} registro{similares.length > 1 ? 's' : ''} similar{similares.length > 1 ? 'es' : ''} — ¿Desea guardar de todas formas?
                           </p>
                           <ul className="space-y-1">
                             {similares.map(s => (
-                              <li key={s.id} className="flex justify-between text-xs text-amber-900">
+                              <li key={s.id} className={UI_THEME.forms.warningSimilarRow}>
                                 <span className="font-mono">{s.descripcion}</span>
                                 <span className={`font-bold ml-2 ${s.pct === 100 ? 'text-red-600' : 'text-amber-700'}`}>
                                   {s.pct}%
@@ -295,7 +296,7 @@ export function CategoriaModal({
             </Tabs>
 
             {/* Footer fijo — botones de acción */}
-            <div className="flex flex-row items-center justify-between mt-6 -mx-4 -mb-4 px-4 py-4 border-t bg-slate-50 sm:rounded-b-xl shrink-0">
+            <div className={UI_THEME.modal.footer}>
               <div>
                 {/* Botón Prioridad solo en modo vista de registro existente */}
                 {mode === 'view' && isEditing && empresa && (

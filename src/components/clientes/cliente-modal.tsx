@@ -18,6 +18,7 @@ import { normalizeText } from '@/lib/utils/text'
 import { isConsumidorFinal, normalizeNIT, validateNIT } from '@/lib/utils/nit'
 import type { ClienteInput, ClienteRow } from '@/lib/types/clientes'
 import type { ErpCliente } from '@/lib/erp'
+import { UI_THEME } from '@/lib/theme'
 
 interface ClienteModalProps {
   cliente?: ClienteRow
@@ -265,40 +266,44 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
 
   const doSave = async () => {
     setLoading(true)
-    const data: ClienteInput = {
-      empresaId:               parseInt(empresaId, 10),
-      nit:                     normalizeNIT(nit.trim()),
-      razonSocial:             normalizeText(razonSocial),
-      direccionFiscal:         normalizeText(direccionFiscal),
-      direccionPaisId:         1,  // siempre Guatemala
-      direccionDepartamentoId: parseInt(departamento, 10) || 0,
-      direccionMunicipioId:    parseInt(municipio, 10)    || 0,
-      diasCredito:             diasCredito ?? 0,
-      codigoErp:               codigoErp ?? null,
-    }
-
-    let res
-    if (isEditing && cliente) {
-      res = await actualizarCliente(cliente.id, { ...data, registroVersion: cliente.registroVersion })
-    } else {
-      res = await crearCliente(data)
-    }
-
-    setLoading(false)
-
-    if (!res.ok) {
-      if (res.field) {
-        setFieldErrors(prev => ({ ...prev, [res.field!]: res.error }))
-      } else {
-        setGlobalError(res.error)
+    try {
+      const data: ClienteInput = {
+        empresaId:               parseInt(empresaId, 10),
+        nit:                     normalizeNIT(nit.trim()),
+        razonSocial:             normalizeText(razonSocial),
+        direccionFiscal:         normalizeText(direccionFiscal),
+        direccionPaisId:         1,  // siempre Guatemala
+        direccionDepartamentoId: parseInt(departamento, 10) || 0,
+        direccionMunicipioId:    parseInt(municipio, 10)    || 0,
+        diasCredito:             diasCredito ?? 0,
+        codigoErp:               codigoErp ?? null,
       }
-    } else {
-      if (isEditing) {
-        resetForm(res.data)
-        setMode('view')
+
+      let res
+      if (isEditing && cliente) {
+        res = await actualizarCliente(cliente.id, { ...data, registroVersion: cliente.registroVersion })
       } else {
-        setOpen(false)
+        res = await crearCliente(data)
       }
+
+      if (!res.ok) {
+        if (res.field) {
+          setFieldErrors(prev => ({ ...prev, [res.field!]: res.error }))
+        } else {
+          setGlobalError(res.error)
+        }
+      } else {
+        if (isEditing) {
+          resetForm(res.data)
+          setMode('view')
+        } else {
+          setOpen(false)
+        }
+      }
+    } catch (err: unknown) {
+      setGlobalError(err instanceof Error ? err.message : 'Error inesperado al guardar')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -431,7 +436,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
           </DialogHeader>
 
           {globalError && (
-            <div className="bg-red-50 text-red-500 text-sm p-3 rounded-md mb-4 border border-red-200 shrink-0">
+            <div className={`${UI_THEME.forms.globalError} mb-4`}>
               {globalError}
             </div>
           )}
@@ -627,7 +632,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
               PASO 2 — FORMULARIO
           ══════════════════════════════════════════════════════ */}
           {(isEditing || step === 'formulario') && (
-            <form onSubmit={handleSave} noValidate className="flex-1 overflow-hidden flex flex-col pt-2">
+            <form onSubmit={handleSave} noValidate className="flex-1 min-h-0 flex flex-col pt-2">
               <Tabs
                 value={activeTab}
                 onValueChange={setActiveTab}
@@ -818,7 +823,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
               </Tabs>
 
               {/* FOOTER FIJO */}
-              <div className="flex flex-row items-center justify-between mt-6 -mx-4 -mb-4 px-4 py-4 border-t bg-slate-50 sm:rounded-b-xl shrink-0">
+              <div className={UI_THEME.modal.footer}>
                 <div>
                   {!isEditing && (
                     <Button

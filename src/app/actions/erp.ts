@@ -14,6 +14,22 @@ import type { ErpCliente } from '@/lib/erp'
  * Todas requieren sesión autenticada.
  */
 
+/**
+ * Resuelve el código ERP de una empresa a partir de su ID interno de Costeos.
+ * El SP siempre espera el `codigoErp` de la empresa (ej. "1"), NO el ID de BD.
+ * Si la empresa no tiene codigoErp configurado, lanza error para evitar
+ * consultas silenciosas con parámetro incorrecto.
+ */
+async function resolveCodigoErpEmpresa(empresaId: number): Promise<string> {
+  const empresa = await prisma.empresa.findUnique({
+    where: { id: empresaId },
+    select: { codigoErp: true, nombre: true },
+  })
+  if (!empresa) throw new Error(`Empresa ${empresaId} no encontrada`)
+  if (!empresa.codigoErp) throw new Error(`Empresa "${empresa.nombre}" no tiene código ERP configurado`)
+  return empresa.codigoErp
+}
+
 export async function getEmpresasForUser() {
   const usuarioErp = await getUsuarioErp()
   if (!usuarioErp?.usuarioErp) {
@@ -116,7 +132,8 @@ export async function searchClientesWizard(
   // ── 2. Si sync ON → también buscar en ERP ────────────────────────────────────
   if (syncClientes) {
     try {
-      const erpClientes = await erp.getClientes(empresaId, texto)
+      const codigoErpEmpresa = await resolveCodigoErpEmpresa(empresaId)
+      const erpClientes = await erp.getClientes(codigoErpEmpresa as unknown as number, texto)
 
       for (const ec of erpClientes) {
         // Excluir si ya tenemos ese cliente localmente (por codigoErp)
@@ -139,7 +156,8 @@ export async function getCatalogoItems(empresaId: number, busqueda?: string, cat
   const guard = await requireAuth()
   if (!guard.ok) throw new Error('No autorizado')
   try {
-    return await erp.getItems({ empresaId, busqueda, categoriaId })
+    const codigoErpEmpresa = await resolveCodigoErpEmpresa(empresaId)
+    return await erp.getItems({ empresaId: codigoErpEmpresa as unknown as number, busqueda, categoriaId })
   } catch {
     return []
   }
@@ -166,25 +184,29 @@ export async function getMunicipiosERP(deptoId: number) {
 export async function getTurnosERP(empresaId: number) {
   const guard = await requireAuth()
   if (!guard.ok) throw new Error('No autorizado')
-  return erp.getTurnos(empresaId)
+  const codigoErpEmpresa = await resolveCodigoErpEmpresa(empresaId)
+  return erp.getTurnos(codigoErpEmpresa as unknown as number)
 }
 
 export async function getUniformesERP(empresaId: number) {
   const guard = await requireAuth()
   if (!guard.ok) throw new Error('No autorizado')
-  return erp.getUniformes(empresaId)
+  const codigoErpEmpresa = await resolveCodigoErpEmpresa(empresaId)
+  return erp.getUniformes(codigoErpEmpresa as unknown as number)
 }
 
 export async function getServiciosVentaERP(empresaId: number, searchText: string = '') {
   const guard = await requireAuth()
   if (!guard.ok) throw new Error('No autorizado')
-  return erp.getServiciosVenta(empresaId, searchText)
+  const codigoErpEmpresa = await resolveCodigoErpEmpresa(empresaId)
+  return erp.getServiciosVenta(codigoErpEmpresa as unknown as number, searchText)
 }
 
 export async function getClienteDireccionesERP(empresaId: number, clienteId: number) {
   const guard = await requireAuth()
   if (!guard.ok) throw new Error('No autorizado')
-  return erp.getClienteDirecciones(empresaId, clienteId)
+  const codigoErpEmpresa = await resolveCodigoErpEmpresa(empresaId)
+  return erp.getClienteDirecciones(codigoErpEmpresa as unknown as number, clienteId)
 }
 
 /**

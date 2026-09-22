@@ -14,18 +14,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NumericInput } from '@/components/ui/numeric-input';
 import { FieldError } from '@/components/ui/field-error';
-import { Plus, Loader2, Trash, Settings2, Gift } from 'lucide-react';
+import { Plus, Loader2, Trash, Settings2, Gift, Layers } from 'lucide-react';
 import { normalizeText } from '@/lib/utils/text';
 import { cn } from '@/lib/utils';
 import { SearchableSelect } from '@/components/ui/searchable-select';
-import { getDepartamentosERP, getMunicipiosERP, getTurnosERP, getUniformesERP, getServiciosVentaERP, getClienteDireccionesERP } from '@/app/actions/erp';
-import type { ErpTurno, ErpUniforme, ErpServicioVenta, ErpDireccionOperativa } from '@/lib/erp';
+import { getDepartamentosERP, getMunicipiosERP, getTurnosERP, getServiciosVentaERP, getClienteDireccionesERP } from '@/app/actions/erp';
+import type { ErpTurno, ErpServicioVenta, ErpDireccionOperativa } from '@/lib/erp';
 import { AddressLookupModal } from './AddressLookupModal';
 import { Search } from 'lucide-react';
 import { TurnoCard } from '../TurnoCard';
 import { listarItems, getCostosUltimosManual } from '@/app/actions/items';
 import { ItemRow, DetalleComboRow } from '@/lib/types/items';
 import { buildCombosDisponibles } from '@/lib/utils/combos';
+import { listarTiposComboRHPorEmpresa } from '@/app/actions/tipos-combo-rh';
+import { listarTiposCombosPorEmpresa } from '@/app/actions/tipos-combo';
+import type { TipoComboRHRow } from '@/lib/types/tipos-combo-rh';
 
 export interface AddNodeDialogProps {
   level: number;
@@ -58,12 +61,23 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
   const [items, setItems] = useState<ItemRow[]>([]);
   const [servicios, setServicios] = useState<ErpServicioVenta[]>([]);
   const [turnos, setTurnos] = useState<ErpTurno[]>([]);
-  const [uniformes, setUniformes] = useState<ErpUniforme[]>([]);
   
   const [isLoadingCatalogo, setIsLoadingCatalogo] = useState(false);
   const [loadingTurnos, setLoadingTurnos] = useState(false);
-  const [loadingUniformes, setLoadingUniformes] = useState(false);
   const [loadingServicios, setLoadingServicios] = useState(false);
+
+  // State for TiposComboRH (legacy / compatibility)
+  const [tiposComboRH, setTiposComboRH] = useState<TipoComboRHRow[]>([]);
+  // Map: tipoComboRHId -> selected itemId (as string)
+  const [combosRHSeleccionados, setCombosRHSeleccionados] = useState<Record<number, string>>({});
+
+  // Nueva arquitectura: Tipos Combo del ítem primario
+  // Map: tipoComboId → itemId seleccionado (string)
+  const [combosSeleccionados, setCombosSeleccionados] = useState<Record<number, string>>({});
+  // Map: tipoComboId → true si el usuario marcó incluir (solo relevante para obligatorio=false)
+  const [combosIncluidos, setCombosIncluidos] = useState<Record<number, boolean>>({});
+  // Mapa id→nombre de TiposCombos de la empresa (para mostrar nombre en la tabla)
+  const [tiposCombosNombres, setTiposCombosNombres] = useState<Record<number, string>>({});
 
   const [selectedItemId, setSelectedItemId] = useState<string>('');
   
@@ -72,13 +86,11 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
   const [precioVenta, setPrecioVenta] = useState<number | undefined>();
   const [costoUnitario, setCostoUnitario] = useState<number | undefined>(); // editable solo si manejoCostos=4
   const [turnoCodigo, setTurnoCodigo] = useState<number | undefined>();
-  const [uniformeCodigo, setUniformeCodigo] = useState('');
   const [cubreDescanso, setCubreDescanso] = useState<number>(0);
   
   const [bonosDisponibles, setBonosDisponibles] = useState<{ codigo: string; descripcion: string; costo: number; manejoCostos: number; precioVentaCero: boolean }[]>([]);
   const [bonosAgregados, setBonosAgregados] = useState<BonoCosteo[]>([]);
   const [selectedBonoId, setSelectedBonoId] = useState<string>('');
-  const [selectedBonoPrecio, setSelectedBonoPrecio] = useState<number>(0);
   const [selectedBonoCosto, setSelectedBonoCosto] = useState<number>(0);  // costo del bono (si manejoCostos=4)
   const [cantidadTurnos, setCantidadTurnos] = useState<number>(1);
 
@@ -136,15 +148,15 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
       if (proyecto?.empresaId) {
         setIsLoadingCatalogo(true);
         setLoadingTurnos(true);
-        setLoadingUniformes(true);
         setLoadingServicios(true);
         
         Promise.all([
           listarItems(),
           getServiciosVentaERP(proyecto.empresaId),
           getTurnosERP(proyecto.empresaId),
-          getUniformesERP(proyecto.empresaId),
-        ]).then(async ([itemsData, serviciosData, turnosData, uniformesData]) => {
+          listarTiposComboRHPorEmpresa(proyecto.empresaId),
+          listarTiposCombosPorEmpresa(proyecto.empresaId),
+        ]).then(async ([itemsData, serviciosData, turnosData, tiposData, tiposCombosData]) => {
           if (!active) return;
           const itemsDeEmpresa = itemsData.filter(i => i.empresaId === proyecto!.empresaId);
 
@@ -157,8 +169,8 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
             : {};
           if (active) setCostosManuales(costosMap);
 
-          // Separar bonos (tipoItem=5) del catálogo principal
-          const bonosItems = itemsDeEmpresa.filter(i => i.tipoItem === 5);
+          // Separar bonos (tipoItem=6) del catálogo principal
+          const bonosItems = itemsDeEmpresa.filter(i => i.tipoItem === 6);
           if (active) {
             setItems(itemsDeEmpresa);
             setBonosDisponibles(bonosItems.map(b => ({
@@ -170,11 +182,14 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
             })));
             setServicios(serviciosData);
             setTurnos(turnosData);
-            setUniformes(uniformesData);
+            setTiposComboRH(tiposData);
+            // Mapa id→nombre para TiposCombos
+            const nombresMap: Record<number, string> = {};
+            tiposCombosData.forEach(t => { nombresMap[t.id] = t.nombre; });
+            setTiposCombosNombres(nombresMap);
             setIsLoadingCatalogo(false);
             setLoadingServicios(false);
             setLoadingTurnos(false);
-            setLoadingUniformes(false);
           }
         }).catch(err => {
           console.error("Error al cargar dependencias:", err);
@@ -182,9 +197,9 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
             setIsLoadingCatalogo(false);
             setLoadingServicios(false);
             setLoadingTurnos(false);
-            setLoadingUniformes(false);
           }
         });
+
       }
     } else {
       setNombre('');
@@ -202,13 +217,15 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
       setPrecioVenta(undefined);
       setCostoUnitario(undefined);
       setTurnoCodigo(undefined);
-      setUniformeCodigo('');
+      setCombosRHSeleccionados({});
+      setCombosSeleccionados({});
+      setCombosIncluidos({});
       setCubreDescanso(0);
       setCantidadTurnos(1);
       setBonosAgregados([]);
       setSelectedBonoId('');
-      setSelectedBonoPrecio(0);
       setSelectedBonoCosto(0);
+      setTiposComboRH([]);
     }
     return () => { active = false; };
   }, [open, hasDireccion, proyecto?.empresaId, proyecto?.cliente?.id]);
@@ -275,29 +292,30 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
     }
   };
 
-  // erpItem: ítem local (BD Costeos), selectedItemId es su id numérico como string
-  const erpItem = items.find(i => i.id.toString() === selectedItemId);
+  // localItem: ítem local (BD Costeos), selectedItemId es su id numérico como string
+  const localItem = items.find(i => i.id.toString() === selectedItemId);
 
   // sinErp: el ítem no tiene codigoErp — no existe en el ERP (aún o nunca)
   // Se trata siempre como Estándar simple, costo según manejoCostos
-  const sinErp = !!erpItem && !erpItem.codigoErp;
+  const sinErp = !!localItem && !localItem.codigoErp;
 
   // manejoCostos=99 → 'No Aplica': el ítem no tiene manejo de costos en este sistema
   // Se incluye en la estructura con Costo 0.00 (campo bloqueado, no editable)
-  const sinManejoCotos = erpItem?.manejoCostos === 99;
+  const sinManejoCotos = localItem?.manejoCostos === 99;
 
   // servicioSeleccionado: complemento del ERP — se busca por el codigoErp del ítem local,
-  // que coincide con el campo `codigo` del SP sp_buscar_servicios_venta
-  const servicioSeleccionado = erpItem?.codigoErp
-    ? servicios.find(s => s.codigo === erpItem.codigoErp)
+  // que coincide con el campo `codigo` del SP sp_buscar_items
+  const servicioSeleccionado = localItem?.codigoErp
+    ? servicios.find(s => s.codigo === localItem.codigoErp)
     : undefined;
 
-  // ítems sinErp se tratan siempre como Estándar (no RRHH)
-  const isEstandar = sinErp || servicioSeleccionado?.itemRegistro !== 1; // 0 o 2 (no RRHH)
+  // RRHH: tipoItem=3 (Servicio) + tipoProducto=1 (Outsourcing) → formulario de turno/uniforme/personas
+  // Para todo lo demás (incluyendo sinErp, tipoItem≠3, tipoProducto≠1) → formulario estándar
+  const isEstandar = !localItem || localItem.tipoItem !== 3 || localItem.tipoProducto !== 1;
 
   // manejoCostos=4 → 'Solicitar Usuario': el campo Costo Un. es editable
   // manejoCostos=99 → No Aplica: nunca editable, siempre 0
-  const solicitarCosto = !sinManejoCotos && erpItem?.manejoCostos === 4;
+  const solicitarCosto = !sinManejoCotos && localItem?.manejoCostos === 4;
 
   // Bono actualmente seleccionado en el tab Bonos
   const bonoSeleccionado = bonosDisponibles.find(b => b.codigo === selectedBonoId);
@@ -314,6 +332,40 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
     ? (cantidad || 1)
     : ((cantidadTurnos || 1) * (turnoSeleccionado?.personas || 1));
 
+  // Items disponibles por tipo (solo rol DISPONIBLE — excluye items RH que tienen NECESITA)
+  const itemsPorTipoComboRH = React.useMemo(() => {
+    const map: Record<number, ItemRow[]> = {};
+    for (const tipo of tiposComboRH) {
+      map[tipo.id] = items.filter(item =>
+        item.tiposComboRH?.some(t => t.tipoComboRHId === tipo.id && t.rol === 'DISPONIBLE')
+      );
+    }
+    return map;
+  }, [tiposComboRH, items]);
+
+  // TiposComboRH que el ítem RH necesita (rol NECESITA) — determina qué selects mostrar
+  const tiposComboRHDelItem = tiposComboRH.filter(t =>
+    localItem?.tiposComboRH?.some(pt => pt.tipoComboRHId === t.id && pt.rol === 'NECESITA')
+  );
+
+  // Nueva arquitectura: items disponibles por TipoCombo (campo tipoComboId en Parámetros)
+  const itemsPorTipoCombo = React.useMemo(() => {
+    const map: Record<number, ItemRow[]> = {};
+    if (!localItem?.tiposCombo) return map;
+    for (const asoc of localItem.tiposCombo) {
+      map[asoc.tipoComboId] = items
+        .filter(i => i.tipoComboId === asoc.tipoComboId)
+        .sort((a, b) => a.descripcion.localeCompare(b.descripcion));
+    }
+    return map;
+  }, [localItem, items]);
+
+  // Resetear selecciones de combos cuando cambia el item primario
+  useEffect(() => {
+    setCombosSeleccionados({});
+    setCombosIncluidos({});
+  }, [selectedItemId]);
+
   useEffect(() => {
     if (!trabaja7Dias) {
       setCubreDescanso(0);
@@ -325,7 +377,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
     // Precio: usar precioVentaCero del servicio ERP (si existe) o del ítem local
     const esPrecioVentaCero = servicioSeleccionado
       ? servicioSeleccionado.precioVentaCero === 1
-      : erpItem?.precioVentaCero === true;
+      : localItem?.precioVentaCero === true;
 
     if (esPrecioVentaCero) {
       setPrecioVenta(0);
@@ -334,14 +386,14 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
     }
     // manejoCostos=2 (Manual): auto-cargar el último costo registrado
     // manejoCostos=99 (No Aplica): forzar siempre 0
-    if (erpItem?.manejoCostos === 2) {
-      setCostoUnitario(costosManuales[erpItem.id] ?? 0);
-    } else if (erpItem?.manejoCostos === 99) {
+    if (localItem?.manejoCostos === 2) {
+      setCostoUnitario(costosManuales[localItem.id] ?? 0);
+    } else if (localItem?.manejoCostos === 99) {
       setCostoUnitario(0);
     } else {
       setCostoUnitario(undefined); // siempre resetear al cambiar item
     }
-  }, [servicioSeleccionado, erpItem?.id, erpItem?.manejoCostos]);
+  }, [servicioSeleccionado, localItem?.id, localItem?.manejoCostos]);
 
   // Al cambiar el bono seleccionado: resetear costo del bono
   useEffect(() => {
@@ -399,16 +451,16 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
     }
     
     if (hasLineaInfo) {
-      // Inválido solo si: (a) no hay erpItem en BD local, o
+      // Inválido solo si: (a) no hay localItem en BD local, o
       // (b) tiene codigoErp pero no se encontró en el ERP (puede ser código obsoleto)
-      if (!erpItem || (erpItem.codigoErp && !servicioSeleccionado)) {
-        newFieldErrors.selectedItemId = !erpItem
+      if (!localItem || (localItem.codigoErp && !servicioSeleccionado)) {
+        newFieldErrors.selectedItemId = !localItem
           ? "Item no encontrado en el catálogo."
           : "Item no válido: el código ERP ya no existe en el sistema.";
         hasFieldErrors = true;
       } else {
         // Precio Venta: requerido; solo puede ser 0 si el item tiene precioVentaCero=true
-        if (precioVenta === undefined || (precioVenta === 0 && !erpItem.precioVentaCero)) {
+        if (precioVenta === undefined || (precioVenta === 0 && !localItem.precioVentaCero)) {
           newFieldErrors.precioVenta = precioVenta === 0
             ? "El Precio de Venta no puede ser 0.00 para este item."
             : "El Precio de Venta es requerido.";
@@ -429,15 +481,31 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
             newFieldErrors.turnoCodigo = "Debe seleccionar un Turno.";
             hasFieldErrors = true;
           }
-          if (!uniformeCodigo) {
-            newFieldErrors.uniformeCodigo = "Debe seleccionar un Uniforme.";
-            hasFieldErrors = true;
+          // Check all REQUIRED TipoComboRH types have a selection
+          for (const tipo of tiposComboRHDelItem) {
+            if (tipo.requerido && !combosRHSeleccionados[tipo.id]) {
+              newFieldErrors[`comboRH_${tipo.id}`] = `Debe seleccionar ${tipo.nombre}.`;
+              hasFieldErrors = true;
+            }
           }
           if (trabaja7Dias && cubreDescanso === 0) {
             newFieldErrors.cubreDescanso = "Debe seleccionar una opción válida para Cubre Descanso.";
             hasFieldErrors = true;
           }
         }
+
+        // Validar Tipos Combo: solo los obligatorios o los que el usuario marcó incluir
+        if (localItem?.tiposCombo) {
+          for (const asoc of localItem.tiposCombo) {
+            const incluido = asoc.obligatorio ? true : (combosIncluidos[asoc.tipoComboId] ?? false);
+            if (incluido && !combosSeleccionados[asoc.tipoComboId]) {
+              const nombre = tiposCombosNombres[asoc.tipoComboId] || `Tipo ${asoc.tipoComboId}`;
+              newFieldErrors[`tipoCombo_${asoc.tipoComboId}`] = `Debe seleccionar un ítem para "${nombre}".`;
+              hasFieldErrors = true;
+            }
+          }
+        }
+
       }
     }
 
@@ -451,22 +519,11 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
       hasFieldErrors = true;
     }
 
-    // Validar bonos agregados: Precio Venta 0 solo si el bono tiene precioVentaCero=true
-    const bonosConPrecioInvalido = bonosAgregados.filter(b => {
-      const bonoConfig = bonosDisponibles.find(bd => bd.codigo === b.erpBonoId);
-      return (b.precioVentaUnitario ?? 0) <= 0 && !bonoConfig?.precioVentaCero;
-    });
-    if (bonosConPrecioInvalido.length > 0) {
-      newFieldErrors.bonosPrecio = `${bonosConPrecioInvalido.length > 1 ? `${bonosConPrecioInvalido.length} bonos tienen` : `El bono "${bonosConPrecioInvalido[0].nombre}" tiene`} Precio de Venta en 0.00.`;
-      hasFieldErrors = true;
-    }
-
     if (hasFieldErrors) {
       setFieldErrors(newFieldErrors);
       // Navegar al tab que contiene el primer error
-      const camposBonos = ['bonosCosto', 'bonosPrecio'];
       const primerError = Object.keys(newFieldErrors)[0];
-      if (camposBonos.includes(primerError)) {
+      if (primerError === 'bonosCosto') {
         setActiveTab('bonos');
       } else {
         setActiveTab('general');
@@ -482,31 +539,32 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
     try {
       const recursosNuevos: RecursoCosteo[] = [];
 
-      if (hasLineaInfo && erpItem) {
+      if (hasLineaInfo && localItem) {
         let recetasDelRecurso: any[] = [];
         
-        // Determinar categoría basada en tipoItem y tipoServicio
-        // 1 Producto -> ARTICULO, 2 Servicio -> SERVICIO/RECURSO_HUMANO, 3 Equipo -> EQUIPO, 4 Financiero -> SERVICIO
+        // Determinar categoría basada en tipoItem y tipoProducto (nueva taxonomía 1-6)
+        // 1=Producto → ARTICULO, 2=ProdGenérico → ARTICULO
+        // 3=Servicio+tipoProducto=1 → RECURSO_HUMANO, 3=Servicio → SERVICIO
+        // 4=Equipo → EQUIPO, 5=Financiero/6=Bono → SERVICIO
         let catStr = 'SERVICIO';
-        if (erpItem.tipoItem === 1) catStr = 'ARTICULO';
-        if (erpItem.tipoItem === 3) catStr = 'EQUIPO';
-        if (erpItem.tipoItem === 2) {
-          catStr = erpItem.tipoServicio === 1 ? 'RECURSO_HUMANO' : 'SERVICIO';
+        if (localItem.tipoItem === 1 || localItem.tipoItem === 2) catStr = 'ARTICULO';
+        if (localItem.tipoItem === 4) catStr = 'EQUIPO';
+        if (localItem.tipoItem === 3) {
+          catStr = localItem.tipoProducto === 1 ? 'RECURSO_HUMANO' : 'SERVICIO';
         }
 
         // costoFinal: 0 cuando manejoCostos=99, de lo contrario el valor ingresado/auto-cargado
         const costoFinal = sinManejoCotos ? 0 : (costoUnitario || 0);
 
         if (isEstandar) {
-          // Para ítems sinErp o itemRegistro !== 2: 1 recurso de cantidad N
-          // Para Activos (itemRegistro === 2): N recursos de cantidad 1
-          if (!sinErp && servicioSeleccionado?.itemRegistro === 2) {
+          // Para Equipos (tipoItem=4): N recursos de cantidad 1 (Activo)
+          if (localItem.tipoItem === 4) {
             // Activo: N recursos de cantidad 1
             for(let i = 0; i < cantidad; i++) {
               recursosNuevos.push({
                 id: `REC-${Date.now()}-${i}`,
-                itemId: erpItem.id,
-                nombre: erpItem.descripcion,
+                itemId: localItem.id,
+                nombre: localItem.descripcion,
                 categoria: catStr as any,
                 tipoCosto: 'MENSUAL',
                 cantidad: 1,
@@ -521,8 +579,8 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
             // Estándar u otros (incluyendo sinErp): 1 recurso de cantidad N
             recursosNuevos.push({
               id: `REC-${Date.now()}`,
-              itemId: erpItem.id,
-              nombre: erpItem.descripcion,
+              itemId: localItem.id,
+              nombre: localItem.descripcion,
               categoria: catStr as any,
               tipoCosto: 'MENSUAL',
               cantidad: cantidad,
@@ -551,8 +609,8 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
 
           recursosNuevos.push({
             id: `REC-${Date.now()}`,
-            itemId: erpItem.id,
-            nombre: erpItem.descripcion,
+            itemId: localItem.id,
+            nombre: localItem.descripcion,
             categoria: 'RECURSO_HUMANO',
             tipoCosto: 'MENSUAL',
             cantidad: cantidadTurnos,
@@ -561,31 +619,38 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
             precioVentaOrigen: 'MANUAL',
             itemServicio: servicioSeleccionado,
             turnoCodigo,
-            uniformeCodigo,
+            combosRhSeleccionados: Object.fromEntries(
+              Object.entries(combosRHSeleccionados)
+                .filter(([, v]) => v)
+                .map(([k, v]) => [k, v])
+            ),
+            // Backward compat: derive uniformeCodigo from the tipo named 'UNIFORME' if it exists
+            uniformeCodigo: String(combosRHSeleccionados[tiposComboRH.find(t => t.nombre === 'UNIFORME')?.id ?? 0] || ''),
             personas,
             horasSemana,
             cubreDescanso,
             bonos: bonosAgregados,
             recetas: recetasDelRecurso
           });
+
         }
       }
 
       // Adjuntar combosDisponibles al recurso primario (árbol completo del catálogo,
       // incluidos opcionales e hijos anidados) para que el EditorPanel pueda mostrarlos
-      if (recursosNuevos.length > 0 && erpItem.combosPrincipal?.length) {
+      if (recursosNuevos.length > 0 && localItem && localItem.combosPrincipal?.length) {
         recursosNuevos[0] = {
           ...recursosNuevos[0],
-          combosDisponibles: buildCombosDisponibles(erpItem.combosPrincipal, items, costosManuales),
+          combosDisponibles: buildCombosDisponibles(localItem.combosPrincipal, items, costosManuales),
         };
       }
 
       // Auto-agregar ítems del combo si el ítem primario tiene combos definidos
-      if (hasLineaInfo && erpItem && erpItem.combosPrincipal && erpItem.combosPrincipal.length > 0 && recursosNuevos.length > 0) {
+      if (hasLineaInfo && localItem && localItem.combosPrincipal && localItem.combosPrincipal.length > 0 && recursosNuevos.length > 0) {
         // El primario es siempre el primer recurso del array (para el caso de Activos, solo se enlaza al primero)
         const primaryId = recursosNuevos[0].id;
 
-        for (const combo of erpItem.combosPrincipal) {
+        for (const combo of localItem.combosPrincipal) {
           // Solo incluir combos con Incluir Nuevo activo y cantidad > 0
           if (!combo.nuevoIncluido || Number(combo.nuevoCantidad) <= 0) continue;
 
@@ -593,10 +658,10 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
           if (!secItem) continue; // Item secundario no encontrado en el catálogo local
 
           let secCat = 'SERVICIO';
-          if (secItem.tipoItem === 1) secCat = 'ARTICULO';
-          if (secItem.tipoItem === 3) secCat = 'EQUIPO';
-          if (secItem.tipoItem === 2) {
-            secCat = secItem.tipoServicio === 1 ? 'RECURSO_HUMANO' : 'SERVICIO';
+          if (secItem.tipoItem === 1 || secItem.tipoItem === 2) secCat = 'ARTICULO';
+          if (secItem.tipoItem === 4) secCat = 'EQUIPO';
+          if (secItem.tipoItem === 3) {
+            secCat = secItem.tipoProducto === 1 ? 'RECURSO_HUMANO' : 'SERVICIO';
           }
 
           const comboCantidad = Math.max(1, Math.round((Number(combo.nuevoCantidad) || 1) * factorCosto));
@@ -615,6 +680,144 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
             comboParentId: primaryId,
             recetas: [],
           });
+        }
+      }
+
+      // Auto-agregar ítems de Combos RH cuando es RRHH
+      // Para cada tipo que el usuario seleccionó un ítem
+      if (!isEstandar && recursosNuevos.length > 0) {
+        const primaryId = recursosNuevos[0].id;
+
+        for (const tipo of tiposComboRHDelItem) {
+          const selectedComboItemId = combosRHSeleccionados[tipo.id];
+          if (!selectedComboItemId) continue; // optional, not selected
+
+          const comboItemId = parseInt(selectedComboItemId, 10);
+          const comboItem = items.find(i => i.id === comboItemId);
+          if (!comboItem) continue;
+
+
+          const comboRecursoId = `REC-${Date.now()}-RH${tipo.id}`;
+
+          let comboCat = 'ARTICULO';
+          if (comboItem.tipoItem === 4) comboCat = 'EQUIPO';
+          if (comboItem.tipoItem === 3)
+            comboCat = comboItem.tipoProducto === 1 ? 'RECURSO_HUMANO' : 'SERVICIO';
+
+          // Add the combo RH item as a child of the primary resource
+          recursosNuevos.push({
+            id: comboRecursoId,
+            itemId: comboItem.id,
+            nombre: comboItem.descripcion,
+            categoria: comboCat as any,
+            tipoCosto: 'MENSUAL',
+            cantidad: factorCosto,
+            costoUnitario: comboItem.manejoCostos === 2 ? (costosManuales[comboItem.id] ?? 0) : 0,
+            precioVentaUnitario: 0,
+            precioVentaOrigen: 'MANUAL',
+            esCombo: true,
+            esComboRHId: tipo.id,
+            // Keep esUniforme=true for backward compat when tipo.nombre === 'UNIFORME'
+            esUniforme: tipo.nombre === 'UNIFORME',
+            comboParentId: primaryId,
+            recetas: [],
+          });
+
+          // Add the sub-combos of this combo item, scaled by factorCosto
+          for (const subCombo of comboItem.combosPrincipal ?? []) {
+            if (!subCombo.nuevoIncluido || Number(subCombo.nuevoCantidad) <= 0) continue;
+            const secItem = items.find(i => i.id === subCombo.productoSecundarioId);
+            if (!secItem) continue;
+
+            let secCat = 'SERVICIO';
+            if (secItem.tipoItem === 1 || secItem.tipoItem === 2) secCat = 'ARTICULO';
+            if (secItem.tipoItem === 4) secCat = 'EQUIPO';
+            if (secItem.tipoItem === 3)
+              secCat = secItem.tipoProducto === 1 ? 'RECURSO_HUMANO' : 'SERVICIO';
+
+            recursosNuevos.push({
+              id: `REC-${Date.now()}-RH${tipo.id}C${subCombo.productoSecundarioId}`,
+              itemId: secItem.id,
+              nombre: secItem.descripcion,
+              categoria: secCat as any,
+              tipoCosto: 'MENSUAL',
+              cantidad: Math.max(1, Math.round(Number(subCombo.nuevoCantidad) * factorCosto)),
+              costoUnitario: secItem.manejoCostos === 2 ? (costosManuales[secItem.id] ?? 0) : 0,
+              precioVentaUnitario: 0,
+              precioVentaOrigen: 'MANUAL',
+              esCombo: true,
+              comboParentId: comboRecursoId,
+              recetas: [],
+            });
+          }
+        }
+      }
+
+      // ── Auto-agregar ítems de Tipos Combo (nueva arquitectura) ─────────────────
+      // Para cada tipo que tiene selección en combosSeleccionados
+      if (recursosNuevos.length > 0 && localItem?.tiposCombo && localItem.tiposCombo.length > 0) {
+        const primaryId = recursosNuevos[0].id;
+
+        for (const asoc of localItem.tiposCombo) {
+          const incluido = asoc.obligatorio ? true : (combosIncluidos[asoc.tipoComboId] ?? false);
+          if (!incluido) continue; // opcional no marcado — no agregar
+
+          const selectedItemIdStr = combosSeleccionados[asoc.tipoComboId];
+          if (!selectedItemIdStr) continue; // incluido pero sin ítem seleccionado
+
+          const comboItemId = parseInt(selectedItemIdStr, 10);
+          const comboItem = items.find(i => i.id === comboItemId);
+          if (!comboItem) continue;
+
+          const comboRecursoId = `REC-${Date.now()}-TC${asoc.tipoComboId}`;
+
+          let comboCat: RecursoCosteo['categoria'] = 'ARTICULO';
+          if (comboItem.tipoItem === 4) comboCat = 'EQUIPO';
+          if (comboItem.tipoItem === 3)
+            comboCat = comboItem.tipoProducto === 1 ? 'RECURSO_HUMANO' : 'SERVICIO';
+
+          recursosNuevos.push({
+            id: comboRecursoId,
+            itemId: comboItem.id,
+            nombre: comboItem.descripcion,
+            categoria: comboCat,
+            tipoCosto: 'MENSUAL',
+            cantidad: factorCosto,
+            costoUnitario: comboItem.manejoCostos === 2 ? (costosManuales[comboItem.id] ?? 0) : 0,
+            precioVentaUnitario: 0,
+            precioVentaOrigen: 'MANUAL',
+            esCombo: true,
+            comboParentId: primaryId,
+            recetas: [],
+          });
+
+          // Sub-combos del item combo seleccionado
+          for (const subCombo of comboItem.combosPrincipal ?? []) {
+            if (!subCombo.nuevoIncluido || Number(subCombo.nuevoCantidad) <= 0) continue;
+            const secItem = items.find(i => i.id === subCombo.productoSecundarioId);
+            if (!secItem) continue;
+
+            let secCat: RecursoCosteo['categoria'] = 'SERVICIO';
+            if (secItem.tipoItem === 1 || secItem.tipoItem === 2) secCat = 'ARTICULO';
+            if (secItem.tipoItem === 4) secCat = 'EQUIPO';
+            if (secItem.tipoItem === 3)
+              secCat = secItem.tipoProducto === 1 ? 'RECURSO_HUMANO' : 'SERVICIO';
+
+            recursosNuevos.push({
+              id: `REC-${Date.now()}-TC${asoc.tipoComboId}C${subCombo.productoSecundarioId}`,
+              itemId: secItem.id,
+              nombre: secItem.descripcion,
+              categoria: secCat,
+              tipoCosto: 'MENSUAL',
+              cantidad: Math.max(1, Math.round(Number(subCombo.nuevoCantidad) * factorCosto)),
+              costoUnitario: secItem.manejoCostos === 2 ? (costosManuales[secItem.id] ?? 0) : 0,
+              precioVentaUnitario: 0,
+              precioVentaOrigen: 'MANUAL',
+              esCombo: true,
+              comboParentId: comboRecursoId,
+              recetas: [],
+            });
+          }
         }
       }
 
@@ -659,14 +862,21 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
       <div className="flex flex-col gap-1.5">
         <Label>Seleccionar Bono</Label>
         <SearchableSelect
-          options={bonosDisponibles.map(b => ({ value: b.codigo, label: b.descripcion })).sort((a, b) => a.label.localeCompare(b.label))}
+          options={[
+            { value: '', label: 'Seleccione...' },
+            ...bonosDisponibles
+              .slice()
+              .sort((a, b) => a.descripcion.localeCompare(b.descripcion))
+              .map(b => ({ value: b.codigo, label: b.descripcion }))
+          ]}
           value={selectedBonoId}
           onChange={(val) => setSelectedBonoId(val)}
           placeholder="Seleccione..."
+          searchable={false}
         />
       </div>
 
-      {/* Sección FINANCIERO — siempre visible */}
+      {/* Sección FINANCIERO — solo Costo */}
       <div className="pt-1">
         <div className="flex items-center mb-3 min-h-[24px]">
           <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider border-l-2 border-blue-500 pl-2 leading-none">
@@ -675,32 +885,8 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
           <div className="flex-1 border-t border-blue-200 ml-3 mt-0.5" />
         </div>
 
-        {/* Fila Venta */}
-        <div className="grid grid-cols-4 gap-4">
-          <div className="col-span-1 flex flex-col gap-1.5">
-            <Label>Precio Venta ({proyecto?.moneda || 'Q'})</Label>
-            <NumericInput
-              value={selectedBonoPrecio}
-              onChange={(val: number | undefined) => setSelectedBonoPrecio(val || 0)}
-              min="0"
-              className="flex h-8 w-full rounded-sm border border-slate-200 bg-transparent px-2.5 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950"
-            />
-            {!isEstandar && <p className="text-xs text-slate-500 italic">* Por Persona</p>}
-          </div>
-          <div className="col-span-1 flex flex-col gap-1.5">
-            <Label>SubTotal Venta</Label>
-            <input
-              type="text"
-              readOnly tabIndex={-1}
-              value={new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factorCosto * selectedBonoPrecio)}
-              className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
-            />
-          </div>
-          <div className="col-span-2" />
-        </div>
-
         {/* Fila Costo */}
-        <div className="grid grid-cols-4 gap-4 mt-3">
+        <div className="grid grid-cols-4 gap-4">
           <div className="col-span-1 flex flex-col gap-1.5">
             <Label>Costo Unitario ({proyecto?.moneda || 'Q'})</Label>
             {bonoSolicitaCosto ? (
@@ -714,7 +900,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
               <input
                 type="text"
                 readOnly tabIndex={-1}
-                value={(0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                value={(bonoSeleccionado?.costo ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
               />
             )}
@@ -724,7 +910,9 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
             <input
               type="text"
               readOnly tabIndex={-1}
-              value={new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factorCosto * selectedBonoCosto)}
+              value={new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+                factorCosto * (bonoSolicitaCosto ? selectedBonoCosto : (bonoSeleccionado?.costo ?? 0))
+              )}
               className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 font-bold text-red-600 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
             />
           </div>
@@ -744,10 +932,8 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                   erpBonoId: bono.codigo,
                   nombre: bono.descripcion,
                   costoUnitario: bonoSolicitaCosto ? selectedBonoCosto : bono.costo,
-                  precioVentaUnitario: selectedBonoPrecio,
                 }]);
                 setSelectedBonoId('');
-                setSelectedBonoPrecio(0);
                 setSelectedBonoCosto(0);
               }
             }}
@@ -764,11 +950,6 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
           <FieldError message={fieldErrors.bonosCosto} />
         </div>
       )}
-      {fieldErrors.bonosPrecio && (
-        <div id="field-bonosPrecio">
-          <FieldError message={fieldErrors.bonosPrecio} />
-        </div>
-      )}
       {bonosAgregados.length > 0 ? (
         <div className="-mt-2 border rounded-md overflow-hidden">
           <table className="w-full text-sm text-left">
@@ -778,23 +959,18 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                 <th className="px-3 py-2 text-center">Factor</th>
                 <th className="px-3 py-2 text-right">Costo</th>
                 <th className="px-3 py-2 text-right text-slate-700 font-semibold bg-slate-100">Total Costo</th>
-                <th className="px-3 py-2 text-right">Precio</th>
-                <th className="px-3 py-2 text-right text-blue-700 font-semibold bg-blue-50/50">Total Venta</th>
                 <th className="px-3 py-2 w-10"></th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {bonosAgregados.map((b, idx) => {
                 const costoTotal = (b.costoUnitario || 0) * factorCosto;
-                const ventaTotal = (b.precioVentaUnitario || 0) * factorCosto;
                 return (
                   <tr key={idx} className="bg-white hover:bg-slate-50">
                     <td className="px-3 py-2">{b.nombre}</td>
                     <td className="px-3 py-2 text-center text-slate-500">{factorCosto}</td>
                     <td className="px-3 py-2 text-right text-slate-500">{b.costoUnitario.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
                     <td className="px-3 py-2 text-right text-slate-700 font-semibold bg-slate-100">{costoTotal.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
-                    <td className="px-3 py-2 text-right text-slate-500">{(b.precioVentaUnitario || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</td>
-                    <td className="px-3 py-2 text-right text-blue-700 font-semibold bg-blue-50/50">{ventaTotal.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
                     <td className="px-3 py-2 text-center">
                       <button type="button" className="text-red-500 hover:text-red-700 p-1" onClick={() => setBonosAgregados(prev => prev.filter((_, i) => i !== idx))}>
                         <Trash className="w-4 h-4" />
@@ -916,11 +1092,10 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
     
                   <div className="flex flex-col gap-1.5">
                     <Label>País</Label>
-                    <SearchableSelect
-                      options={[{ value: 'GT', label: 'GUATEMALA' }]}
-                      value="GT"
-                      onChange={() => {}}
-                      disabled={true}
+                    <Input
+                      value="GUATEMALA"
+                      disabled
+                      className="bg-slate-100 text-slate-500 cursor-not-allowed"
                     />
                   </div>
                   
@@ -981,10 +1156,12 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                 <>
                   <SearchableSelect
                     id="field-selectedItemId"
-                    options={items.filter(item => item.tipoItem !== 5).map(item => ({
-                      value: item.id.toString(),
-                      label: `${item.codigoErp || item.id} - ${item.descripcion}`
-                    })).sort((a, b) => a.label.localeCompare(b.label))}
+                    options={items
+                      .filter(item => item.venta === 1)
+                      .map(item => ({
+                        value: item.id.toString(),
+                        label: `${item.codigoErp || item.id} - ${item.descripcion}`
+                      })).sort((a, b) => a.label.localeCompare(b.label))}
                     value={selectedItemId}
                     onChange={(val) => {
                       setSelectedItemId(val || '');
@@ -1000,7 +1177,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
               </div>
             </div>
 
-            {selectedItemId && erpItem && (() => {
+            {selectedItemId && localItem && (() => {
               const generalContent = (
                 <div className="space-y-4 animate-in fade-in slide-in-from-top-2 pr-2">
                   <div className="w-full lg:w-[60%]">
@@ -1024,10 +1201,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                           onChange={(val: number | undefined) => { setCantidad(val || 1); setFieldErrors(prev => ({ ...prev, cantidad: '' })); }}
                           min="1"
                           isInteger={true}
-                          className={cn(
-                            "flex h-8 w-full rounded-sm border bg-transparent px-2.5 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-50",
-                            fieldErrors.cantidad ? "border-red-500 focus-visible:ring-red-500" : "border-slate-200 focus-visible:ring-slate-950"
-                          )}
+                          aria-invalid={!!fieldErrors.cantidad}
                         />
                         {fieldErrors.cantidad && <FieldError message={fieldErrors.cantidad} />}
                       </div>
@@ -1035,12 +1209,11 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                         <Label>
                           Unidad Medida
                         </Label>
-                        <input
-                          type="text"
-                          value={servicioSeleccionado?.unidadMedida || erpItem?.unidadMedida || ''}
+                        <Input
+                          value={servicioSeleccionado?.unidadMedida || localItem?.unidadMedida || ''}
                           readOnly
                           tabIndex={-1}
-                          className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm shadow-sm outline-none cursor-not-allowed uppercase"
+                          className="bg-slate-100 text-slate-500 cursor-not-allowed uppercase"
                         />
                       </div>
                     </>
@@ -1055,7 +1228,6 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                           onChange={(val: number | undefined) => setCantidadTurnos(val || 1)}
                           min="1"
                           isInteger={true}
-                          className="flex h-8 w-full rounded-sm border border-slate-200 bg-transparent px-2.5 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
                         />
                       </div>
                       <div className="col-span-8 flex flex-col gap-1">
@@ -1089,36 +1261,101 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                         </Label>
                         <SearchableSelect
                           id="field-cubreDescanso"
-                          options={OPCIONES_CUBRE_DESCANSO}
+                          options={OPCIONES_CUBRE_DESCANSO.map(o => ({ value: o.value, label: o.label }))}
                           value={String(cubreDescanso)}
                           onChange={(val) => { setCubreDescanso(parseInt(val, 10)); setFieldErrors(prev => ({ ...prev, cubreDescanso: '' })); }}
                           disabled={!trabaja7Dias}
-                          placeholder="Seleccione..."
+                          searchable={false}
                           error={!!fieldErrors.cubreDescanso}
                         />
                         {fieldErrors.cubreDescanso && <FieldError message={fieldErrors.cubreDescanso} />}
                       </div>
-  
-                      <div className="col-span-1 flex flex-col gap-1">
-                        <Label>
-                          Uniforme {loadingUniformes && <span className="text-xs text-slate-400">(cargando...)</span>}
-                        </Label>
-                        <SearchableSelect
-                          id="field-uniformeCodigo"
-                          options={uniformes.map(u => ({ value: u.codigo, label: u.descripcion })).sort((a, b) => a.label.localeCompare(b.label))}
-                          value={uniformeCodigo}
-                          onChange={(val) => { setUniformeCodigo(val); setFieldErrors(prev => ({ ...prev, uniformeCodigo: '' })); }}
-                          disabled={loadingUniformes || uniformes.length === 0}
-                          placeholder="Seleccione..."
-                          error={!!fieldErrors.uniformeCodigo}
-                        />
-                        {fieldErrors.uniformeCodigo && <FieldError message={fieldErrors.uniformeCodigo} />}
-                      </div>
+
                     </>
                   )}
-                         </div>
+                       </div>
                 </div>
               </div>
+
+              {/* ── TABLA TIPOS COMBO (nueva arquitectura) ──────────────────────────
+                  Se muestra para cualquier ítem que tenga Tipos Combo configurados.
+                  Col 1: nombre del tipo | Col 2: select con ítems que tienen ese tipoComboId */}
+              {localItem?.tiposCombo && localItem.tiposCombo.length > 0 && (
+                <div className="pt-2">
+                  <div className="flex items-center mb-3 min-h-[24px]">
+                    <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-wider border-l-2 border-indigo-500 pl-2 leading-none">
+                      ITEMS ADICIONALES
+                    </h3>
+                    <div className="flex-1 border-t border-indigo-200 ml-3 mt-0.5" />
+                  </div>
+                  <div className="border rounded-md">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-slate-50 text-slate-500 font-medium border-b">
+                        <tr>
+                          <th className="px-3 py-2 w-2/5">Item Adicional</th>
+                          <th className="px-3 py-2">Ítem</th>
+                          <th className="px-3 py-2 w-20 text-center">Incluido</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {localItem.tiposCombo.map(asoc => {
+                          const nombreTipo = tiposCombosNombres[asoc.tipoComboId] || `Tipo ${asoc.tipoComboId}`;
+                          const opcionesCombo = (itemsPorTipoCombo[asoc.tipoComboId] ?? [])
+                            .map(i => ({ value: String(i.id), label: i.descripcion }));
+                          const fieldKey = `tipoCombo_${asoc.tipoComboId}`;
+                          const estaIncluido = asoc.obligatorio ? true : (combosIncluidos[asoc.tipoComboId] ?? false);
+                          return (
+                            <tr key={asoc.tipoComboId} className="bg-white">
+                              {/* Columna Item Adicional */}
+                              <td className="px-3 py-2 font-medium text-slate-700">
+                                {nombreTipo}
+                              </td>
+
+                              {/* Columna Ítem */}
+                              <td className="px-3 py-2">
+                                <SearchableSelect
+                                  id={`field-${fieldKey}`}
+                                  options={[
+                                    { value: '', label: opcionesCombo.length === 0 ? 'Sin ítems disponibles' : '— Sin seleccionar —' },
+                                    ...opcionesCombo,
+                                  ]}
+                                  value={combosSeleccionados[asoc.tipoComboId] ?? ''}
+                                  disabled={isLoadingCatalogo || !estaIncluido}
+                                  onChange={(val) => {
+                                    setCombosSeleccionados(prev => ({ ...prev, [asoc.tipoComboId]: val }));
+                                    setFieldErrors(prev => ({ ...prev, [fieldKey]: '' }));
+                                  }}
+                                  error={!!fieldErrors[fieldKey]}
+                                />
+                                {fieldErrors[fieldKey] && (
+                                  <FieldError message={fieldErrors[fieldKey]} />
+                                )}
+                              </td>
+
+                              {/* Columna Incluido — última */}
+                              <td className="px-3 py-2 text-center">
+                                <input
+                                  type="checkbox"
+                                  checked={estaIncluido}
+                                  disabled={!!asoc.obligatorio}
+                                  onChange={(e) => {
+                                    setCombosIncluidos(prev => ({ ...prev, [asoc.tipoComboId]: e.target.checked }));
+                                    if (!e.target.checked) {
+                                      setCombosSeleccionados(prev => ({ ...prev, [asoc.tipoComboId]: '' }));
+                                      setFieldErrors(prev => ({ ...prev, [fieldKey]: '' }));
+                                    }
+                                  }}
+                                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
               <div className="pt-2">
                 <div className="flex items-center mb-3 min-h-[24px]">
@@ -1127,7 +1364,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                   </h3>
                   <div className="flex-1 border-t border-blue-200 ml-3 mt-0.5"></div>
                 </div>
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div className="col-span-1 flex flex-col gap-1.5">
                     <Label>Precio Venta ({proyecto?.moneda || 'Q'})</Label>
                     <NumericInput
@@ -1135,46 +1372,25 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                       value={precioVenta ?? 0}
                       onChange={(val: number | undefined) => { setPrecioVenta(val); setFieldErrors(prev => ({ ...prev, precioVenta: '' })); }}
                       min="0"
-                      className={cn(
-                        "flex h-8 w-full rounded-sm border bg-transparent px-2.5 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-50",
-                        fieldErrors.precioVenta ? "border-red-500 focus-visible:ring-red-500" : "border-slate-200 focus-visible:ring-slate-950"
-                      )}
+                      aria-invalid={!!fieldErrors.precioVenta}
                     />
                     {fieldErrors.precioVenta && <FieldError message={fieldErrors.precioVenta} />}
                     {!isEstandar && <p className="text-xs text-slate-500 italic">* Por Persona</p>}
                   </div>
                   <div className="col-span-1 flex flex-col gap-1.5">
                     <Label>SubTotal Venta</Label>
-                    <input
-                      type="text"
+                    <Input
                       value={new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factorCosto * (precioVenta || 0))}
                       readOnly tabIndex={-1}
-                      className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
-                    />
-                  </div>
-                  <div className="col-span-1 flex flex-col gap-1.5">
-                    <Label>Bonos Venta</Label>
-                    <input
-                      type="text"
-                      value={(() => {
-                        const bonosTotal = bonosAgregados.reduce((sum, b) => sum + (b.precioVentaUnitario || 0), 0);
-                        return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factorCosto * bonosTotal);
-                      })()}
-                      readOnly tabIndex={-1}
-                      className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
+                      className="bg-slate-100 text-slate-500 cursor-not-allowed"
                     />
                   </div>
                   <div className="col-span-1 flex flex-col gap-1.5">
                     <Label>Total Venta</Label>
-                    <input
-                      type="text"
-                      value={(() => {
-                        const subtotal = factorCosto * (precioVenta || 0);
-                        const bonosTotal = factorCosto * bonosAgregados.reduce((sum, b) => sum + (b.precioVentaUnitario || 0), 0);
-                        return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(subtotal + bonosTotal);
-                      })()}
+                    <Input
+                      value={new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factorCosto * (precioVenta || 0))}
                       readOnly tabIndex={-1}
-                      className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 font-bold text-blue-700 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
+                      className="bg-slate-100 font-bold text-blue-700 cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -1188,50 +1404,46 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                         value={costoUnitario}
                         onChange={(val) => { setCostoUnitario(val); setFieldErrors(prev => ({ ...prev, costoUnitario: '' })); }}
                         min="0"
-                        className={`flex h-8 w-full rounded-sm border px-2.5 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 ${fieldErrors.costoUnitario ? 'border-red-400 focus-visible:ring-red-400' : 'border-indigo-300 focus-visible:ring-indigo-500'} bg-white`}
+                        aria-invalid={!!fieldErrors.costoUnitario}
                       />
                     ) : (
-                      <input
-                        type="text"
+                      <Input
                         value={(sinManejoCotos ? 0 : (costoUnitario || 0)).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                         readOnly tabIndex={-1}
-                        className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
+                        className="bg-slate-100 text-slate-500 cursor-not-allowed"
                       />
                     )}
                     {fieldErrors.costoUnitario && <FieldError message={fieldErrors.costoUnitario} />}
                   </div>
                   <div className="col-span-1 flex flex-col gap-1.5">
                     <Label>SubTotal Costo</Label>
-                    <input
-                      type="text"
+                    <Input
                       value={new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factorCosto * (costoUnitario || 0))}
                       readOnly tabIndex={-1}
-                      className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
+                      className="bg-slate-100 text-slate-500 cursor-not-allowed"
                     />
                   </div>
                   <div className="col-span-1 flex flex-col gap-1.5">
                     <Label>Bonos Costo</Label>
-                    <input
-                      type="text"
+                    <Input
                       value={(() => {
                         const bonosTotal = bonosAgregados.reduce((sum, b) => sum + (b.costoUnitario || 0), 0);
                         return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factorCosto * bonosTotal);
                       })()}
                       readOnly tabIndex={-1}
-                      className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
+                      className="bg-slate-100 text-slate-500 cursor-not-allowed"
                     />
                   </div>
                   <div className="col-span-1 flex flex-col gap-1.5">
                     <Label>Total Costo</Label>
-                    <input
-                      type="text"
+                    <Input
                       value={(() => {
                         const subtotal = factorCosto * (costoUnitario || 0);
                         const bonosTotal = factorCosto * bonosAgregados.reduce((sum, b) => sum + (b.costoUnitario || 0), 0);
                         return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(subtotal + bonosTotal);
                       })()}
                       readOnly tabIndex={-1}
-                      className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 font-bold text-red-600 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
+                      className="bg-slate-100 font-bold text-red-600 cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -1239,26 +1451,132 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
             </div>
               );
 
-              return !isEstandar ? (
+              return (
                 <div className="flex-1 flex flex-col min-h-0 animate-in fade-in slide-in-from-top-2">
                   <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
                     <TabsList variant="line" className="mb-4 shrink-0">
                       <TabsTrigger value="general"><Settings2 className="w-4 h-4 mr-2" />General</TabsTrigger>
-                      <TabsTrigger value="bonos">
-                        <Gift className="w-4 h-4 mr-2" />Bonos {bonosAgregados.length > 0 && `(${bonosAgregados.length})`}
+                      {!isEstandar && (
+                        <TabsTrigger value="bonos">
+                          <Gift className="w-4 h-4 mr-2" />Bonos
+                        </TabsTrigger>
+                      )}
+                      <TabsTrigger value="combo">
+                        <Layers className="w-4 h-4 mr-2" />Combo
                       </TabsTrigger>
                     </TabsList>
                     <TabsContent value="general" keepMounted className="flex-1 overflow-visible outline-none">
                       {generalContent}
                     </TabsContent>
-                    <TabsContent value="bonos" className="flex-1 overflow-visible outline-none">
-                      {renderBonosContent()}
-                    </TabsContent>
+                    {!isEstandar && (
+                      <TabsContent value="bonos" className="flex-1 overflow-visible outline-none">
+                        {renderBonosContent()}
+                      </TabsContent>
+                    )}
+                    {(() => {
+                      const combosPrincipal = localItem.combosPrincipal ?? [];
+                      if (combosPrincipal.length === 0) {
+                        return (
+                          <TabsContent value="combo" className="flex-1 overflow-auto outline-none">
+                            <div className="pt-2">
+                              <p className="text-xs text-slate-500">
+                                Este ítem no tiene combo configurado en el sistema. Podrás agregarle
+                                sub-ítems manualmente desde la pestaña Combo una vez que sea guardado
+                                en el costeo.
+                              </p>
+                            </div>
+                          </TabsContent>
+                        );
+                      }
+
+                      // Construir árbol recursivo igual que EditorPanel/ComboTab
+                      const comboTree = buildCombosDisponibles(combosPrincipal, items, costosManuales);
+
+                      // Guías visuales de árbol (igual que ComboTab)
+                      const TreeGuide = ({ depth }: { depth: number }) => {
+                        if (depth === 0) return null;
+                        return (
+                          <span className="flex items-center shrink-0" style={{ width: depth * 20 }}>
+                            {Array.from({ length: depth - 1 }).map((_, i) => (
+                              <span key={i} className="inline-block w-5 shrink-0 border-l border-dashed border-slate-200 h-5" />
+                            ))}
+                            <span className="inline-flex items-center shrink-0 w-5">
+                              <span className="w-5 border-t border-dashed border-slate-300" />
+                            </span>
+                          </span>
+                        );
+                      };
+
+                      // Render recursivo de cada fila
+                      const renderRow = (combo: typeof comboTree[0], depth: number): React.ReactNode => {
+                        const incluido = combo.nuevoIncluido === 1 && combo.nuevoCantidad > 0;
+                        return (
+                          <React.Fragment key={`${combo.comboId}-${depth}`}>
+                            <tr className="border-t hover:bg-slate-50/50">
+                              <td className="px-3 py-1.5">
+                                <div className="flex items-center gap-1.5">
+                                  <TreeGuide depth={depth} />
+                                  <span className={`text-sm ${incluido ? 'text-slate-800 font-medium' : 'text-slate-500'}`}>
+                                    {combo.nombre}
+                                  </span>
+                                  {!incluido && (
+                                    <span className="text-[10px] px-1 py-0.5 rounded bg-slate-100 text-slate-400 border border-slate-200 font-medium shrink-0">
+                                      Opcional
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-3 py-1.5 text-left w-20">
+                                <span className="text-xs text-slate-400">{combo.unidadMedida ?? '—'}</span>
+                              </td>
+                              <td className="px-3 py-1.5 text-center w-24">
+                                <span className={`text-sm ${incluido ? 'text-slate-700 font-medium' : 'text-slate-300'}`}>
+                                  {combo.nuevoCantidad}
+                                </span>
+                              </td>
+                              <td className="px-3 py-1.5 text-center w-20">
+                                {incluido ? (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                                    Incluido
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-400">
+                                    Opcional
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                            {combo.hijos?.map(hijo => renderRow(hijo, depth + 1))}
+                          </React.Fragment>
+                        );
+                      };
+
+                      return (
+                        <TabsContent value="combo" className="flex-1 overflow-auto outline-none">
+                          <div className="space-y-3">
+                            <p className="text-xs text-slate-500 italic">
+                              Vista previa del combo. Las personalizaciones se gestionan desde el árbol del costeo una vez guardado.
+                            </p>
+                            <div className="border rounded-md overflow-hidden bg-white">
+                              <table className="w-full text-sm">
+                                <thead className="bg-slate-50 border-b">
+                                  <tr>
+                                    <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500">Sub-ítem</th>
+                                    <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 w-20">Medida</th>
+                                    <th className="px-3 py-2 text-center text-xs font-semibold text-slate-500 w-24">Cantidad</th>
+                                    <th className="px-3 py-2 text-center text-xs font-semibold text-slate-500 w-20">Estado</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {comboTree.map(combo => renderRow(combo, 0))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </TabsContent>
+                      );
+                    })()}
                   </Tabs>
-                </div>
-              ) : (
-                <div className="flex-1 overflow-visible">
-                  {generalContent}
                 </div>
               );
             })()}

@@ -150,14 +150,15 @@ export type ErpServicioVenta = {
   codigo: string
   descripcion: string
   unidadMedida: string
-  tipoBien: number
-  tipoItem: number
-  itemRegistro: number
+  tipoItem: number        // SP: tipo_item (1=Producto, 2=ProdGenérico, 3=Servicio, 4=Equipo, 5=Financiero, 6=Bono)
+  tipoProducto: number    // SP: tipo_producto (contextual según tipoItem)
+  venta: number           // SP: venta (1=puede ser item primario en Costeo)
   recurrente: number
   requiereDireccion: number
   precioVentaCero: number
   perfil: number
   manejoCostos: number
+  uniforme: number
 }
 
 export type ErpDireccionOperativa = {

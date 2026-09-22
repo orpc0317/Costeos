@@ -9,8 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getDepartamentosERP, getMunicipiosERP, getTurnosERP, getUniformesERP, getServiciosVentaERP, getClienteDireccionesERP } from '@/app/actions/erp';
-import type { ErpTurno, ErpUniforme, ErpServicioVenta, ErpDireccionOperativa } from '@/lib/erp';
+import { getDepartamentosERP, getMunicipiosERP, getTurnosERP, getClienteDireccionesERP } from '@/app/actions/erp';
+
+import type { ErpTurno, ErpServicioVenta, ErpDireccionOperativa } from '@/lib/erp';
+
 import { AddressLookupModal } from './modals/AddressLookupModal';
 import { Search } from 'lucide-react';
 import { MapPin, Settings2, Calculator, Trash2, CornerUpRight, Gift, Layers } from 'lucide-react';
@@ -21,8 +23,12 @@ import { TurnoCard } from './TurnoCard';
 import { ComboTab } from './ComboTab';
 import { NodoCosteo, RecursoCosteo, ComboDisponible } from '@/lib/types/costeos';
 import { listarItems, getCostosUltimosManual } from '@/app/actions/items';
+import { listarTiposComboRHPorEmpresa } from '@/app/actions/tipos-combo-rh';
+import { listarTiposCombosPorEmpresa } from '@/app/actions/tipos-combo';
 import type { ItemRow } from '@/lib/types/items';
+import type { TipoComboRHRow } from '@/lib/types/tipos-combo-rh';
 import { buildCombosDisponibles } from '@/lib/utils/combos';
+import { FieldError } from '@/components/ui/field-error';
 
 const OPCIONES_CUBRE_DESCANSO = [
   { value: '0', label: '0 - No Aplica' },
@@ -142,27 +148,279 @@ export default function EditorPanel() {
       dispatch({ type: 'UPDATE_NODO', payload: { id: selectedNode.id, data } });
     } else if (selectedNode.type === 'RECURSO') {
       dispatch({ type: 'UPDATE_RECURSO', payload: { recursoId: selectedNode.id, data } });
+
+      // ── Helper: recursos planos del nodo actual ───────────────────────────
+      const getNodoRecursos = (): RecursoCosteo[] => {
+        if (!parentId) return proyecto.recursos;
+        const findNodo = (nodos: NodoCosteo[], id: string): NodoCosteo | null => {
+          for (const n of nodos) {
+            if (n.id === id) return n;
+            const f = findNodo(n.nodos, id);
+            if (f) return f;
+          }
+          return null;
+        };
+        return findNodo(proyecto.nodos, parentId)?.recursos ?? [];
+      };
+
+      // ── Cascada de cantidad a combos hijos cuando cambia 'cantidad' o 'personas' (RH) ──
+      const cambiaCantidad = 'cantidad' in data;
+      const cambiaPersonas = 'personas' in data;
+      if ((cambiaCantidad || cambiaPersonas) && nodeData) {
+        const isRH = nodeData.categoria === 'RECURSO_HUMANO';
+        const oldCantidad = nodeData.cantidad ?? 1;
+        const oldPersonas = nodeData.personas ?? 1;
+        const newCantidad = (cambiaCantidad ? (data.cantidad as number) : oldCantidad) ?? 1;
+        const newPersonas = (cambiaPersonas ? (data.personas as number) : oldPersonas) ?? 1;
+
+        // Efectiva del root: para RH es cantidad × personas; para otros, solo cantidad
+        const oldEfectiva = isRH ? oldCantidad * oldPersonas : oldCantidad;
+        const newEfectiva = isRH ? newCantidad * newPersonas : newCantidad;
+
+        if (newEfectiva !== oldEfectiva && oldEfectiva > 0) {
+          const nodoRecursos = getNodoRecursos();
+          const cascadeComboQty = (parentRecursoId: string, oQty: number, nQty: number) => {
+            nodoRecursos
+              .filter(r => r.comboParentId === parentRecursoId)
+              .forEach(child => {
+                const childOld = child.cantidad ?? 1;
+                const childNew = Math.max(1, Math.round(childOld * nQty / oQty));
+                dispatch({ type: 'UPDATE_RECURSO', payload: { recursoId: child.id, data: { cantidad: childNew } } });
+                cascadeComboQty(child.id, childOld, childNew);
+              });
+          };
+          cascadeComboQty(selectedNode.id, oldEfectiva, newEfectiva);
+        }
+      }
+
+      // ── Cambio de Combo RH: sustituir combo del tipo anterior por el nuevo ──
+      const cambiaComboRH = 'combosRhSeleccionados' in data;
+      const cambiaUniforme = 'uniformeCodigo' in data; // keep for old data compat
+
+      if ((cambiaComboRH || cambiaUniforme) && nodeData && nodeData.categoria === 'RECURSO_HUMANO') {
+        const nodoRecursos = getNodoRecursos();
+        const factorCosto = (nodeData.cantidad ?? 1) * (nodeData.personas ?? 1);
+
+        if (cambiaComboRH) {
+          const oldCombos = nodeData.combosRhSeleccionados ?? {};
+          const newCombos = (data as any).combosRhSeleccionados ?? {};
+
+          // For each tipo, check if the selection changed
+          for (const tipo of tiposComboRH) {
+            const oldItemId = oldCombos[String(tipo.id)] ? parseInt(oldCombos[String(tipo.id)], 10) : NaN;
+            const newItemId = newCombos[String(tipo.id)] ? parseInt(newCombos[String(tipo.id)], 10) : NaN;
+
+            if (oldItemId === newItemId) continue; // no change for this type
+
+            // 1. Remove old combo child for this tipo
+            if (!isNaN(oldItemId)) {
+              const oldComboRecurso = nodoRecursos.find(
+                r => r.esCombo && r.comboParentId === selectedNode.id && r.itemId === oldItemId && r.esComboRHId === tipo.id
+              );
+              // Also handle legacy esUniforme=true case
+              const oldLegacy = !oldComboRecurso && tipo.nombre === 'UNIFORME'
+                ? nodoRecursos.find(r => r.esCombo && r.comboParentId === selectedNode.id && r.itemId === oldItemId && r.esUniforme)
+                : null;
+              if (oldComboRecurso) dispatch({ type: 'REMOVE_RECURSO', payload: { recursoId: oldComboRecurso.id } });
+              if (oldLegacy) dispatch({ type: 'REMOVE_RECURSO', payload: { recursoId: oldLegacy.id } });
+            }
+
+            // 2. Add new combo child for this tipo
+            if (!isNaN(newItemId) && newItemId > 0) {
+              const newComboItem = catalogoItems.find(i => i.id === newItemId);
+              if (newComboItem) {
+                const comboRecursoId = `REC-${Date.now()}-RH${tipo.id}`;
+                let comboCat: RecursoCosteo['categoria'] = 'ARTICULO';
+                if (newComboItem.tipoItem === 4) comboCat = 'EQUIPO';
+                if (newComboItem.tipoItem === 3)
+                  comboCat = newComboItem.tipoProducto === 1 ? 'RECURSO_HUMANO' : 'SERVICIO';
+
+                dispatch({
+                  type: 'ADD_RECURSO',
+                  payload: {
+                    nodoId: parentId,
+                    recurso: {
+                      id: comboRecursoId,
+                      itemId: newComboItem.id,
+                      nombre: newComboItem.descripcion,
+                      categoria: comboCat,
+                      tipoCosto: 'MENSUAL',
+                      cantidad: factorCosto,
+                      costoUnitario: 0,
+                      precioVentaUnitario: 0,
+                      precioVentaOrigen: 'MANUAL',
+                      esCombo: true,
+                      esComboRHId: tipo.id,
+                      esUniforme: tipo.nombre === 'UNIFORME',
+                      comboParentId: selectedNode.id,
+                      recetas: [],
+                    },
+                  },
+                });
+
+                // Sub-combos of the new combo item
+                for (const subCombo of newComboItem.combosPrincipal ?? []) {
+                  if (!subCombo.nuevoIncluido || Number(subCombo.nuevoCantidad) <= 0) continue;
+                  const secItem = catalogoItems.find(i => i.id === subCombo.productoSecundarioId);
+                  if (!secItem) continue;
+                  let secCat: RecursoCosteo['categoria'] = 'SERVICIO';
+                  if (secItem.tipoItem === 1 || secItem.tipoItem === 2) secCat = 'ARTICULO';
+                  if (secItem.tipoItem === 4) secCat = 'EQUIPO';
+                  if (secItem.tipoItem === 3)
+                    secCat = secItem.tipoProducto === 1 ? 'RECURSO_HUMANO' : 'SERVICIO';
+                  dispatch({
+                    type: 'ADD_RECURSO',
+                    payload: {
+                      nodoId: parentId,
+                      recurso: {
+                        id: `REC-${Date.now()}-RH${tipo.id}C${subCombo.productoSecundarioId}`,
+                        itemId: secItem.id,
+                        nombre: secItem.descripcion,
+                        categoria: secCat,
+                        tipoCosto: 'MENSUAL',
+                        cantidad: Math.max(1, Math.round(Number(subCombo.nuevoCantidad) * factorCosto)),
+                        costoUnitario: 0,
+                        precioVentaUnitario: 0,
+                        precioVentaOrigen: 'MANUAL',
+                        esCombo: true,
+                        comboParentId: comboRecursoId,
+                        recetas: [],
+                      },
+                    },
+                  });
+                }
+              }
+            }
+          }
+        } else if (cambiaUniforme) {
+          // Legacy backward compat: handle uniformeCodigo change for old costeos
+
+          // 1. Eliminar el recurso del uniforme anterior y toda su cadena de descendientes
+          const oldUnifItemId = nodeData.uniformeCodigo ? parseInt(nodeData.uniformeCodigo, 10) : NaN;
+          if (!isNaN(oldUnifItemId)) {
+            const oldUnifRecurso = nodoRecursos.find(
+              r => r.esCombo && r.comboParentId === selectedNode.id && r.itemId === oldUnifItemId
+            );
+            if (oldUnifRecurso) {
+              // REMOVE_RECURSO del context ya elimina recursivamente todos los descendientes
+              dispatch({ type: 'REMOVE_RECURSO', payload: { recursoId: oldUnifRecurso.id } });
+            }
+          }
+
+          // 2. Agregar el nuevo uniforme y sus combos (si se seleccionó uno)
+          const newUnifItemId = data.uniformeCodigo ? parseInt(data.uniformeCodigo, 10) : NaN;
+          if (!isNaN(newUnifItemId) && newUnifItemId > 0) {
+            const unifItem = catalogoItems.find(i => i.id === newUnifItemId);
+            if (unifItem) {
+              // Factor = cantidadTurnos × personas (los valores actuales del recurso, no cambian aquí)
+              const unifRecursoId = `REC-${Date.now()}-UNIF`;
+
+              let unifCat: RecursoCosteo['categoria'] = 'ARTICULO';
+              if (unifItem.tipoItem === 4) unifCat = 'EQUIPO';
+              if (unifItem.tipoItem === 3)
+                unifCat = unifItem.tipoProducto === 1 ? 'RECURSO_HUMANO' : 'SERVICIO';
+
+              // Agregar el uniforme como combo hijo del primario
+              dispatch({
+                type: 'ADD_RECURSO',
+                payload: {
+                  nodoId: parentId,
+                  recurso: {
+                    id: unifRecursoId,
+                    itemId: unifItem.id,
+                    nombre: unifItem.descripcion,
+                    categoria: unifCat,
+                    tipoCosto: 'MENSUAL',
+                    cantidad: factorCosto,
+                    costoUnitario: 0,
+                    precioVentaUnitario: 0,
+                    precioVentaOrigen: 'MANUAL',
+                    esCombo: true,
+                    esUniforme: true,
+                    comboParentId: selectedNode.id,
+                    recetas: [],
+                  },
+                },
+              });
+
+              // Agregar los sub-combos del uniforme, escalados por factorCosto
+              for (const combo of unifItem.combosPrincipal ?? []) {
+                if (!combo.nuevoIncluido || Number(combo.nuevoCantidad) <= 0) continue;
+                const secItem = catalogoItems.find(i => i.id === combo.productoSecundarioId);
+                if (!secItem) continue;
+
+                let secCat: RecursoCosteo['categoria'] = 'SERVICIO';
+                if (secItem.tipoItem === 1 || secItem.tipoItem === 2) secCat = 'ARTICULO';
+                if (secItem.tipoItem === 4) secCat = 'EQUIPO';
+                if (secItem.tipoItem === 3)
+                  secCat = secItem.tipoProducto === 1 ? 'RECURSO_HUMANO' : 'SERVICIO';
+
+                dispatch({
+                  type: 'ADD_RECURSO',
+                  payload: {
+                    nodoId: parentId,
+                    recurso: {
+                      id: `REC-${Date.now()}-UNIFC${combo.productoSecundarioId}`,
+                      itemId: secItem.id,
+                      nombre: secItem.descripcion,
+                      categoria: secCat,
+                      tipoCosto: 'MENSUAL',
+                      cantidad: Math.max(1, Math.round(Number(combo.nuevoCantidad) * factorCosto)),
+                      costoUnitario: 0,
+                      precioVentaUnitario: 0,
+                      precioVentaOrigen: 'MANUAL',
+                      esCombo: true,
+                      comboParentId: unifRecursoId,
+                      recetas: [],
+                    },
+                  },
+                });
+              }
+            }
+          }
+        }
+      }
     }
   };
+
+
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
   const [turnos, setTurnos] = useState<ErpTurno[]>([]);
-  const [uniformes, setUniformes] = useState<ErpUniforme[]>([]);
   const [bonosDisponibles, setBonosDisponibles] = useState<{ codigo: string; descripcion: string; costo: number }[]>([]);
   const [selectedBonoId, setSelectedBonoId] = useState<string>('');
-  const [selectedBonoPrecio, setSelectedBonoPrecio] = useState<number>(0);
 
   // Catálogo de ítems: se carga una sola vez para computar combosDisponibles
   // en recursos que vienen de BD y no traen el campo precomputado
   const [catalogoItems, setCatalogoItems] = useState<ItemRow[]>([]);
   const [combosComputados, setCombosComputados] = useState<ComboDisponible[] | null>(null);
+  const [tiposComboRH, setTiposComboRH] = useState<TipoComboRHRow[]>([]);
+  // Mapa id→nombre de TiposCombos de la empresa (nueva arquitectura)
+  const [tiposCombosNombres, setTiposCombosNombres] = useState<Record<number, string>>({});
+  // Controla si el usuario incluyó cada item adicional opcional (obligatorio=false)
+  // undefined = derivado de si ya existe un recurso hijo; true/false = elección explícita del usuario
+  const [combosOptIncluidos, setCombosOptIncluidos] = useState<Record<number, boolean | undefined>>({});
+
+  // Uniformes: ítems del catálogo Costeos con bandera uniforme=1 (derivado, sin llamada ERP)
+  // Mantenido para compatibilidad con costeos viejos que usan uniformeCodigo
+  const uniformesItems = catalogoItems.filter(i => i.uniforme === 1);
 
   useEffect(() => {
     let active = true;
     if (proyecto?.empresaId) {
-      getTurnosERP(proyecto.empresaId).then(data => { if (active) setTurnos(data); });
-      getUniformesERP(proyecto.empresaId).then(data => { if (active) setUniformes(data); });
+      Promise.all([
+        getTurnosERP(proyecto.empresaId),
+        listarTiposComboRHPorEmpresa(proyecto.empresaId),
+        listarTiposCombosPorEmpresa(proyecto.empresaId),
+      ]).then(([turnosData, tiposData, tiposCombosData]) => {
+        if (!active) return;
+        setTurnos(turnosData);
+        setTiposComboRH(tiposData);
+        const nombresMap: Record<number, string> = {};
+        tiposCombosData.forEach(t => { nombresMap[t.id] = t.nombre; });
+        setTiposCombosNombres(nombresMap);
+      });
     }
     return () => { active = false; };
   }, [proyecto?.empresaId]);
@@ -170,16 +428,30 @@ export default function EditorPanel() {
   // Cargar catálogo de ítems una sola vez (no depende de empresaId — el filtro lo hace el service)
   useEffect(() => {
     let active = true;
-    listarItems().then(data => { if (active) setCatalogoItems(data); });
+    listarItems().then(data => {
+      if (!active) return;
+      setCatalogoItems(data);
+      // Bonos (tipoItem=6) — derivados del mismo catálogo, sin llamada extra
+      setBonosDisponibles(
+        data
+          .filter(i => i.tipoItem === 6)
+          .map(i => ({
+            codigo:      i.codigoErp ?? String(i.id),
+            descripcion: i.descripcion,
+            costo:       0,  // el costo real se carga desde el historial de precios al seleccionar
+
+          }))
+      );
+    });
     return () => { active = false; };
   }, []);
 
-  // Cuando se selecciona un recurso primario sin combosDisponibles (cargado desde BD),
-  // computarlo a partir del catálogo
+  // Cuando se selecciona un recurso sin combosDisponibles (cargado desde BD),
+  // computarlo a partir del catálogo local. Aplica a primarios Y a combos — ambos
+  // pueden tener sub-combos configurables.
   useEffect(() => {
     if (
       selectedNode?.type !== 'RECURSO' ||
-      nodeData?.esCombo ||
       !nodeData?.itemId ||
       catalogoItems.length === 0
     ) {
@@ -191,7 +463,7 @@ export default function EditorPanel() {
       setCombosComputados(null);
       return;
     }
-    // Buscar el ítem en el catálogo por itemId
+    // Buscar el ítem en el catálogo local por itemId
     const item = catalogoItems.find(i => i.id === nodeData.itemId);
     if (!item?.combosPrincipal?.length) {
       setCombosComputados(null);
@@ -227,6 +499,44 @@ export default function EditorPanel() {
     setIsDeleteDialogOpen(false);
   };
 
+  // Mapa tipoId → items del catálogo disponibles para ese tipo (solo rol DISPONIBLE)
+  const itemsPorTipoComboRH = useMemo(() => {
+    const map: Record<number, ItemRow[]> = {};
+    for (const tipo of tiposComboRH) {
+      map[tipo.id] = catalogoItems.filter(item =>
+        item.tiposComboRH?.some(t => t.tipoComboRHId === tipo.id && t.rol === 'DISPONIBLE')
+      );
+    }
+    return map;
+  }, [tiposComboRH, catalogoItems]);
+
+  // Tipos de combo RH que el ítem RH necesita (rol NECESITA) — determina qué selects mostrar
+  const tiposComboRHDelItem = useMemo(() => {
+    if (!nodeData || nodeData.categoria !== 'RECURSO_HUMANO' || nodeData.esCombo) return [];
+    const currentItem = catalogoItems.find(i => i.id === nodeData.itemId);
+    return tiposComboRH.filter(t =>
+      currentItem?.tiposComboRH?.some(pt => pt.tipoComboRHId === t.id && pt.rol === 'NECESITA')
+    );
+  }, [nodeData, tiposComboRH, catalogoItems]);
+
+  // Nueva arquitectura: Tipos Combo del ítem primario seleccionado
+  const currentItemCatalogo = useMemo(() =>
+    nodeData?.itemId ? catalogoItems.find(i => i.id === nodeData.itemId) : undefined,
+    [nodeData?.itemId, catalogoItems]
+  );
+
+  // ítems disponibles por TipoCombo — filtrados por tipoComboId en Parámetros del ítem
+  const itemsPorTipoCombo = useMemo(() => {
+    const map: Record<number, ItemRow[]> = {};
+    if (!currentItemCatalogo?.tiposCombo) return map;
+    for (const asoc of currentItemCatalogo.tiposCombo) {
+      map[asoc.tipoComboId] = catalogoItems
+        .filter(i => i.tipoComboId === asoc.tipoComboId)
+        .sort((a, b) => a.descripcion.localeCompare(b.descripcion));
+    }
+    return map;
+  }, [currentItemCatalogo, catalogoItems]);
+
   return (
     <div className="flex flex-col h-full">
       <div className="px-6 py-4 border-b flex justify-between items-start">
@@ -261,18 +571,17 @@ export default function EditorPanel() {
               <TabsContent value="general" className="space-y-3 outline-none min-h-[250px]">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label className="block text-sm font-medium text-slate-700 mb-1">Nombre Proyecto</Label>
-                    <input 
-                      type="text" 
-                      className={`w-full border rounded-md p-2 outline-none transition-all ${!nodeData.nombreProyecto?.trim() ? 'border-red-400 focus:ring-2 focus:ring-red-400' : 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}`} 
-                      value={nodeData.nombreProyecto} 
-                      onChange={(e) => handleChange('nombreProyecto', normalizeText(e.target.value))} 
+                    <Label>Nombre Proyecto</Label>
+                    <Input
+                      type="text"
+                      value={nodeData.nombreProyecto}
+                      onChange={(e) => handleChange('nombreProyecto', normalizeText(e.target.value))}
+                      aria-invalid={!nodeData.nombreProyecto?.trim()}
                     />
                   </div>
                   <div>
-                    <Label className="block text-sm font-medium text-slate-700 mb-1">Plazo (meses)</Label>
+                    <Label>Plazo (meses)</Label>
                     <NumericInput 
-                      className="w-full border rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-white disabled:bg-slate-50" 
                       value={nodeData.plazoMeses}
                       isInteger={true}
                       disabled={nodeData.tipoCosteo?.manejoPlazo === 'FIJO' || nodeData.tipoCosteo?.manejoPlazo === 'NO_APLICA'}
@@ -280,17 +589,15 @@ export default function EditorPanel() {
                     />
                   </div>
                   <div>
-                    <Label className="block text-sm font-medium text-slate-700 mb-1">Overhead (%)</Label>
+                    <Label>Overhead (%)</Label>
                     <NumericInput 
-                      className="w-full border rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
                       value={nodeData.porcentajeOverhead} 
                       onChange={(val) => handleChange('porcentajeOverhead', val)} 
                     />
                   </div>
                   <div>
-                    <Label className="block text-sm font-medium text-slate-700 mb-1">Contingencia (%)</Label>
+                    <Label>Contingencia (%)</Label>
                     <NumericInput 
-                      className="w-full border rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
                       value={nodeData.porcentajeContingencia} 
                       onChange={(val) => handleChange('porcentajeContingencia', val)} 
                     />
@@ -345,16 +652,10 @@ export default function EditorPanel() {
                     Bonos {(nodeData.bonos?.length || 0) > 0 && nodeData.bonos.length}
                   </TabsTrigger>
                 )}
-                {(() => {
-                  // combosEfectivos: usa el campo precomputado (sesión actual) o el calculado dinámicamente (desde BD)
-                  const combosEfectivos = nodeData.combosDisponibles ?? combosComputados;
-                  return !nodeData.esCombo && (combosEfectivos?.length ?? 0) > 0 && (
-                    <TabsTrigger value="combo">
-                      <Layers className="w-4 h-4 mr-2" />
-                      Combo
-                    </TabsTrigger>
-                  );
-                })()}
+                <TabsTrigger value="combo">
+                  <Layers className="w-4 h-4 mr-2" />
+                  Combo
+                </TabsTrigger>
               </TabsList>
             </div>
             
@@ -387,7 +688,6 @@ export default function EditorPanel() {
                   <div className="col-span-4 flex flex-col gap-1.5">
                     <Label>Cant. Turnos</Label>
                     <NumericInput 
-                      className="flex h-8 w-full rounded-sm border border-slate-200 bg-white px-2.5 py-1 text-sm font-medium text-blue-600 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-slate-100" 
                       value={nodeData.cantidad}
                       isInteger={true}
                       onChange={(val) => handleChange('cantidad', val || 1)} 
@@ -429,10 +729,10 @@ export default function EditorPanel() {
                     {proyecto?.estado === 'BORRADOR' ? (
                       <SearchableSelect
                         id="field-cubreDescanso"
-                        options={OPCIONES_CUBRE_DESCANSO}
+                        options={OPCIONES_CUBRE_DESCANSO.map(o => ({ value: o.value, label: o.label }))}
                         value={String(nodeData.cubreDescanso || 0)}
                         onChange={(val) => handleChange('cubreDescanso', parseInt(val, 10))}
-                        placeholder="Seleccione..."
+                        searchable={false}
                       />
                     ) : (
                       <Input value={
@@ -440,20 +740,6 @@ export default function EditorPanel() {
                         nodeData.cubreDescanso === 2 ? '2 - Extrero' :
                         nodeData.cubreDescanso === 3 ? '3 - Bono Descanso' : '0 - No Aplica'
                       } readOnly className="bg-slate-100 text-slate-500 cursor-not-allowed text-sm h-8 py-1 px-2.5" />
-                    )}
-                  </div>
-                  <div className="col-span-1 flex flex-col gap-1.5">
-                    <Label>Uniforme</Label>
-                    {proyecto?.estado === 'BORRADOR' ? (
-                      <SearchableSelect
-                        id="field-uniforme"
-                        options={uniformes.map(u => ({ value: u.codigo, label: u.descripcion })).sort((a, b) => a.label.localeCompare(b.label))}
-                        value={nodeData.uniformeCodigo || ''}
-                        onChange={(val) => handleChange('uniformeCodigo', val)}
-                        placeholder="Seleccione..."
-                      />
-                    ) : (
-                      <Input value={uniformes.find(u => u.codigo === nodeData.uniformeCodigo)?.descripcion || `Cód: ${nodeData.uniformeCodigo}`} readOnly className="bg-slate-100 text-slate-500 cursor-not-allowed text-sm uppercase h-8 py-1 px-2.5" />
                     )}
                   </div>
                 </div>
@@ -464,7 +750,6 @@ export default function EditorPanel() {
                 <div className="flex flex-col gap-1.5">
                   <Label>Cantidad</Label>
                   <NumericInput 
-                    className="flex h-8 w-full rounded-sm border border-slate-200 bg-white px-2.5 py-1 text-sm font-medium text-blue-600 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-slate-100" 
                     value={nodeData.cantidad}
                     isInteger={true}
                     onChange={(val) => handleChange('cantidad', val || 1)} 
@@ -481,6 +766,173 @@ export default function EditorPanel() {
             </div>
             </div>
 
+            {/* ── TABLA TIPOS COMBO (nueva arquitectura) ──────────────────────────
+                Visible para cualquier ítem primario (no combo) que tenga Tipos Combo */}
+            {!nodeData.esCombo && currentItemCatalogo?.tiposCombo && currentItemCatalogo.tiposCombo.length > 0 && (
+              <div className="pt-4">
+                <div className="flex items-center mb-3 min-h-[24px]">
+                  <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-wider border-l-2 border-indigo-500 pl-2 leading-none">
+                    ITEMS ADICIONALES
+                  </h3>
+                  <div className="flex-1 border-t border-indigo-200 ml-3 mt-0.5" />
+                </div>
+                <div className="border rounded-md">
+                   <table className="w-full text-sm text-left">
+                     <thead className="bg-slate-50 text-slate-500 font-medium border-b">
+                       <tr>
+                         <th className="px-3 py-2 w-2/5">Item Adicional</th>
+                         <th className="px-3 py-2">Ítem</th>
+                         <th className="px-3 py-2 w-20 text-center">Incluido</th>
+                       </tr>
+                     </thead>
+                     <tbody className="divide-y">
+                       {currentItemCatalogo.tiposCombo.map(asoc => {
+                         const nombreTipo = tiposCombosNombres[asoc.tipoComboId] || `Tipo ${asoc.tipoComboId}`;
+                         const opcionesCombo = (itemsPorTipoCombo[asoc.tipoComboId] ?? [])
+                           .map(i => ({ value: String(i.id), label: i.descripcion }));
+
+                         const getNodoRecursos = (): RecursoCosteo[] => {
+                           if (!parentId) return proyecto!.recursos;
+                           const findN = (nodos: NodoCosteo[], id: string): NodoCosteo | null => {
+                             for (const n of nodos) {
+                               if (n.id === id) return n;
+                               const f = findN(n.nodos, id);
+                               if (f) return f;
+                             }
+                             return null;
+                           };
+                           return findN(proyecto!.nodos, parentId)?.recursos ?? [];
+                         };
+                         const nodoRecursos = getNodoRecursos();
+                         const hijoActual = nodoRecursos.find(
+                           r => r.esCombo && r.comboParentId === selectedNode.id &&
+                                opcionesCombo.some(o => parseInt(o.value, 10) === r.itemId)
+                         );
+                         const currentVal = hijoActual ? String(hijoActual.itemId) : '';
+
+                         // obligatorio=1 → siempre incluido (no editable)
+                         // obligatorio=0 → controlado por usuario; si no hay elección, derivado de si ya existe hijo
+                         const estaIncluido = asoc.obligatorio
+                           ? true
+                           : (combosOptIncluidos[asoc.tipoComboId] ?? !!hijoActual);
+
+                         return (
+                           <tr key={asoc.tipoComboId} className="bg-white">
+                             <td className="px-3 py-2 font-medium text-slate-700">{nombreTipo}</td>
+
+                             {/* Columna Ítem */}
+                             <td className="px-3 py-2">
+                               {proyecto?.estado === 'BORRADOR' ? (
+                                 <SearchableSelect
+                                   options={[
+                                     { value: '', label: '— Sin seleccionar —' },
+                                     ...opcionesCombo,
+                                   ]}
+                                   value={currentVal}
+                                   disabled={!estaIncluido}
+                                   onChange={(val) => {
+                                     const factorCosto = nodeData.categoria === 'RECURSO_HUMANO'
+                                       ? (nodeData.cantidad ?? 1) * (nodeData.personas ?? 1)
+                                       : (nodeData.cantidad ?? 1);
+                                     if (hijoActual) {
+                                       dispatch({ type: 'REMOVE_RECURSO', payload: { recursoId: hijoActual.id } });
+                                     }
+                                     if (val) {
+                                       const newItemId = parseInt(val, 10);
+                                       const newItem = catalogoItems.find(i => i.id === newItemId);
+                                       if (newItem) {
+                                         const newRecursoId = `REC-${Date.now()}-TC${asoc.tipoComboId}`;
+                                         let cat: RecursoCosteo['categoria'] = 'ARTICULO';
+                                         if (newItem.tipoItem === 4) cat = 'EQUIPO';
+                                         if (newItem.tipoItem === 3)
+                                           cat = newItem.tipoProducto === 1 ? 'RECURSO_HUMANO' : 'SERVICIO';
+                                         dispatch({
+                                           type: 'ADD_RECURSO',
+                                           payload: {
+                                             nodoId: parentId,
+                                             recurso: {
+                                               id: newRecursoId,
+                                               itemId: newItem.id,
+                                               nombre: newItem.descripcion,
+                                               categoria: cat,
+                                               tipoCosto: 'MENSUAL',
+                                               cantidad: factorCosto,
+                                               costoUnitario: 0,
+                                               precioVentaUnitario: 0,
+                                               precioVentaOrigen: 'MANUAL',
+                                               esCombo: true,
+                                               comboParentId: selectedNode.id,
+                                               recetas: [],
+                                             },
+                                           },
+                                         });
+                                         for (const sub of newItem.combosPrincipal ?? []) {
+                                           if (!sub.nuevoIncluido || Number(sub.nuevoCantidad) <= 0) continue;
+                                           const secItem = catalogoItems.find(i => i.id === sub.productoSecundarioId);
+                                           if (!secItem) continue;
+                                           let secCat: RecursoCosteo['categoria'] = 'SERVICIO';
+                                           if (secItem.tipoItem === 1 || secItem.tipoItem === 2) secCat = 'ARTICULO';
+                                           if (secItem.tipoItem === 4) secCat = 'EQUIPO';
+                                           if (secItem.tipoItem === 3)
+                                             secCat = secItem.tipoProducto === 1 ? 'RECURSO_HUMANO' : 'SERVICIO';
+                                           dispatch({
+                                             type: 'ADD_RECURSO',
+                                             payload: {
+                                               nodoId: parentId,
+                                               recurso: {
+                                                 id: `REC-${Date.now()}-TC${asoc.tipoComboId}C${sub.productoSecundarioId}`,
+                                                 itemId: secItem.id,
+                                                 nombre: secItem.descripcion,
+                                                 categoria: secCat,
+                                                 tipoCosto: 'MENSUAL',
+                                                 cantidad: Math.max(1, Math.round(Number(sub.nuevoCantidad) * factorCosto)),
+                                                 costoUnitario: 0,
+                                                 precioVentaUnitario: 0,
+                                                 precioVentaOrigen: 'MANUAL',
+                                                 esCombo: true,
+                                                 comboParentId: newRecursoId,
+                                                 recetas: [],
+                                               },
+                                             },
+                                           });
+                                         }
+                                       }
+                                     }
+                                   }}
+                                 />
+                               ) : (
+                                 <Input
+                                   value={opcionesCombo.find(o => o.value === currentVal)?.label || currentVal || '—'}
+                                   readOnly
+                                   className="bg-slate-100 text-slate-500 cursor-not-allowed text-sm uppercase h-8 py-1 px-2.5"
+                                 />
+                               )}
+                             </td>
+
+                             {/* Columna Incluido — última */}
+                             <td className="px-3 py-2 text-center">
+                               <input
+                                 type="checkbox"
+                                 checked={estaIncluido}
+                                 disabled={!!asoc.obligatorio || proyecto?.estado !== 'BORRADOR'}
+                                 onChange={(e) => {
+                                   setCombosOptIncluidos(prev => ({ ...prev, [asoc.tipoComboId]: e.target.checked }));
+                                   if (!e.target.checked && hijoActual) {
+                                     dispatch({ type: 'REMOVE_RECURSO', payload: { recursoId: hijoActual.id } });
+                                   }
+                                 }}
+                                 className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+                               />
+                             </td>
+                           </tr>
+                         );
+                       })}
+                     </tbody>
+                   </table>
+                 </div>
+               </div>
+             )}
+
             <div className="pt-4">
               <div className="flex items-center mb-3 min-h-[24px]">
                 <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider border-l-2 border-blue-500 pl-2 leading-none">
@@ -489,11 +941,12 @@ export default function EditorPanel() {
                 <div className="flex-1 border-t border-blue-200 ml-3 mt-0.5"></div>
               </div>
 
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-3 gap-4">
+                {!nodeData.esCombo && (
+                <>
                 <div className="col-span-1 flex flex-col gap-1.5">
                   <Label>Precio Venta ({proyecto?.moneda || 'Q'})</Label>
                   <NumericInput 
-                    className="flex h-8 w-full rounded-sm border border-slate-200 bg-white px-2.5 py-1 text-sm font-medium text-slate-900 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-slate-100" 
                     value={nodeData.precioVentaUnitario}
                     onChange={(val) => handleChange('precioVentaUnitario', val || 0)} 
                     min="0"
@@ -511,19 +964,7 @@ export default function EditorPanel() {
                       return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factor * (nodeData.precioVentaUnitario || 0));
                     })()} 
                     readOnly tabIndex={-1} 
-                    className="bg-slate-100 text-slate-500 cursor-not-allowed text-sm px-2.5 h-8 py-1" 
-                  />
-                </div>
-                <div className="col-span-1 flex flex-col gap-1.5">
-                  <Label>Bonos Venta</Label>
-                  <Input 
-                    value={(() => {
-                      const factor = nodeData.categoria === 'RECURSO_HUMANO' ? ((nodeData.cantidad || 1) * (nodeData.personas || 1)) : (nodeData.cantidad || 1);
-                      const bonosTotal = (nodeData.bonos || []).reduce((sum: number, b: any) => sum + (b.precioVentaUnitario || 0), 0);
-                      return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factor * bonosTotal);
-                    })()} 
-                    readOnly tabIndex={-1} 
-                    className="bg-slate-100 text-slate-500 cursor-not-allowed text-sm px-2.5 h-8 py-1" 
+                    className="bg-slate-100 text-slate-500 cursor-not-allowed text-sm px-2.5 h-8 py-1 w-full rounded-sm border border-slate-200 outline-none" 
                   />
                 </div>
                 <div className="col-span-1 flex flex-col gap-1.5">
@@ -531,15 +972,16 @@ export default function EditorPanel() {
                   <Input 
                     value={(() => {
                       const factor = nodeData.categoria === 'RECURSO_HUMANO' ? ((nodeData.cantidad || 1) * (nodeData.personas || 1)) : (nodeData.cantidad || 1);
-                      const subtotal = factor * (nodeData.precioVentaUnitario || 0);
-                      const bonosTotal = factor * (nodeData.bonos || []).reduce((sum: number, b: any) => sum + (b.precioVentaUnitario || 0), 0);
-                      return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(subtotal + bonosTotal);
+                      return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factor * (nodeData.precioVentaUnitario || 0));
                     })()} 
                     readOnly tabIndex={-1} 
-                    className="bg-blue-50/50 text-blue-700 font-bold border-blue-200 text-sm px-2.5 h-8 py-1" 
+                    className="bg-blue-50/50 text-blue-700 font-bold border-blue-200 text-sm px-2.5 h-8 py-1 w-full rounded-sm border outline-none" 
                   />
                 </div>
+                </>
+                )}
               </div>
+
 
               <div className="grid grid-cols-4 gap-4 mt-4">
                 <div className="col-span-1 flex flex-col gap-1.5">
@@ -580,7 +1022,24 @@ export default function EditorPanel() {
                       const factor = nodeData.categoria === 'RECURSO_HUMANO' ? ((nodeData.cantidad || 1) * (nodeData.personas || 1)) : (nodeData.cantidad || 1);
                       const subtotal = factor * (nodeData.costoUnitario || 0);
                       const bonosTotal = factor * (nodeData.bonos || []).reduce((sum: number, b: any) => sum + (b.costoUnitario || 0), 0);
-                      return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(subtotal + bonosTotal);
+
+                      // Sumar costo de todos los sub-ítems del combo (originales y manuales)
+                      let siblingsArr: RecursoCosteo[] = parentId
+                        ? (() => {
+                            const findN = (ns: NodoCosteo[], id: string): NodoCosteo | null => {
+                              for (const n of ns) { if (n.id === id) return n; const f = findN(n.nodos, id); if (f) return f; }
+                              return null;
+                            };
+                            return findN(proyecto.nodos, parentId)?.recursos ?? [];
+                          })()
+                        : proyecto.recursos;
+                      const comboHijos = siblingsArr.filter(h => h.esCombo && h.comboParentId === nodeData.id);
+                      const comboTotal = comboHijos.reduce((sum, h) => {
+                        const hf = h.categoria === 'RECURSO_HUMANO' ? ((h.cantidad || 1) * (h.personas || 1)) : (h.cantidad || 1);
+                        return sum + (h.costoUnitario || 0) * hf;
+                      }, 0);
+
+                      return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(subtotal + bonosTotal + comboTotal);
                     })()} 
                     readOnly tabIndex={-1} 
                     className="bg-red-50/50 text-red-600 font-bold border-red-200 text-sm px-2.5 h-8 py-1" 
@@ -634,19 +1093,17 @@ export default function EditorPanel() {
                   <div className="flex-1 flex flex-col gap-1.5">
                     <Label>Seleccionar Bono</Label>
                     <SearchableSelect
-                      options={bonosDisponibles.map(b => ({ value: b.codigo, label: b.descripcion })).sort((a, b) => a.label.localeCompare(b.label))}
+                      options={[
+                        { value: '', label: 'Seleccione...' },
+                        ...bonosDisponibles
+                          .slice()
+                          .sort((a, b) => a.descripcion.localeCompare(b.descripcion))
+                          .map(b => ({ value: b.codigo, label: b.descripcion }))
+                      ]}
                       value={selectedBonoId}
                       onChange={(val) => setSelectedBonoId(val)}
                       placeholder="Seleccione..."
-                    />
-                  </div>
-                  <div className="w-32 flex flex-col gap-1.5">
-                    <Label>Precio Venta</Label>
-                    <NumericInput
-                      value={selectedBonoPrecio}
-                      onChange={(val: number | undefined) => setSelectedBonoPrecio(val || 0)}
-                      min="0"
-                      className="flex h-8 w-full rounded-sm border border-slate-200 bg-white px-2.5 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+                      searchable={false}
                     />
                   </div>
                   <Button 
@@ -654,18 +1111,16 @@ export default function EditorPanel() {
                     variant="secondary"
                     onClick={() => {
                       if (!selectedBonoId) return;
-                      const never = bonosDisponibles.find(b => b.codigo === selectedBonoId);
-                      if (never) {
+                      const bono = bonosDisponibles.find(b => b.codigo === selectedBonoId);
+                      if (bono) {
                         const newBonos = [...(nodeData.bonos || []), {
                           id: crypto.randomUUID(),
-                          erpBonoId: never.codigo,
-                          nombre: never.descripcion,
-                          costoUnitario: never.costo,
-                          precioVentaUnitario: selectedBonoPrecio
+                          erpBonoId: bono.codigo,
+                          nombre: bono.descripcion,
+                          costoUnitario: bono.costo,
                         }];
                         handleChange('bonos', newBonos);
                         setSelectedBonoId('');
-                        setSelectedBonoPrecio(0);
                       }
                     }}
                     disabled={!selectedBonoId || proyecto?.estado !== 'BORRADOR'}
@@ -682,8 +1137,6 @@ export default function EditorPanel() {
                           <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500">Bono</th>
                           <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500">Costo Un.</th>
                           <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500 bg-slate-100">SubTotal Costo</th>
-                          <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500">Venta Un.</th>
-                          <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500 bg-blue-50/50">SubTotal Venta</th>
                           <th className="px-3 py-2 w-10"></th>
                         </tr>
                       </thead>
@@ -691,14 +1144,11 @@ export default function EditorPanel() {
                         {(nodeData.bonos || []).map((b: any, idx: number) => {
                           const factor = nodeData.categoria === 'RECURSO_HUMANO' ? ((nodeData.cantidad || 1) * (nodeData.personas || 1)) : (nodeData.cantidad || 1);
                           const costoTotal = (b.costoUnitario || 0) * factor;
-                          const ventaTotal = (b.precioVentaUnitario || 0) * factor;
                           return (
                             <tr key={idx} className="bg-white hover:bg-slate-50">
                               <td className="px-3 py-2">{b.nombre}</td>
                               <td className="px-3 py-2 text-right text-slate-500">{b.costoUnitario.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
                               <td className="px-3 py-2 text-right text-slate-700 font-semibold bg-slate-100">{costoTotal.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
-                              <td className="px-3 py-2 text-right text-slate-500">{(b.precioVentaUnitario || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</td>
-                              <td className="px-3 py-2 text-right text-blue-700 font-semibold bg-blue-50/50">{ventaTotal.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
                               <td className="px-3 py-2 text-center">
                                 <button 
                                   type="button" 
@@ -728,9 +1178,8 @@ export default function EditorPanel() {
           )}
 
           {/* ── Pestaña COMBO ─────────────────────────────────── */}
-          {!nodeData.esCombo && (() => {
-            const combosEfectivos = nodeData.combosDisponibles ?? combosComputados;
-            if (!combosEfectivos?.length) return null;
+          {(() => {
+            const combosEfectivos = nodeData.combosDisponibles ?? combosComputados ?? [];
 
             // Obtener recursos hermanos del mismo nodo para detectar cuáles combos ya están en el árbol
             let hermanos: RecursoCosteo[] = [];
@@ -749,17 +1198,19 @@ export default function EditorPanel() {
               hermanos = nodoPadre?.recursos ?? [];
             }
             return (
-              <TabsContent value="combo" className="flex-1 overflow-y-auto px-6 pb-6 outline-none m-0">
+              <TabsContent value="combo" className="flex-1 overflow-visible px-6 pb-6 outline-none m-0">
                 <ComboTab
                   recurso={{ ...nodeData, combosDisponibles: combosEfectivos }}
                   parentId={parentId}
                   esBorrador={proyecto?.estado === 'BORRADOR'}
                   hermanos={hermanos}
+                  catalogoItems={catalogoItems}
                 />
               </TabsContent>
             );
           })()}
         </Tabs>
+
         )}
 
       </div>
@@ -813,6 +1264,7 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas, proye
   const [loadingDeptos, setLoadingDeptos] = useState(true);
   const [loadingMunis, setLoadingMunis] = useState(false);
   const [direccionesOperativas, setDireccionesOperativas] = useState<ErpDireccionOperativa[]>([]);
+
   const [loadingDirecciones, setLoadingDirecciones] = useState(false);
   const [showAddressLookup, setShowAddressLookup] = useState<boolean>(false);
   
@@ -1022,11 +1474,10 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas, proye
                     </div>
                     <div className="space-y-1.5 col-span-1">
                       <Label>País</Label>
-                      <SearchableSelect
-                        options={[{ value: 'GT', label: 'GUATEMALA' }]}
-                        value={nodeData.pais || 'GT'}
-                        onChange={() => {}}
-                        disabled={true}
+                      <Input
+                        value="GUATEMALA"
+                        disabled
+                        className="bg-slate-100 text-slate-500 cursor-not-allowed"
                       />
                     </div>
                 <div className="space-y-1.5 col-span-1">

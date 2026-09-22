@@ -26,6 +26,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { ArrowUpDown, GripVertical, Check, Loader2, AlertTriangle } from 'lucide-react'
 import { listarCategoriasPorEmpresa, reordenarPrioridades } from '@/app/actions/categorias'
+import { UI_THEME } from '@/lib/theme'
 import type { CategoriaRow } from '@/lib/types/categorias'
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
@@ -246,7 +247,7 @@ export function PrioridadModal({
 
         {/* Error general (no OCC) */}
         {globalError && (
-          <div className="mx-5 bg-red-50 text-red-500 text-sm p-3 rounded-md border border-red-200 shrink-0">
+          <div className={`mx-5 ${UI_THEME.forms.globalError} shrink-0`}>
             {globalError}
           </div>
         )}

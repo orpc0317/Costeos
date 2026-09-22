@@ -50,19 +50,7 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuGroup,
 } from '@/components/ui/dropdown-menu'
-
-// ==========================================
-// CONFIGURACIÓN CENTRALIZADA DE ESTILOS (THEMING)
-// ==========================================
-export const TABLE_THEME = {
-  headerBg: 'bg-slate-100',
-  headerTextColor: 'text-slate-700',
-  headerFont: 'font-semibold text-sm',
-  rowTextColor: 'text-slate-600',
-  rowFont: 'font-normal text-sm',
-  rowHoverBg: 'hover:bg-slate-50',
-  borderColor: 'border-slate-200',
-}
+import { UI_THEME } from '@/lib/theme'
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -97,7 +85,7 @@ function DraggableTableHead({ header }: { header: Header<any, unknown> }) {
     <TableHead
       ref={setNodeRef}
       style={style}
-      className={`${TABLE_THEME.headerTextColor} ${TABLE_THEME.headerFont} group bg-slate-100 relative ${alignClass}`}
+      className={`group ${UI_THEME.table.headerBg} relative ${alignClass}`}
     >
       <div
         {...attributes}
@@ -327,16 +315,16 @@ export function DataTable<TData, TValue>({
         </div>
       </div>
 
-      <div className={`rounded-md border ${TABLE_THEME.borderColor} bg-white overflow-hidden`}>
+      <div className={UI_THEME.table.container}>
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
         >
           <Table>
-            <TableHeader className={TABLE_THEME.headerBg}>
+            <TableHeader className={UI_THEME.table.headerBg}>
               {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id} className={`${TABLE_THEME.borderColor} hover:bg-transparent`}>
+                <TableRow key={headerGroup.id} className={`${UI_THEME.table.border} hover:bg-transparent`}>
                   <SortableContext
                     items={columnOrder}
                     strategy={horizontalListSortingStrategy}
@@ -354,18 +342,18 @@ export function DataTable<TData, TValue>({
                   <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && 'selected'}
-                    className={`${TABLE_THEME.rowHoverBg} ${TABLE_THEME.borderColor}`}
+                    className={`${UI_THEME.table.rowHover} ${UI_THEME.table.border}`}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell 
                         key={cell.id}
-                        className={`${TABLE_THEME.rowTextColor} ${TABLE_THEME.rowFont} ${
+                        className={
                           (cell.column.columnDef.meta as any)?.align === 'center'
                             ? 'text-center'
                             : (cell.column.columnDef.meta as any)?.align === 'right'
                             ? 'text-right'
                             : 'text-left'
-                        }`}
+                        }
                       >
                         {flexRender(
                           cell.column.columnDef.cell,
@@ -379,7 +367,7 @@ export function DataTable<TData, TValue>({
                 <TableRow>
                   <TableCell
                     colSpan={columns.length}
-                    className="h-24 text-center text-slate-500"
+                    className={UI_THEME.table.emptyState}
                   >
                     No se encontraron resultados.
                   </TableCell>

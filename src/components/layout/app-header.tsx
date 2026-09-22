@@ -16,11 +16,10 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 // Mapa de rutas → títulos de página
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard':                          'Dashboard',
-  '/dashboard/contratos':                'Contratos',
-  '/dashboard/clientes':                 'Clientes',
   '/dashboard/configuracion':            'Configuración',
   '/dashboard/configuracion/usuarios':   'Usuarios',
 }
+
 
 function getPageTitle(pathname: string): string {
   if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname]

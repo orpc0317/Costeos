@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { toast } from 'sonner'
 import { Settings2, Users, Power, PowerOff, History, Pencil, Save } from 'lucide-react'
 import { normalizeText } from '@/lib/utils/text'
 import {
@@ -25,6 +24,7 @@ import {
 } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { crearUsuario, editarUsuario, toggleActivo } from '@/app/actions/usuarios'
+import { UI_THEME } from '@/lib/theme'
 import { ROLES } from '@/lib/permisos'
 import type { UsuarioRow } from '@/lib/types/usuarios'
 
@@ -71,7 +71,6 @@ export function UsuarioDialog({ usuario, trigger }: UsuarioDialogProps) {
 
   // ── Inicialización al abrir (NUNCA en useEffect con deps de datos) ──────────
   function handleOpenChange(newOpen: boolean) {
-    setOpen(newOpen)
     if (newOpen) {
       // Inicializar todo aquí, no en useEffect
       setMode(isExisting ? 'view' : 'create')
@@ -84,6 +83,7 @@ export function UsuarioDialog({ usuario, trigger }: UsuarioDialogProps) {
       setFieldErrors({})
       setActiveTab('general')
     }
+    setOpen(newOpen)
   }
 
   function resetToView() {
@@ -103,14 +103,9 @@ export function UsuarioDialog({ usuario, trigger }: UsuarioDialogProps) {
     try {
       const result = await toggleActivo(usuario.id, snapUsuario!.registroVersion)
       if (result.ok) {
-        toast.success(
-          usuario.activo
-            ? `${usuario.nombre} fue desactivado`
-            : `${usuario.nombre} fue activado`,
-        )
         setOpen(false)
       } else {
-        toast.error(result.error)
+        setGlobalError(result.error ?? 'Error al cambiar estado')
       }
     } finally {
       setIsPendingToggle(false)
@@ -133,6 +128,7 @@ export function UsuarioDialog({ usuario, trigger }: UsuarioDialogProps) {
     // Combinar errores locales preservando los que ya existían de validaciones externas
     if (Object.keys(localErrors).length > 0) {
       setFieldErrors(prev => ({ ...prev, ...localErrors }))
+      setActiveTab('general')
       return
     }
 
@@ -166,8 +162,7 @@ export function UsuarioDialog({ usuario, trigger }: UsuarioDialogProps) {
         throw new Error(result.error)
       }
 
-      toast.success(usuario ? 'Usuario actualizado' : 'Usuario creado')
-      if (mode === 'edit') {
+            if (mode === 'edit') {
         // Refrescar el snap para que la versión local quede actualizada
         if (result?.data) setSnapUsuario(result.data as UsuarioRow)
         setMode('view')
@@ -201,7 +196,7 @@ export function UsuarioDialog({ usuario, trigger }: UsuarioDialogProps) {
 
           {/* Error global */}
           {globalError && (
-            <div className="bg-red-50 text-red-500 text-sm p-3 rounded-md mb-2 border border-red-200 shrink-0">
+            <div className={`${UI_THEME.forms.globalError} mb-2`}>
               {globalError}
             </div>
           )}
@@ -317,7 +312,7 @@ export function UsuarioDialog({ usuario, trigger }: UsuarioDialogProps) {
             </Tabs>
 
             {/* ── Footer estándar ── */}
-            <div className="flex flex-row items-center justify-between mt-6 -mx-4 -mb-4 px-4 py-4 border-t bg-slate-50 sm:rounded-b-xl shrink-0">
+            <div className={UI_THEME.modal.footer}>
               {mode === 'view' ? (
                 <>
                   {isExisting && (

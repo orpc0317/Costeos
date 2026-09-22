@@ -16,6 +16,7 @@ import { buscarEmpresaErp } from '@/app/actions/erp'
 import { CATALOGOS_ERP, type CatalogoSyncRow } from '@/lib/types/empresas'
 import type { EmpresaRow } from '@/lib/types/empresas'
 import type { SimilarItem } from '@/lib/utils/similarity'
+import { UI_THEME } from '@/lib/theme'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -281,12 +282,12 @@ export function EmpresaModal({
 
           {/* Error global */}
           {globalError && (
-            <div className="bg-red-50 text-red-500 text-sm p-3 rounded-md mb-4 border border-red-200 shrink-0">
+            <div className={`${UI_THEME.forms.globalError} shrink-0`}>
               {globalError}
             </div>
           )}
 
-          <form onSubmit={handleSave} noValidate className="flex-1 overflow-hidden flex flex-col pt-2">
+          <form onSubmit={handleSave} noValidate className="flex-1 min-h-0 flex flex-col pt-2">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
               <TabsList variant="line" className="mb-4 shrink-0">
                 <TabsTrigger value="general">
@@ -321,8 +322,8 @@ export function EmpresaModal({
                       <FieldError message={fieldErrors.nombre} />
                       {/* Panel R18 — similares */}
                       {similares.length > 0 && mode === 'edit' && (
-                        <div className="mt-1 rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
-                          <p className="text-xs font-semibold text-amber-800">
+                        <div className={UI_THEME.forms.warningSimilar}>
+                          <p className={UI_THEME.forms.warningSimilarTitle}>
                             ⚠️ Advertencia — Nombre similar a {similares.length} empresa{similares.length > 1 ? 's' : ''} existente{similares.length > 1 ? 's' : ''}
                           </p>
                           <p className="text-xs text-amber-700">
@@ -479,7 +480,7 @@ export function EmpresaModal({
             </Tabs>
 
             {/* ── Footer estándar ── */}
-            <div className="flex flex-row items-center justify-between mt-6 -mx-4 -mb-4 px-4 py-4 border-t bg-slate-50 sm:rounded-b-xl shrink-0">
+            <div className={UI_THEME.modal.footer}>
               <div />
               <div className="flex gap-2 justify-end">
                 {mode === 'view' && (

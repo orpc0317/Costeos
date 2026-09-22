@@ -136,12 +136,14 @@ export interface ErpSimilarData {
   codigo: string      // → codigoErp en Costeos
   descripcion: string // → descripcion
   unidadMedida: string
-  tipoItem: number    // → tipoItem
-  tipoBien: number    // → tipoServicio
+  tipoItem: number    // → tipoItem (1-6, nueva taxonomía)
+  tipoProducto: number // → tipoProducto (SP: tipo_producto, contextual por tipoItem)
+  venta: number       // → venta (0|1)
   recurrente: number  // → recurrente (0|1)
   precioVentaCero: number // → precioVentaCero (0|1)
   perfil: number      // → perfil (0|1)
-  manejoCostos: number // → manejoCostos (0|1)
+  manejoCostos: number // → manejoCostos
+  uniforme?: number   // → uniforme (0|1)
 }
 
 /**

@@ -7,6 +7,8 @@ import { DataTable } from '@/components/ui/data-table'
 import { NuevoTipoCosteoButton } from '@/components/tipos-costeo/nuevo-tipo-costeo-button'
 import { TipoCosteoAcciones } from '@/components/tipos-costeo/tipo-costeo-acciones'
 import { Network } from 'lucide-react'
+import { PageHeader } from '@/components/ui/page-header'
+import { UI_THEME } from '@/lib/theme'
 import type { TipoCosteoRow } from '@/lib/types/tipos-costeo'
 
 export function TiposCosteoClient({ tiposCosteo }: { tiposCosteo: TipoCosteoRow[] }) {
@@ -50,11 +52,7 @@ export function TiposCosteoClient({ tiposCosteo }: { tiposCosteo: TipoCosteoRow[
           return (
             <Badge
               variant={activo ? 'default' : 'secondary'}
-              className={
-                activo
-                  ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/20'
-                  : 'bg-muted text-muted-foreground'
-              }
+              className={activo ? UI_THEME.badge.active : UI_THEME.badge.inactive}
             >
               {activo ? 'Activo' : 'Inactivo'}
             </Badge>
@@ -74,19 +72,11 @@ export function TiposCosteoClient({ tiposCosteo }: { tiposCosteo: TipoCosteoRow[
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-indigo-900">
-            <Network className="h-6 w-6" />
-            <h1 className="text-2xl font-bold tracking-tight">Tipos Costeos</h1>
-          </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {tiposCosteo.length === 1
-              ? '1 tipo costeo registrado'
-              : `${tiposCosteo.length} tipos costeos registrados`}
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        icon={Network}
+        title="Tipos Costeos"
+        subtitle={tiposCosteo.length === 1 ? '1 tipo costeo registrado' : `${tiposCosteo.length} tipos costeos registrados`}
+      />
 
       <DataTable
         columns={columns}

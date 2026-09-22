@@ -67,9 +67,7 @@ export function calcularResumenFinanciero(proyecto: ProyectoCosteo, selectedNode
 
     if (recurso.bonos && recurso.bonos.length > 0) {
       const bonosCosto = recurso.bonos.reduce((sum, b) => sum + (b.costoUnitario || 0), 0) * factor;
-      const bonosVenta = recurso.bonos.reduce((sum, b) => sum + (b.precioVentaUnitario || 0), 0) * factor;
       costoTotal += bonosCosto;
-      ventaTotal += bonosVenta;
     }
 
     if (recurso.tipoCosto === 'MENSUAL') {
@@ -90,9 +88,25 @@ export function calcularResumenFinanciero(proyecto: ProyectoCosteo, selectedNode
     recurso.recetas.forEach((receta) => procesarReceta(receta, recurso.cantidad));
   };
 
-  const checkIncludeResource = (recursoId: string, inSelectedNodeTree: boolean): boolean => {
+  /** Devuelve todos los IDs combo-descendientes de un recurso dentro de una lista plana. */
+  const getComboDescendantIds = (recursos: RecursoCosteo[], rootId: string): Set<string> => {
+    const ids = new Set<string>();
+    const queue = [rootId];
+    while (queue.length) {
+      const parentId = queue.shift()!;
+      recursos.filter(r => r.comboParentId === parentId).forEach(r => {
+        ids.add(r.id);
+        queue.push(r.id);
+      });
+    }
+    return ids;
+  };
+
+  const checkIncludeResource = (recursoId: string, inSelectedNodeTree: boolean, comboDescendants?: Set<string>): boolean => {
     if (!selectedNode || selectedNode.type === 'PROYECTO') return true;
-    if (selectedNode.type === 'RECURSO') return selectedNode.id === recursoId;
+    if (selectedNode.type === 'RECURSO') {
+      return selectedNode.id === recursoId || (comboDescendants?.has(recursoId) ?? false);
+    }
     return inSelectedNodeTree;
   };
 
@@ -101,8 +115,13 @@ export function calcularResumenFinanciero(proyecto: ProyectoCosteo, selectedNode
       const isThisNodeSelected = selectedNode?.type === 'NODO' && selectedNode.id === nodo.id;
       const currentInTree = inSelectedTree || isThisNodeSelected;
 
+      // Pre-calcular hijos combo del recurso seleccionado en este nodo
+      const comboDesc = selectedNode?.type === 'RECURSO'
+        ? getComboDescendantIds(nodo.recursos, selectedNode.id)
+        : undefined;
+
       nodo.recursos.forEach(recurso => {
-        if (checkIncludeResource(recurso.id, currentInTree)) {
+        if (checkIncludeResource(recurso.id, currentInTree, comboDesc)) {
           procesarRecurso(recurso);
         }
       });
@@ -112,8 +131,11 @@ export function calcularResumenFinanciero(proyecto: ProyectoCosteo, selectedNode
   };
 
   // Process root resources
+  const rootComboDesc = selectedNode?.type === 'RECURSO'
+    ? getComboDescendantIds(proyecto.recursos, selectedNode.id)
+    : undefined;
   proyecto.recursos.forEach(recurso => {
-    if (checkIncludeResource(recurso.id, false)) {
+    if (checkIncludeResource(recurso.id, false, rootComboDesc)) {
       procesarRecurso(recurso);
     }
   });

@@ -96,6 +96,9 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
               turnoCodigo: nodoFront.turnoCodigo || null,
               uniformeCodigo: nodoFront.uniformeCodigo || null,
               cubreDescanso: nodoFront.cubreDescanso || 0,
+              combosRhSelec: nodoFront.combosRhSeleccionados && Object.keys(nodoFront.combosRhSeleccionados).length > 0
+                ? JSON.stringify(nodoFront.combosRhSeleccionados)
+                : null,
             }
           });
           nodoIdDb = nuevo.id;
@@ -118,6 +121,9 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
               turnoCodigo: nodoFront.turnoCodigo || null,
               uniformeCodigo: nodoFront.uniformeCodigo || null,
               cubreDescanso: nodoFront.cubreDescanso || 0,
+              combosRhSelec: nodoFront.combosRhSeleccionados && Object.keys(nodoFront.combosRhSeleccionados).length > 0
+                ? JSON.stringify(nodoFront.combosRhSeleccionados)
+                : null,
             }
           });
           nodoIdDb = nId;
@@ -200,54 +206,52 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
       // Si quedaron pendientes (ciclos o referencias rotas), agregarlos al final
       sortedRecursos.push(...pending);
 
+      /** Campos comunes para create/upsert de NodoRecurso */
+      const buildRecursoData = (rFront: RecursoCosteo & { nodoTempId: string | null }, nDbId: number, comboParentDbId: number | null) => ({
+        nodo: { connect: { id: nDbId } },
+        item: { connect: { id: rFront.itemId } },
+        itemNombre: rFront.nombre,
+        itemTipo: rFront.categoria,
+        itemCategoria: 'N/A',
+        itemTipoCosto: rFront.tipoCosto,
+        cantidad: rFront.cantidad,
+        costoUnitarioErp: rFront.costoUnitario,
+        precioVenta: rFront.precioVentaUnitario || null,
+        precioVentaOrigen: rFront.precioVentaOrigen || 'MANUAL',
+        turnoCodigo: rFront.turnoCodigo || null,
+        uniformeCodigo: rFront.uniformeCodigo || null,
+        combosRhSelec: rFront.combosRhSeleccionados && Object.keys(rFront.combosRhSeleccionados).length > 0
+          ? JSON.stringify(rFront.combosRhSeleccionados)
+          : null,
+        esComboRhId: rFront.esComboRHId ?? null,
+        cubreDescanso: rFront.cubreDescanso || 0,
+        personas: rFront.personas || 1,
+        horasSemana: rFront.horasSemana || 0,
+        bonos: (rFront.bonos && rFront.bonos.length > 0) ? (rFront.bonos as any) : null,
+        ...(comboParentDbId ? { comboParent: { connect: { id: comboParentDbId } } } : {}),
+      });
+
       for (const rFront of sortedRecursos) {
         const rId = parseInt(rFront.id, 10);
         let nDbId = rFront.nodoTempId ? parseInt(idMap.nodos[rFront.nodoTempId] || rFront.nodoTempId, 10) : defaultNodoRaizId;
         if (!nDbId) continue;
 
-        // Resolver comboParentId: primero en idMap (padre temporal ya procesado),
-        // luego como ID numérico directo validado contra los registros existentes en BD.
-        // Si el padre no existe (fue eliminado), forzar null para evitar P2025.
         let comboParentDbId: number | null = null;
         if (rFront.comboParentId) {
           const mappedParent = idMap.recursos[rFront.comboParentId];
           if (mappedParent) {
-            // Padre temporal → su ID real ya fue guardado en idMap en esta misma pasada
             comboParentDbId = parseInt(mappedParent, 10) || null;
           } else {
             const directId = parseInt(rFront.comboParentId, 10);
             if (!isNaN(directId) && idsRecursosEnBD.has(directId)) {
-              // Padre numérico real que aún existe en BD
               comboParentDbId = directId;
             }
-            // Si directId no existe en BD (fue borrado) → comboParentDbId queda null
           }
         }
 
         if (isNaN(rId)) {
           // ID temporal → crear nuevo registro
-          const nuevoR = await tx.nodoRecurso.create({
-            data: {
-              nodo: { connect: { id: nDbId } },
-              item: { connect: { id: rFront.itemId } },
-              itemNombre: rFront.nombre,
-              itemTipo: rFront.categoria,
-              itemCategoria: 'N/A',
-              itemTipoCosto: rFront.tipoCosto,
-              cantidad: rFront.cantidad,
-              costoUnitarioErp: rFront.costoUnitario,
-              precioVenta: rFront.precioVentaUnitario || null,
-              precioVentaOrigen: rFront.precioVentaOrigen || 'MANUAL',
-              turnoCodigo: rFront.turnoCodigo || null,
-              uniformeCodigo: rFront.uniformeCodigo || null,
-              cubreDescanso: rFront.cubreDescanso || 0,
-              personas: rFront.personas || 1,
-              horasSemana: rFront.horasSemana || 0,
-              bonos: (rFront.bonos && rFront.bonos.length > 0) ? (rFront.bonos as any) : null,
-              ...(comboParentDbId ? { comboParent: { connect: { id: comboParentDbId } } } : {}),
-            } as any
-          });
-          // Registrar siempre en idMap para que sus hijos puedan resolverlo
+          const nuevoR = await tx.nodoRecurso.create({ data: buildRecursoData(rFront, nDbId, comboParentDbId) as any });
           idMap.recursos[rFront.id] = nuevoR.id.toString();
         } else {
           // ID numérico → upsert
@@ -261,36 +265,22 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
               precioVentaOrigen: rFront.precioVentaOrigen || 'MANUAL',
               turnoCodigo: rFront.turnoCodigo || null,
               uniformeCodigo: rFront.uniformeCodigo || null,
+              combosRhSelec: rFront.combosRhSeleccionados && Object.keys(rFront.combosRhSeleccionados).length > 0
+                ? JSON.stringify(rFront.combosRhSeleccionados)
+                : null,
+              esComboRhId: rFront.esComboRHId ?? null,
               cubreDescanso: rFront.cubreDescanso || 0,
               personas: rFront.personas || 1,
               horasSemana: rFront.horasSemana || 0,
               bonos: (rFront.bonos && rFront.bonos.length > 0) ? (rFront.bonos as any) : null,
               comboParentId: comboParentDbId,
             } as any,
-            create: {
-              nodo: { connect: { id: nDbId } },
-              item: { connect: { id: rFront.itemId } },
-              itemNombre: rFront.nombre,
-              itemTipo: rFront.categoria,
-              itemCategoria: 'N/A',
-              itemTipoCosto: rFront.tipoCosto,
-              cantidad: rFront.cantidad,
-              costoUnitarioErp: rFront.costoUnitario,
-              precioVenta: rFront.precioVentaUnitario || null,
-              precioVentaOrigen: rFront.precioVentaOrigen || 'MANUAL',
-              turnoCodigo: rFront.turnoCodigo || null,
-              uniformeCodigo: rFront.uniformeCodigo || null,
-              cubreDescanso: rFront.cubreDescanso || 0,
-              personas: rFront.personas || 1,
-              horasSemana: rFront.horasSemana || 0,
-              bonos: (rFront.bonos && rFront.bonos.length > 0) ? (rFront.bonos as any) : null,
-              ...(comboParentDbId ? { comboParent: { connect: { id: comboParentDbId } } } : {}),
-            } as any,
+            create: buildRecursoData(rFront, nDbId, comboParentDbId) as any,
           });
-          // Registrar ID numérico real en idMap para que sus hijos también puedan resolverlo
           idMap.recursos[rFront.id] = rId.toString();
         }
       }
+
     }
 
     const ultimoHistorial = await tx.historialAutoGuardado.findFirst({

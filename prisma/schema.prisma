@@ -101,6 +101,7 @@ model Nodo {
   turnoCodigo    Int?          @map("turno_codigo")
   uniformeCodigo String?       @map("uniforme_codigo") @db.VarChar(50)
   cubreDescanso  Int           @default(0) @map("cubre_descanso")
+  combosRhSelec  String?       @map("combos_rh_seleccionados") @db.Text
   contrato       Contrato      @relation(fields: [contratoId], references: [id], onDelete: Cascade)
   parent         Nodo?         @relation("JerarquiaNodos", fields: [parentId], references: [id], onDelete: Cascade)
   children       Nodo[]        @relation("JerarquiaNodos")
@@ -129,6 +130,8 @@ model NodoRecurso {
   personas          Int           @default(1)
   turnoCodigo       Int?          @map("turno_codigo")
   uniformeCodigo    String?       @map("uniforme_codigo") @db.VarChar(50)
+  combosRhSelec     String?       @map("combos_rh_seleccionados") @db.Text
+  esComboRhId       Int?          @map("es_combo_rh_id") @db.TinyInt
   bonos             Json?         @map("bonos")
   comboParentId     Int?          @map("combo_parent_id")
   itemId            Int           @map("item_id")
@@ -296,6 +299,8 @@ model Empresa {
   registroVersion     Int                   @default(0) @map("registro_version")
   categorias          CategoriaItem[]
   configuracionesSync EmpresaCatalogoSync[]
+  tiposComboRH        TipoComboRH[]
+  tiposCombo          TipoCombo[]
 
   @@map("costeos_empresa")
 }
@@ -327,33 +332,45 @@ model CategoriaItem {
 }
 
 model Item {
-  id               Int            @id @default(autoincrement())
-  empresaId        Int            @default(0) @map("empresa_id")
-  descripcion      String         @db.VarChar(100)
-  codigoErp        String?        @map("codigo_erp") @db.VarChar(15)
-  categoriaId      Int            @map("categoria_id")
-  unidadMedida     String         @map("unidad_medida") @db.VarChar(10)
-  tipoItem         Int            @default(0) @map("tipo_item") @db.TinyInt
-  tipoServicio     Int            @default(0) @map("tipo_servicio") @db.TinyInt
-  precioVentaCero  Boolean        @default(false) @map("precio_venta_cero")
-  recurrente       Int            @default(0) @db.TinyInt
-  recurrenteGasto  Int            @default(0) @map("recurrente_gasto") @db.TinyInt
-  manejoCostos     Int            @default(0) @map("manejo_costos") @db.TinyInt
-  tipo             Int            @default(0) @db.TinyInt
-  perfil           Int            @default(0) @db.TinyInt
-  activo           Boolean        @default(true)
-  usuarioCreo      Int            @default(0) @map("usuario_creo")
-  fechaCreo        DateTime       @default(now()) @map("fecha_creo")
-  registroVersion  Int            @default(1) @map("registro_version")
-  categoria        CategoriaItem  @relation(fields: [categoriaId], references: [id])
-  nodoRecursos     NodoRecurso[]
-  recetaSnaps      RecetaSnap[]
-  combosPrincipal  DetalleCombo[] @relation("ItemPrincipal")
-  combosSecundario DetalleCombo[] @relation("ItemSecundario")
-  costos           ItemCosto[]
+  id                    Int             @id @default(autoincrement())
+  empresaId             Int             @default(0) @map("empresa_id")
+  descripcion           String          @db.VarChar(100)
+  codigoErp             String?         @map("codigo_erp") @db.VarChar(15)
+  categoriaId           Int             @map("categoria_id")
+  tipoComboId           Int?            @map("tipo_combo_id")
+  unidadMedida          String          @map("unidad_medida") @db.VarChar(10)
+  tipoItem              Int             @default(0) @map("tipo_item") @db.TinyInt
+  tipoProducto          Int             @default(0) @map("tipo_producto") @db.TinyInt
+  venta                 Int             @default(0) @db.TinyInt
+  precioVentaCero       Boolean         @default(false) @map("precio_venta_cero")
+  recurrente            Int             @default(0) @db.TinyInt
+  recurrenteGasto       Int             @default(0) @map("recurrente_gasto") @db.TinyInt
+  manejoCostos          Int             @default(0) @map("manejo_costos") @db.TinyInt
+  costoReferenciaItemId Int?            @map("costo_referencia_item_id")
+  tipo                  Int             @default(0) @db.TinyInt
+  perfil                Int             @default(0) @db.TinyInt
+  uniforme              Int             @default(0) @db.TinyInt
+  activo                Boolean         @default(true)
+  usuarioCreo           Int             @default(0) @map("usuario_creo")
+  fechaCreo             DateTime        @default(now()) @map("fecha_creo")
+  registroVersion       Int             @default(1) @map("registro_version")
+  categoria             CategoriaItem   @relation(fields: [categoriaId], references: [id])
+  tipoCombo             TipoCombo?      @relation("ItemTipoComboFK", fields: [tipoComboId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  costoReferenciaItem   Item?           @relation("CostoReferencia", fields: [costoReferenciaItemId], references: [id], onDelete: SetNull)
+  itemsQueReferencian   Item[]          @relation("CostoReferencia")
+  nodoRecursos          NodoRecurso[]
+  recetaSnaps           RecetaSnap[]
+  combosPrincipal       DetalleCombo[]  @relation("ItemPrincipal")
+  combosSecundario      DetalleCombo[]  @relation("ItemSecundario")
+  costos                ItemCosto[]
+  costosRef             ItemCostoRef[]
+  tiposComboRH          ItemTipoComboRH[]
+  tiposCombo            ItemTipoCombo[]
 
   @@index([categoriaId], map: "CATEGORIA")
   @@index([empresaId], map: "costeos_item_empresa_id_fkey")
+  @@index([tipoComboId], map: "costeos_item_tipo_combo_id_fkey")
+  @@index([costoReferenciaItemId], map: "costeos_item_costo_referencia_item_id_fkey")
   @@map("costeos_item")
 }
 
@@ -368,6 +385,22 @@ model ItemCosto {
 
   @@index([itemId], map: "costeo_item_costo_item_id_fkey")
   @@map("costeo_item_costo")
+}
+
+// Historial de porcentajes de costo por referencia (manejoCostos = 3).
+// Análogo a ItemCosto pero guarda pct en lugar de costo absoluto.
+// El ítem de referencia vive en Item.costoReferenciaItemId (inmutable una vez fijado).
+model ItemCostoRef {
+  id          Int      @id @default(autoincrement())
+  itemId      Int      @map("item_id")
+  pct         Decimal  @db.Decimal(5, 2)
+  fecha       DateTime @db.Date
+  fechaAgrego DateTime @default(now()) @map("fecha_agrego")
+  usuarioId   Int      @map("usuario_id")
+  item        Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId], map: "costeo_item_costo_ref_item_id_fkey")
+  @@map("costeo_item_costo_ref")
 }
 
 model Pais {
@@ -441,4 +474,80 @@ model DetalleCombo {
 enum BaseEvaluacion {
   GLOBAL
   MENSUAL
+}
+
+// ─── Tipos de Combo RH ────────────────────────────────────────────────────────
+
+// TipoComboRH — Tipos configurables de ítems adicionales asociados a RRHH.
+// Ej: Uniforme, Equipo Seguridad, Comunicación.
+// Máx. 8 tipos activos por empresa (validado en el service).
+model TipoComboRH {
+  id           Int               @id @default(autoincrement())
+  empresaId    Int               @map("empresa_id")
+  nombre       String            @db.VarChar(100)
+  icono        String?           @db.VarChar(50)
+  orden        Int               @default(0)
+  requerido    Boolean           @default(false)
+  activo       Boolean           @default(true)
+  creadoEn     DateTime          @default(now()) @map("creado_en")
+  modificadoEn DateTime          @updatedAt @map("modificado_en")
+  empresa      Empresa           @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  items        ItemTipoComboRH[]
+
+  @@index([empresaId], map: "costeos_tipo_combo_rh_empresa_id_fkey")
+  @@map("costeos_tipo_combo_rh")
+}
+
+// ItemTipoComboRH — Tabla pivote con dos roles:
+// - NECESITA: ítem RH que necesita selección de este tipo al agregarse al costeo
+// - DISPONIBLE: ítem no-RH que puede ser seleccionado como este tipo
+model ItemTipoComboRH {
+  itemId        Int                    @map("item_id")
+  tipoComboRHId Int                    @map("tipo_combo_rh_id")
+  rol           ItemComboRHRol         @default(DISPONIBLE)
+  item          Item                   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  tipoComboRH   TipoComboRH            @relation(fields: [tipoComboRHId], references: [id], onDelete: Cascade)
+
+  @@id([itemId, tipoComboRHId])
+  @@index([tipoComboRHId], map: "costeos_item_tipo_combo_rh_tipo_id_fkey")
+  @@map("costeos_item_tipo_combo_rh")
+}
+
+enum ItemComboRHRol {
+  NECESITA    // Ítem RH: necesita este tipo cuando se agrega al costeo
+  DISPONIBLE  // Ítem no-RH: puede ser seleccionado para este tipo
+}
+
+// ─── Tipos de Combo (nueva arquitectura — aplica a cualquier tipo de ítem) ────
+
+// TipoCombo — Tipos configurables de ítems adicionales (sin límite de tipos activos).
+// Aplica a cualquier tipo de ítem, no solo a RH.
+model TipoCombo {
+  id              Int             @id @default(autoincrement())
+  empresaId       Int             @default(0) @map("empresa_id")
+  nombre          String          @db.VarChar(100)
+  icono           String?         @db.VarChar(50)
+  usuarioCreo     Int             @default(0) @map("usuario_creo")
+  fechaCreo       DateTime        @default(now()) @map("fecha_creo")
+  registroVersion Int             @default(1) @map("registro_version")
+  empresa         Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  items           Item[]          @relation("ItemTipoComboFK")
+  itemTiposCombos ItemTipoCombo[]
+
+  @@index([empresaId], map: "costeos_tipo_combo_empresa_id_fkey")
+  @@map("costeos_tipo_combo")
+}
+
+// ItemTipoCombo — Tabla pivote entre Item y TipoCombo.
+// Indica qué Tipos Combo tiene configurado un ítem, y si cada uno es obligatorio.
+model ItemTipoCombo {
+  itemId        Int       @map("item_id")
+  tipoComboId   Int       @map("tipo_combo_id")
+  obligatorio   Boolean   @default(false)
+  item          Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  tipoCombo     TipoCombo @relation(fields: [tipoComboId], references: [id], onDelete: Cascade)
+
+  @@id([itemId, tipoComboId])
+  @@index([tipoComboId], map: "costeos_item_tipo_combo_tipo_id_fkey")
+  @@map("costeos_item_tipo_combo")
 }

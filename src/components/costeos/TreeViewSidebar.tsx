@@ -19,6 +19,7 @@ import { isNodeValid } from '@/lib/utils/validation';
 export default function TreeViewSidebar() {
   const { proyecto, selectedNode, dispatch } = useCosteo();
   const [expandedNodes, setExpandedNodes] = React.useState<Record<string, boolean>>({});
+  const [expandedRecursos, setExpandedRecursos] = React.useState<Record<string, boolean>>({});
 
   if (!proyecto) return null;
 
@@ -40,6 +41,13 @@ export default function TreeViewSidebar() {
 
   const isExpanded = (id: string) => expandedNodes[id] !== false;
 
+  const toggleRecurso = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setExpandedRecursos(prev => ({ ...prev, [id]: prev[id] === false ? true : false }));
+  };
+
+  const isRecursoExpanded = (id: string) => expandedRecursos[id] !== false;
+
   const getIconForCategory = (categoria: CategoriaItem) => {
     switch (categoria) {
       case 'RECURSO_HUMANO': return <User className="w-3.5 h-3.5 text-blue-600" />;
@@ -50,46 +58,70 @@ export default function TreeViewSidebar() {
     }
   };
 
-  const renderRecursos = (recursos: RecursoCosteo[]) => {
-    if (!recursos || recursos.length === 0) return null;
-
-    // Solo mostrar recursos primarios — los combos se gestionan desde la pestaña Combo del EditorPanel
-    const primarios = recursos.filter(r => !r.esCombo);
+  const renderRecursoRow = (recurso: RecursoCosteo, allRecursos: RecursoCosteo[], depth: number): React.ReactNode => {
+    const directCombos = allRecursos.filter(r => r.esCombo && r.comboParentId === recurso.id);
+    const tieneCombos = directCombos.length > 0;
+    const expanded = isRecursoExpanded(recurso.id);
 
     return (
-      <div className="ml-3 border-l border-slate-200 pl-2 space-y-0.5 pb-1">
-        {primarios.map(recurso => {
-          return (
-            <div key={recurso.id}>
+      <div key={recurso.id}>
+        <div
+          style={depth > 0 ? { paddingLeft: `${depth * 14 + 8}px` } : undefined}
+          className={`flex items-center justify-between px-2 py-1 rounded-md cursor-pointer ${
+            selectedNode?.id === recurso.id ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-slate-100 text-slate-500'
+          }`}
+          onClick={() => handleSelectNode('RECURSO', recurso.id)}
+        >
+          <div className="flex items-center gap-1.5 overflow-hidden">
+            {/* Chevron expand/collapse para combos — o guión decorativo */}
+            {tieneCombos ? (
               <div
-                className={`flex items-center justify-between px-2 py-1 rounded-md cursor-pointer ${
-                  selectedNode?.id === recurso.id ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-slate-100 text-slate-500'
-                }`}
-                onClick={() => handleSelectNode('RECURSO', recurso.id)}
+                onClick={(e) => toggleRecurso(e, recurso.id)}
+                className="p-0.5 hover:bg-slate-200 rounded text-slate-400 shrink-0"
+                title={expanded ? 'Colapsar sub-items' : 'Expandir sub-items'}
               >
-                <div className="flex items-center gap-1.5 overflow-hidden">
-                  <div className="w-[14px] h-[14px] shrink-0" />
-                  {getIconForCategory(recurso.categoria)}
-                  <span className="truncate text-xs">{recurso.nombre}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  {!isNodeValid(recurso, 'RECURSO') && (
-                    <div title="Falta información requerida">
-                      <AlertTriangle className="w-3 h-3 text-red-500 shrink-0" />
-                    </div>
-                  )}
-                  {recurso.cantidad > 1 && (
-                    <span className="text-[10px] bg-slate-200 px-1 rounded font-medium text-slate-600 shrink-0">x{recurso.cantidad}</span>
-                  )}
-                </div>
+                {expanded
+                  ? <ChevronDown className="w-3.5 h-3.5" />
+                  : <ChevronRight className="w-3.5 h-3.5" />
+                }
               </div>
-            </div>
-          );
-        })}
+            ) : (
+              depth > 0
+                ? <span className="w-2 border-t border-dashed border-slate-300 shrink-0" />
+                : <div className="w-[14px] h-[14px] shrink-0" />
+            )}
+            {getIconForCategory(recurso.categoria)}
+            <span className={`truncate text-xs ${depth > 0 ? 'text-slate-400' : ''}`}>{recurso.nombre}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            {!isNodeValid(recurso, 'RECURSO') && (
+              <div title="Falta información requerida">
+                <AlertTriangle className="w-3 h-3 text-red-500 shrink-0" />
+              </div>
+            )}
+            {recurso.cantidad > 1 && (
+              <span className="text-[10px] bg-slate-200 px-1 rounded font-medium text-slate-600 shrink-0">x{recurso.cantidad}</span>
+            )}
+          </div>
+        </div>
+        {/* Sub-items (combos) — solo si expandido */}
+        {tieneCombos && expanded && directCombos.map(combo => renderRecursoRow(combo, allRecursos, depth + 1))}
       </div>
     );
   };
 
+  const renderRecursos = (recursos: RecursoCosteo[]) => {
+    if (!recursos || recursos.length === 0) return null;
+
+    // Solo los primarios — los combos se renderizan recursivamente bajo su padre
+    const primarios = recursos.filter(r => !r.esCombo);
+
+    return (
+      <div className="ml-3 border-l border-slate-200 pl-2 space-y-0.5 pb-1">
+        {primarios.map(recurso => renderRecursoRow(recurso, recursos, 0))}
+      </div>
+    );
+  };
 
 
   const renderNodos = (nodos: NodoCosteo[], nivelActual: number) => {

@@ -20,6 +20,8 @@ export interface ComboDisponible {
   nuevoRequerido: number             // 1=no se puede quitar, 0=opcional
   manejoCostos: number               // para determinar el costo (2=manual, 99=no aplica, etc.)
   costosManuales?: number            // último costo registrado si manejoCostos=2
+  tipoItem?: number                  // 1-6 según nueva taxonomía
+  tipoProducto?: number              // contextual: tipoItem=3+tipoProducto=1 → RECURSO_HUMANO
   hijos?: ComboDisponible[]          // combos anidados del sub-ítem
 }
 
@@ -84,7 +86,6 @@ export interface BonoCosteo {
   erpBonoId: string; // ID del catálogo de ERP
   nombre: string;
   costoUnitario: number;
-  precioVentaUnitario?: number;
 }
 
 // Nivel 3: Recurso asignado a un Puesto
@@ -103,7 +104,12 @@ export interface RecursoCosteo {
   // Nuevos campos transferidos desde PuestoCosteo
   itemServicio?: any;
   turnoCodigo?: number;
+  /** @deprecated Usar combosRhSeleccionados. Se mantiene para compatibilidad con costeos guardados antes de la migración. */
   uniformeCodigo?: string;
+  /** Mapa tipoComboRHId (como string) → itemId seleccionado (como string).
+   *  Ej: { "1": "42", "2": "88" }
+   *  Reemplaza a uniformeCodigo para la lógica nueva. */
+  combosRhSeleccionados?: Record<string, string>;
   personas?: number;
   horasSemana?: number;
   cubreDescanso?: number;
@@ -117,6 +123,12 @@ export interface RecursoCosteo {
   // Combo: indica que este recurso es un sub-ítem de otro recurso en el mismo nodo
   esCombo?: boolean;
   comboParentId?: string; // ID del RecursoCosteo primario (puede ser temp 'REC-...' o ID real de BD)
+  esComboManual?: boolean; // true cuando el sub-ítem fue agregado manualmente (no pertenece a la receta original)
+  /** ID del TipoComboRH al que pertenece este combo hijo (reemplaza esUniforme).
+   *  Ej: 1 = Uniforme, 2 = Equipo Seguridad, etc. */
+  esComboRHId?: number;
+  /** @deprecated Usar esComboRHId === 1 (o el id del tipo Uniforme de la empresa). Se mantiene para compat. */
+  esUniforme?: boolean;
 
 }
 
@@ -137,7 +149,10 @@ export interface NodoCosteo {
   
   // Cobertura (opcional)
   turnoCodigo?: number;
+  /** @deprecated Usar combosRhSeleccionados */
   uniformeCodigo?: string;
+  /** Mapa tipoComboRHId → itemId para los combos RH del nodo */
+  combosRhSeleccionados?: Record<string, string>;
   cubreDescanso?: number;
   personas?: number;
   horasSemana?: number;

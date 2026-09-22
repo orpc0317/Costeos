@@ -14,21 +14,33 @@ export const detalleComboSchema = z.object({
 export type DetalleComboInput = z.infer<typeof detalleComboSchema>
 
 export const itemSchema = z.object({
-  empresaId:       z.coerce.number().min(1, 'Empresa es requerida'),
-  descripcion:     z.string().min(1, 'Descripción es requerida').max(100),
-  unidadMedida:    z.string().min(1, 'Unidad es requerida').max(10),
-  tipoItem:        z.coerce.number().min(1).max(5),
-  tipoServicio:    z.coerce.number().min(0).max(1).default(0),
-  codigoErp:       z.string().max(15).optional().nullable(),
-  categoriaId:     z.coerce.number().min(1, 'Categoría es requerida'),
-  precioVentaCero: z.boolean().default(false),
-  recurrente:      z.boolean().default(false),
-  recurrenteGasto: z.boolean().default(false),
-  manejoCostos:    z.coerce.number().default(99),
-  tipo:            z.boolean().default(false),
-  perfil:          z.boolean().default(false),
-  activo:          z.boolean().default(true),
-  combos:          z.array(detalleComboSchema).optional(),
+  empresaId:              z.coerce.number().min(1, 'Empresa es requerida'),
+  descripcion:            z.string().min(1, 'Descripción es requerida').max(100),
+  unidadMedida:           z.string().min(1, 'Unidad es requerida').max(10),
+  tipoItem:               z.coerce.number().min(1).max(6),
+  tipoProducto:           z.coerce.number().min(0).max(1).default(0),
+  venta:                  z.boolean().default(false),
+  codigoErp:              z.string().max(15).optional().nullable(),
+  categoriaId:            z.coerce.number().min(1, 'Categoría es requerida'),
+  precioVentaCero:        z.boolean().default(false),
+  recurrente:             z.boolean().default(false),
+  recurrenteGasto:        z.boolean().default(false),
+  manejoCostos:           z.coerce.number().default(99),
+  costoReferenciaItemId:  z.coerce.number().nullable().optional(),
+  tipo:                   z.boolean().default(false),
+  perfil:                 z.boolean().default(false),
+  uniforme:               z.boolean().default(false),
+  activo:                 z.boolean().default(true),
+  combos:                 z.array(detalleComboSchema).optional(),
+  tiposComboRHIds:        z.array(z.object({
+    tipoComboRHId: z.number(),
+    rol: z.enum(['NECESITA', 'DISPONIBLE']),
+  })).optional(),
+  tipoComboId:            z.coerce.number().nullable().optional(),
+  tiposComboIds:          z.array(z.object({
+    tipoComboId:  z.number(),
+    obligatorio:  z.boolean(),
+  })).optional(),
 })
 
 export type ItemInput = z.infer<typeof itemSchema>
@@ -49,30 +61,39 @@ export type DetalleComboRow = {
 }
 
 export type ItemRow = {
-  id:              number
-  empresaId:       number
-  empresaNombre?:  string
-  descripcion:     string
-  unidadMedida:    string
-  tipoItem:        number
-  tipoServicio:    number
-  codigoErp:       string | null
-  categoriaId:     number
-  categoria?:      { nombre: string }
-  precioVentaCero: boolean
-  recurrente:      number
-  recurrenteGasto: number
-  manejoCostos:    number
-  tipo:            number
-  perfil:          number
-  activo:          boolean
-  usuarioCreo:     number
-  fechaCreo:       Date
-  registroVersion: number
-  combosPrincipal?: DetalleComboRow[]
+  id:                          number
+  empresaId:                   number
+  empresaNombre?:              string
+  descripcion:                 string
+  unidadMedida:                string
+  tipoItem:                    number
+  tipoProducto:                number
+  venta:                       number
+  codigoErp:                   string | null
+  categoriaId:                 number
+  categoria?:                  { nombre: string }
+  tipoComboId?:                number | null
+  tipoComboNombre?:            string | null
+  precioVentaCero:             boolean
+  recurrente:                  number
+  recurrenteGasto:             number
+  manejoCostos:                number
+  costoReferenciaItemId?:      number | null
+  costoReferenciaDescripcion?: string | null
+  tipo:                        number
+  perfil:                      number
+  uniforme:                    number
+  activo:                      boolean
+  usuarioCreo:                 number
+  fechaCreo:                   Date
+  registroVersion:             number
+  combosPrincipal?:            DetalleComboRow[]
+  tiposComboRH?:               { tipoComboRHId: number; rol: 'NECESITA' | 'DISPONIBLE' }[]
+  tiposCombo?:                 { tipoComboId: number; obligatorio: boolean }[]
 }
 
 
+// ─── Costo Manual (manejoCostos = 2) ─────────────────────────────────────────
 
 export const itemCostoSchema = z.object({
   costo: z.coerce.number().positive('El costo debe ser mayor que 0'),
@@ -91,3 +112,22 @@ export type ItemCostoRow = {
   usuarioNombre?: string
 }
 
+
+// ─── Costo Referencia (manejoCostos = 3) ─────────────────────────────────────
+
+export const itemCostoRefSchema = z.object({
+  pct:   z.coerce.number().positive('El porcentaje debe ser mayor que 0').max(999.99, 'Máximo 999.99%'),
+  fecha: z.string().min(1, 'La fecha es requerida').regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha inválido'),
+})
+
+export type ItemCostoRefInput = z.infer<typeof itemCostoRefSchema>
+
+export type ItemCostoRefRow = {
+  id:            number
+  itemId:        number
+  pct:           number
+  fecha:         string   // YYYY-MM-DD
+  fechaAgrego:   Date
+  usuarioId:     number
+  usuarioNombre?: string
+}

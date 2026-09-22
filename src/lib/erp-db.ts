@@ -43,30 +43,3 @@ export async function getErpDbConnection() {
   }
 }
 
-/**
- * Valida si un usuario existe en el ERP y está activo.
- * @param usuarioErp Nombre de usuario en el ERP
- * @returns true si existe y está activo, false en caso contrario
- */
-export async function validarUsuarioERP(usuarioErp: string): Promise<boolean> {
-  try {
-    const pool = await getErpDbConnection()
-    const request = pool.request()
-    
-    // Validamos que el usuario_erp exista y que activo = 1 en la tabla t_usuario
-    request.input('usuarioErp', usuarioErp)
-    const result = await request.query(`
-      SELECT 1 
-      FROM t_usuario 
-      WHERE userid = @usuarioErp AND activo = 1
-    `)
-
-    return result.recordset.length > 0
-  } catch (error) {
-    console.error('Error al validar usuario ERP:', error)
-    if (error instanceof Error) {
-      throw new Error(`Error del ERP: ${error.message}`)
-    }
-    throw new Error('No se pudo validar el usuario en el ERP')
-  }
-}

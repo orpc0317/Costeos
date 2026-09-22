@@ -9,17 +9,22 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { FieldError } from '@/components/ui/field-error'
-import { Package, Settings2, Save, Pencil, History, SlidersHorizontal, Search, ArrowLeft, DollarSign } from 'lucide-react'
+import { Package, Settings2, Save, Pencil, History, SlidersHorizontal, Search, ArrowLeft, DollarSign, Layers, Link2 } from 'lucide-react'
 import { HistorialDrawer } from '@/components/shared/historial-drawer'
-import { crearItem, actualizarItem, buscarItemsSimilaresConERP, getItemSyncHabilitado } from '@/app/actions/items'
+import { crearItem, actualizarItem, buscarItemsSimilaresConERP, buscarItemsLIKEConERP, getItemSyncHabilitado, contarCostosRefItem } from '@/app/actions/items'
+import { listarTiposCombosPorEmpresa } from '@/app/actions/tipos-combo'
 import type { SimilarItemConOrigen, ErpSimilarData } from '@/lib/utils/similarity'
 import { getEmpresasForUser } from '@/app/actions/erp'
 import { normalizeText } from '@/lib/utils/text'
 import type { ItemInput, ItemRow } from '@/lib/types/items'
 import type { CategoriaRow } from '@/lib/types/categorias'
-import { TIPOS_ITEM, TIPOS_SERVICIO, MANEJO_COSTOS_OPCIONES } from '@/lib/constants/items'
+import { TIPOS_ITEM, TIPOS_PRODUCTO_SERVICIO, MANEJO_COSTOS_OPCIONES, getTipoProductoFijo, labelTipoProducto } from '@/lib/constants/items'
+import { NumericInput } from '@/components/ui/numeric-input'
 import { ComboTab } from './combo-tab'
 import { CostoTab } from './costo-tab'
+import { CostoReferenciaTab } from './costo-referencia-tab'
+import { TiposComboTab, type ItemTipoComboAsoc } from './tipos-combo-tab'
+import { UI_THEME } from '@/lib/theme'
 
 
 interface ItemModalProps {
@@ -42,7 +47,12 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
   const setOpen = isControlled ? onOpenChange! : setInternalOpen
   const [historialOpen, setHistorialOpen] = useState(false)
 
-  const isEditing = !!item
+  // currentItem: copia local que se actualiza tras cada guardado exitoso.
+  // Esto evita que revalidatePath (que re-renderiza la pagina) cierre el modal
+  // al resetear el prop `item` al valor anterior antes de que React rehidrate.
+  const [currentItem, setCurrentItem] = useState<typeof item>(item)
+
+  const isEditing = !!currentItem
   const [mode, setMode] = useState<'view' | 'edit'>('view')
 
   // Wizard de búsqueda (solo para nuevos ítems)
@@ -56,17 +66,25 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
   const [descripcion, setDescripcion] = useState('')
   const [unidadMedida, setUnidadMedida] = useState('UND')
   const [tipoItem, setTipoItem] = useState<string>(TIPOS_ITEM[0].value)
-  const [tipoServicio, setTipoServicio] = useState<string>('0')
+  const [tipoProducto, setTipoProducto] = useState<string>('0')
   const [codigoErp, setCodigoErp] = useState('')
   const [categoriaId, setCategoriaId] = useState<string>('')
+  const [tipoComboId, setTipoComboId] = useState<string>('')          // '' = sin asignar (campo opcional)
   const [precioVentaCero, setPrecioVentaCero] = useState(false)
+  const [venta, setVenta] = useState(false)
   const [recurrente, setRecurrente] = useState(false)
   const [recurrenteGasto, setRecurrenteGasto] = useState(false)
   const [manejoCostos, setManejoCostos] = useState<string>('99')
+  const [costoReferenciaItemId, setCostoReferenciaItemId] = useState<string>('')
+  // Contador de registros en costeo_item_costo_ref — controla la inmutabilidad del ítem de referencia
+  const [contadorCostosRef, setContadorCostosRef] = useState<number>(0)
   const [tipo, setTipo] = useState(false)
   const [perfil, setPerfil] = useState(false)
+  const [uniforme, setUniforme] = useState(false)
   const [activo, setActivo] = useState(true)
   const [combos, setCombos] = useState<import('@/lib/types/items').DetalleComboInput[]>([])
+  const [tiposComboAsocs, setTiposComboAsocs] = useState<ItemTipoComboAsoc[]>([])
+
 
   // Errores y estado
   const [globalError, setGlobalError] = useState<string | null>(null)
@@ -84,25 +102,62 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
   // Empresas dinámicas
   const [empresas, setEmpresas] = useState<{ value: string; label: string }[]>([])
   const [cargandoEmpresas, setCargandoEmpresas] = useState(false)
+  // TiposCombos disponibles para el select de Parámetros
+  const [opcionesTipoCombo, setOpcionesTipoCombo] = useState<{ value: string; label: string }[]>([])
 
-  // Cargar empresas solo cuando el modal abre. NO tocar `mode` aquí.
+  // Cargar empresas y tipos combo cuando el modal abre. NO tocar `mode` aquí.
   useEffect(() => {
-    if (open) {
-      setCargandoEmpresas(true)
-      getEmpresasForUser()
-        .then(data => {
-          const sorted = data
-            .map(e => ({ value: e.id.toString(), label: e.nombre }))
-            .sort((a, b) => a.label.localeCompare(b.label))
-          setEmpresas(sorted)
-          // Auto-seleccionar primera empresa para ítems nuevos.
-          if (!item && sorted.length > 0) {
-            setEmpresa(prev => prev || sorted[0].value)
-          }
-        })
-        .finally(() => setCargandoEmpresas(false))
+    if (!open) return
+
+    // ── RESET DEFENSIVO (R22) — solo campos, NUNCA mode ──────────────────────
+    const tc = item ?? null
+    setDescripcion(tc?.descripcion ?? '')
+    setUnidadMedida(tc?.unidadMedida ?? 'UND')
+    setCategoriaId(tc?.categoriaId?.toString() ?? '')
+    setTipoComboId(tc?.tipoComboId ? tc.tipoComboId.toString() : '')
+    setCostoReferenciaItemId(tc?.costoReferenciaItemId ? tc.costoReferenciaItemId.toString() : '')
+    setContadorCostosRef(0)
+    setFieldErrors({})
+    setGlobalError(null)
+    setSimilares([])
+    setTiposComboAsocs(tc?.tiposCombo?.map(t => ({ tipoComboId: t.tipoComboId, obligatorio: t.obligatorio })) ?? [])
+
+    // ── Cargar empresas ───────────────────────────────────────────────────────
+    let active = true
+    setCargandoEmpresas(true)
+    getEmpresasForUser()
+      .then(data => {
+        if (!active) return
+        const sorted = data
+          .map(e => ({ value: e.id.toString(), label: e.nombre }))
+          .sort((a, b) => a.label.localeCompare(b.label))
+        setEmpresas(sorted)
+        // Auto-seleccionar primera empresa para ítems nuevos.
+        if (!item && sorted.length > 0) {
+          setEmpresa(prev => prev || sorted[0].value)
+        }
+      })
+      .finally(() => { if (active) setCargandoEmpresas(false) })
+
+    // ── Cargar contador de pcts de referencia (para inmutabilidad) ────────────
+    if (tc?.id && tc.manejoCostos === 3) {
+      contarCostosRefItem(tc.id).then(count => {
+        if (active) setContadorCostosRef(count)
+      })
     }
+
+    return () => { active = false }
   }, [open]) // SOLO depende de `open`
+
+
+  // Cargar tipos combo disponibles cuando cambia la empresa
+  useEffect(() => {
+    const empId = parseInt(empresa, 10)
+    if (!empId || !open) { setOpcionesTipoCombo([]); return }
+    listarTiposCombosPorEmpresa(empId).then(tipos => {
+      setOpcionesTipoCombo(tipos.map(t => ({ value: t.id.toString(), label: t.nombre })).sort((a, b) => a.label.localeCompare(b.label)))
+    })
+  }, [empresa, open])
 
   // Verificar sync de ITEMS cuando cambia la empresa seleccionada
   useEffect(() => {
@@ -111,12 +166,12 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
     getItemSyncHabilitado(empId).then(setSyncItemsHabilitado)
   }, [empresa, open])
 
-  // Deshabilitar tipo servicio si tipoItem != 2
+  // Auto-forzar tipoProducto cuando el tipo_item lo tiene fijo
   useEffect(() => {
-    if (tipoItem !== '2') {
-      setTipoServicio('0')
-    }
+    const fijo = getTipoProductoFijo(tipoItem)
+    if (fijo !== null) setTipoProducto(String(fijo))
   }, [tipoItem])
+
 
   // Lista de categorías filtrada por empresa y ordenada alfabéticamente.
   // fallback false: si aún no hay empresa seleccionada no se muestra ninguna categoría.
@@ -130,18 +185,21 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
     setDescripcion(data?.descripcion ?? '')
     setUnidadMedida(data?.unidadMedida ?? 'UND')
     setTipoItem(data?.tipoItem.toString() ?? TIPOS_ITEM[0].value)
-    setTipoServicio(data?.tipoServicio?.toString() ?? '0')
+    setTipoProducto(data?.tipoProducto?.toString() ?? '0')
     setCodigoErp(data?.codigoErp ?? '')
     setCategoriaId(
       data?.categoriaId.toString() ??
         (opcionesCategoria.length > 0 ? opcionesCategoria[0].value : '')
     )
+    setTipoComboId(data?.tipoComboId ? data.tipoComboId.toString() : '')
     setPrecioVentaCero(data?.precioVentaCero ?? false)
+    setVenta(data?.venta === 1)
     setRecurrente(data ? Boolean(data.recurrente) : false)
     setRecurrenteGasto(data ? Boolean(data.recurrenteGasto) : false)
     setManejoCostos(data ? String(data.manejoCostos) : '99')
     setTipo(data ? Boolean(data.tipo) : false)
     setPerfil(data ? Boolean(data.perfil) : false)
+    setUniforme(data ? Boolean(data.uniforme) : false)
     setActivo(data?.activo ?? true)
     
     // Mapear combos
@@ -160,6 +218,16 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
       setCombos([])
     }
 
+    // Mapear tiposCombo
+    if (data?.tiposCombo) {
+      setTiposComboAsocs(data.tiposCombo.map(t => ({
+        tipoComboId: t.tipoComboId,
+        obligatorio: t.obligatorio,
+      })))
+    } else {
+      setTiposComboAsocs([])
+    }
+
     setGlobalError(null)
     setFieldErrors({})
     setActiveTab('general')
@@ -175,10 +243,11 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
   // CRÍTICO: inicializar formulario y mode dentro de handleOpenChange, nunca en useEffect
   const handleOpenChange = (newOpen: boolean) => {
     if (newOpen) {
+      setCurrentItem(item)           // sincroniza con el prop al abrir
       resetForm(item)
-      setMode(isEditing ? 'view' : 'edit')
-      // La auto-selección de empresa ocurre en el .then() del useEffect de empresas,
-      // no aquí, para evitar la condición de carrera cuando la lista aún no está cargada.
+      setMode(item ? 'view' : 'edit')
+      // La auto-seleccion de empresa ocurre en el .then() del useEffect de empresas,
+      // no aqui, para evitar la condicion de carrera cuando la lista aun no esta cargada.
     }
     setOpen(newOpen)
   }
@@ -191,11 +260,12 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
     setDescripcion(erpData.descripcion)
     setUnidadMedida(erpData.unidadMedida)
     setTipoItem(erpData.tipoItem.toString())
-    setTipoServicio(erpData.tipoBien.toString())
+    setTipoProducto(erpData.tipoProducto?.toString() ?? '0')
     setRecurrente(Boolean(erpData.recurrente))
     setPrecioVentaCero(Boolean(erpData.precioVentaCero))
     setPerfil(Boolean(erpData.perfil))
     setManejoCostos(String(erpData.manejoCostos))
+    setUniforme(Boolean(erpData.uniforme))
     setCodigoErp(erpData.codigo)
     setErpVinculado(erpData)
     setSimilares([])
@@ -215,17 +285,11 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
     if (Object.keys(errors).length > 0) return
 
     setBuscando(true)
-    const found = await buscarItemsSimilaresConERP(
+    const found = await buscarItemsLIKEConERP(
       normalizeText(descripcion),
       parseInt(empresa, 10),
     )
     setBuscando(false)
-
-    // Sin coincidencias → ir directo al formulario
-    if (found.length === 0) {
-      setStep('formulario')
-      return
-    }
 
     setResultadosBusqueda(found)
     setBusquedaRealizada(true)
@@ -236,18 +300,32 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
    * Si viene un erpData, auto-puebla los campos del ERP.
    */
   const handleIrAFormulario = (erpData?: ErpSimilarData) => {
+    // Guardar los valores del Paso 1 antes del reset
+    const empresaActual     = empresa
+    const descripcionActual = descripcion
+
+    // Limpiar TODO el formulario a defaults
+    resetForm(undefined)
+
+    // Restaurar empresa y descripcion del Paso 1
+    // (handleUsarDelERP sobreescribirá descripcion con el nombre del ERP si aplica)
+    setEmpresa(empresaActual)
+    setDescripcion(descripcionActual)
+
+    setSimilares([])
+    setGlobalError(null)
+    setFieldErrors({})
+
     if (erpData) handleUsarDelERP(erpData)
     setStep('formulario')
   }
 
-  // Derived: matches al 100%
+  // Derived: hay exacto en Costeos (solo para badge informativo, no bloquea)
   const has100EnCosteos = resultadosBusqueda.some(r => r.pct === 100 && r.source !== 'erp')
-  const has100EnERP     = resultadosBusqueda.some(r => r.pct === 100 && r.source === 'erp')
-  const bloqueaCrear    = has100EnCosteos || has100EnERP
 
   // Campo bloqueado si: modo vista, ERP vinculado (al crearlo), o si el registro ya existía con un código ERP
   const disabledPorERP = (mode === 'view') || (erpVinculado !== null) || Boolean(item?.codigoErp)
-  const disabledDescripcion = disabledPorERP || (!isEditing && step === 'formulario')
+  const disabledDescripcion = disabledPorERP
 
   /** Badge que indica que el campo vino del ERP */
   const BadgeERP = () => erpVinculado ? (
@@ -257,7 +335,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
   ) : null
 
   /** Campos que viven en la pestaña "parámetros" — todos los demás están en "general". */
-  const PARAM_FIELDS = ['tipoItem', 'tipoServicio', 'precioVentaCero', 'recurrente', 'recurrenteGasto', 'manejoCostos', 'tipo', 'perfil', 'activo']
+  const PARAM_FIELDS = ['tipoItem', 'tipoProducto', 'venta', 'precioVentaCero', 'recurrente', 'recurrenteGasto', 'manejoCostos', 'costoReferenciaItemId', 'tipo', 'perfil', 'uniforme', 'activo']
 
   /** Navega a la pestaña que contiene el campo con error. */
   const irATabConError = (campo: string) => {
@@ -273,22 +351,29 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
       descripcion: normalizeText(descripcion),
       unidadMedida: normalizeText(unidadMedida),
       tipoItem: parseInt(tipoItem, 10),
-      tipoServicio: parseInt(tipoServicio, 10),
+      tipoProducto: parseInt(tipoProducto, 10),
       codigoErp: codigoErp.trim() ? normalizeText(codigoErp) : null,
       categoriaId: parseInt(categoriaId, 10),
+      tipoComboId: tipoComboId ? parseInt(tipoComboId, 10) : null,
       precioVentaCero,
+      venta,
       recurrente,
       recurrenteGasto,
       manejoCostos: Number(manejoCostos),
+      costoReferenciaItemId: manejoCostos === '3' && costoReferenciaItemId
+        ? parseInt(costoReferenciaItemId, 10)
+        : null,
       tipo,
       perfil,
+      uniforme,
       activo,
       combos: combos.length > 0 ? combos : undefined,
+      tiposComboIds: tiposComboAsocs.length > 0 ? tiposComboAsocs : undefined,
     }
 
     let res
-    if (isEditing && item) {
-      res = await actualizarItem(item.id, { ...data, registroVersion: item.registroVersion })
+    if (isEditing && currentItem) {
+      res = await actualizarItem(currentItem.id, { ...data, registroVersion: currentItem.registroVersion })
     } else {
       res = await crearItem(data)
     }
@@ -304,6 +389,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
       }
     } else {
       if (isEditing) {
+        setCurrentItem(res.data)   // actualiza la copia local con los datos del servidor
         resetForm(res.data)
         setMode('view')
       } else {
@@ -327,12 +413,38 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
     if (!descripcion.trim()) errors.descripcion = 'Requerido'
     if (!unidadMedida.trim()) errors.unidadMedida = 'Requerido'
     if (!categoriaId) errors.categoriaId = 'Requerido'
+    if (Number(manejoCostos) === 0) errors.manejoCostos = 'Selecciona cómo se manejarán los costos'
+    if (manejoCostos === '3' && !costoReferenciaItemId) errors.costoReferenciaItemId = 'Selecciona el ítem de referencia'
     if (fieldErrors.codigoErp) errors.codigoErp = fieldErrors.codigoErp
 
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) {
       irATabConError(Object.keys(errors)[0])
       return
+    }
+
+
+    // Para nuevos ítems: verificar similares al guardar (la restricción real)
+    // Se omite si el usuario ya seleccionó explícitamente un ítem del ERP (erpVinculado !== null)
+    if (!isEditing && erpVinculado === null) {
+      const descripcionNormalizada = normalizeText(descripcion)
+      setLoading(true)
+      const found = await buscarItemsSimilaresConERP(
+        descripcionNormalizada,
+        parseInt(empresa, 10),
+      )
+      setLoading(false)
+
+      const duplicadoExacto = found.find(s => s.pct === 100 && s.source !== 'erp')
+      if (duplicadoExacto) {
+        setGlobalError(`Ya existe un ítem idéntico: "${duplicadoExacto.descripcion}". No se puede crear un duplicado.`)
+        return
+      }
+      if (found.length > 0) {
+        setSimilares(found)
+        setActiveTab('general')
+        return
+      }
     }
 
     // Solo para edición: verificar similares si el nombre cambió
@@ -392,7 +504,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
           </DialogHeader>
 
           {globalError && (
-            <div className="bg-red-50 text-red-500 text-sm p-3 rounded-md mb-4 border border-red-200 shrink-0">
+            <div className={`${UI_THEME.forms.globalError} shrink-0`}>
               {globalError}
             </div>
           )}
@@ -451,13 +563,8 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                 ) : (
                   <div className="space-y-2">
                     {has100EnCosteos && (
-                      <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">
-                        🚫 Este ítem ya existe en el sistema. No es posible crear un duplicado.
-                      </div>
-                    )}
-                    {has100EnERP && !has100EnCosteos && (
-                      <div className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-md p-3">
-                        🔗 Este ítem ya existe en el ERP. Usa “Vincular ERP” para importarlo.
+                      <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                        ⚠️ Se encontró al menos un ítem idéntico en Costeos. Puedes igualmente crear uno nuevo — el sistema lo validará al guardar.
                       </div>
                     )}
                     <div className="border border-slate-200 rounded-md overflow-hidden">
@@ -478,12 +585,19 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                               <td className="px-2 py-2 text-slate-500 font-mono">
                                 {r.id > 0 ? r.id : '—'}
                               </td>
-                              <td className="px-2 py-2 font-medium text-slate-800">{r.descripcion}</td>
+                              <td className="px-2 py-2 font-medium text-slate-800">
+                                {r.descripcion}
+                                {r.pct === 100 && r.source !== 'erp' && (
+                                  <span className="ml-1.5 text-[10px] bg-red-100 text-red-700 border border-red-200 rounded px-1 py-0.5 font-semibold align-middle">
+                                    YA EXISTE
+                                  </span>
+                                )}
+                              </td>
                               <td className="px-2 py-2 font-mono text-slate-500">
                                 {r.source === 'erp' ? r.erpData?.codigo : (r.codigoErp ?? '—')}
                               </td>
                               <td className="px-2 py-2 text-center">
-                                <span className={`font-bold ${r.pct === 100 ? 'text-red-600' : 'text-amber-600'}`}>
+                                <span className={`font-bold ${r.pct === 100 ? 'text-red-600' : r.pct >= 85 ? 'text-amber-600' : 'text-slate-400'}`}>
                                   {r.pct}%
                                 </span>
                               </td>
@@ -497,7 +611,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                                 </span>
                               </td>
                               <td className="px-2 py-2 text-right">
-                                {r.source === 'erp' && r.erpData && r.pct === 100 && !has100EnCosteos && (
+                                {r.source === 'erp' && r.erpData && (
                                   <button
                                     type="button"
                                     onClick={() => handleIrAFormulario(r.erpData!)}
@@ -531,14 +645,8 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                   <Button
                     type="button"
                     onClick={() => handleIrAFormulario()}
-                    disabled={bloqueaCrear}
-                    title={
-                      has100EnCosteos ? 'No se puede crear un ítem duplicado' :
-                      has100EnERP     ? 'El ítem ya existe en el ERP, usa Vincular ERP' :
-                      undefined
-                    }
                   >
-                    Crear
+                    Crear Nuevo
                   </Button>
                 )}
               </div>
@@ -549,7 +657,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
               PASO 2 — FORMULARIO (nuevo en step='formulario' o edición)
           ══════════════════════════════════════════════════════ */}
           {(isEditing || step === 'formulario') && (
-            <form onSubmit={handleSave} noValidate className="flex-1 overflow-hidden flex flex-col pt-2">
+            <form onSubmit={handleSave} noValidate className="flex-1 min-h-0 flex flex-col pt-2">
               <Tabs
                 value={activeTab}
                 onValueChange={setActiveTab}
@@ -570,8 +678,18 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                       Combo
                     </TabsTrigger>
                   )}
+                  <TabsTrigger value="tipos-combo">
+                    <Layers className="w-4 h-4 mr-2" />
+                    Tipos Combo
+                  </TabsTrigger>
                   {isEditing && manejoCostos === '2' && (
                     <TabsTrigger value="costo">
+                      <DollarSign className="w-4 h-4 mr-2" />
+                      Costo
+                    </TabsTrigger>
+                  )}
+                  {isEditing && manejoCostos === '3' && (
+                    <TabsTrigger value="costo-ref">
                       <DollarSign className="w-4 h-4 mr-2" />
                       Costo
                     </TabsTrigger>
@@ -626,10 +744,10 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                         />
                         <FieldError message={fieldErrors.descripcion} />
 
-                        {/* Advertencia de similares (solo en edición) */}
-                        {similares.length > 0 && isEditing && mode === 'edit' && (
-                          <div className="mt-1 rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
-                            <p className="text-xs font-semibold text-amber-800">
+                        {/* Advertencia de similares (edición o nuevo ítem en paso 2) */}
+                        {similares.length > 0 && (mode === 'edit' || !isEditing) && (
+                          <div className={UI_THEME.forms.warningSimilar}>
+                            <p className={UI_THEME.forms.warningSimilarTitle}>
                               ⚠️ Advertencia — Nombre similar a {similares.length} registro{similares.length > 1 ? 's' : ''} existente{similares.length > 1 ? 's' : ''}
                             </p>
                             <p className="text-xs text-amber-700">
@@ -780,19 +898,47 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                   {/* ── PESTAÑA PARÁMETROS ── */}
                   <TabsContent value="parametros" className="mt-0">
                     <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-                      {/* Tipo Servicio y Manejo Costos */}
-                      <div className="flex flex-col gap-1.5 col-span-1">
-                        <Label htmlFor="tipoServicio">
-                          Tipo Servicio
-                        </Label>
-                        <SearchableSelect
-                          options={TIPOS_SERVICIO}
-                          value={tipoServicio}
-                          onChange={setTipoServicio}
-                          disabled={mode === 'view' || tipoItem !== '2' || erpVinculado !== null}
-                          placeholder="Seleccione..."
-                        />
-                      </div>
+                      {/* Tipo Producto — siempre visible, editable solo para tipoItem=3 (Servicio) */}
+                      {(() => {
+                        const tiNum = Number(tipoItem)
+                        const esEditable = tiNum === 3
+                        // Opciones contextuales según tipo_item
+                        const opciones = esEditable
+                          ? TIPOS_PRODUCTO_SERVICIO  // Estándar | Outsourcing
+                          : [{
+                              value: tipoProducto,
+                              label: labelTipoProducto(tipoProducto, tiNum),
+                            }]
+                        return (
+                          <div className="flex flex-col gap-1.5 col-span-1">
+                            <Label htmlFor="tipoProducto">Tipo Producto</Label>
+                            <SearchableSelect
+                              options={opciones}
+                              value={tipoProducto}
+                              onChange={setTipoProducto}
+                              disabled={mode === 'view' || !esEditable}
+                              placeholder="—"
+                              searchable={false}
+                            />
+                          </div>
+                        )
+                      })()}
+
+
+                      {/* Aviso de destrucción de costos manuales */}
+                      {isEditing && item?.manejoCostos === 2 && Number(manejoCostos) !== 2 && (
+                        <div className="col-span-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+                          ⚠️ Al guardar, se eliminarán todos los costos manuales registrados para este ítem. Esta acción no se puede deshacer.
+                        </div>
+                      )}
+
+                      {/* Aviso de destrucción de costos de referencia */}
+                      {isEditing && item?.manejoCostos === 3 && Number(manejoCostos) !== 3 && (
+                        <div className="col-span-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+                          ⚠️ Al guardar, se eliminarán todos los porcentajes de costo referencia registrados para este ítem. Esta acción no se puede deshacer.
+                        </div>
+                      )}
+
 
                       <div className="flex flex-col gap-1.5 col-span-1">
                         <Label htmlFor="manejoCostos">
@@ -802,8 +948,71 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                           options={MANEJO_COSTOS_OPCIONES}
                           value={manejoCostos}
                           onChange={setManejoCostos}
-                          disabled={mode === 'view' || erpVinculado !== null}
+                          disabled={mode === 'view'}
                           searchable={false}
+                        />
+                        <FieldError message={fieldErrors.manejoCostos} />
+                      </div>
+
+                      {/* ─── Panel Ítem de Referencia — solo visible cuando manejoCostos = Referencia ─── */}
+                      {manejoCostos === '3' && (
+                        <div className="col-span-2 rounded-md border border-blue-200 bg-blue-50 p-3 space-y-2">
+                          <p className="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
+                            <Link2 className="h-3.5 w-3.5" />
+                            Ítem de Referencia
+                          </p>
+                          {contadorCostosRef > 0 ? (
+                            /* Ítem de referencia inmutable — ya tiene porcentajes registrados */
+                            <>
+                              <Input
+                                value={
+                                  todosItems.find(i => i.id === parseInt(costoReferenciaItemId, 10))?.descripcion
+                                  ?? currentItem?.costoReferenciaDescripcion
+                                  ?? costoReferenciaItemId
+                                  ?? '—'
+                                }
+                                disabled
+                                className="bg-white/60 text-blue-900 font-medium"
+                              />
+                              <p className="text-xs text-blue-500 flex items-center gap-1">
+                                🔒 El ítem de referencia no puede modificarse porque ya existen porcentajes registrados.
+                              </p>
+                            </>
+                          ) : (
+                            /* Ítem de referencia editable — aún no hay porcentajes */
+                            <>
+                              <SearchableSelect
+                                options={todosItems
+                                  .filter(i =>
+                                    i.empresaId === parseInt(empresa, 10) &&
+                                    i.id !== currentItem?.id  // excluir el ítem actual
+                                  )
+                                  .map(i => ({ value: i.id.toString(), label: i.descripcion }))
+                                  .sort((a, b) => a.label.localeCompare(b.label))
+                                }
+                                value={costoReferenciaItemId}
+                                onChange={setCostoReferenciaItemId}
+                                disabled={mode === 'view'}
+                                placeholder="Buscar ítem de referencia..."
+                              />
+                              <FieldError message={fieldErrors.costoReferenciaItemId} />
+                              <p className="text-xs text-blue-500">
+                                Una vez que registres el primer porcentaje, este campo se bloqueará.
+                              </p>
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Tipo Combo — opcional, no viene del ERP */}
+                      <div className="flex flex-col gap-1.5 col-span-1">
+                        <Label htmlFor="tipoComboId">Tipo Combo</Label>
+                        <SearchableSelect
+                          options={[{ value: '', label: '— Sin asignar —' }, ...opcionesTipoCombo]}
+                          value={tipoComboId}
+                          onChange={setTipoComboId}
+                          disabled={mode === 'view'}
+                          placeholder="Sin asignar"
                         />
                       </div>
 
@@ -818,6 +1027,17 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                           />
                           <Label htmlFor="precioVentaCero" className="font-normal cursor-pointer">
                             Permitir Precio Cero
+                          </Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="venta"
+                            checked={venta}
+                            onCheckedChange={checked => setVenta(checked as boolean)}
+                            disabled={mode === 'view'}
+                          />
+                          <Label htmlFor="venta" className="font-normal cursor-pointer">
+                            Venta
                           </Label>
                         </div>
                         <div className="flex items-center gap-2">
@@ -860,6 +1080,17 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                             Perfil
                           </Label>
                         </div>
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="uniforme"
+                            checked={uniforme}
+                            onCheckedChange={checked => setUniforme(checked as boolean)}
+                            disabled={mode === 'view'}
+                          />
+                          <Label htmlFor="uniforme" className="font-normal cursor-pointer">
+                            Uniforme
+                          </Label>
+                        </div>
                       </div>
                     </div>
                   </TabsContent>
@@ -876,6 +1107,16 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                     />
                   </TabsContent>
 
+                  {/* ── PESTAÑA TIPOS COMBO ── */}
+                  <TabsContent value="tipos-combo" className="mt-0 h-full">
+                    <TiposComboTab
+                      empresaId={parseInt(empresa, 10) || 0}
+                      value={tiposComboAsocs}
+                      onChange={setTiposComboAsocs}
+                      mode={mode}
+                    />
+                  </TabsContent>
+
                   {/* ── PESTAÑA COSTO (solo cuando Manejo Costos = Manual) ── */}
                   {isEditing && manejoCostos === '2' && item && (
                     <TabsContent value="costo" className="mt-0 h-full">
@@ -885,11 +1126,22 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                       />
                     </TabsContent>
                   )}
+
+                  {/* ── PESTAÑA COSTO REF. (solo cuando Manejo Costos = Referencia) ── */}
+                  {isEditing && manejoCostos === '3' && item && (
+                    <TabsContent value="costo-ref" className="mt-0 h-full">
+                      <CostoReferenciaTab
+                        itemId={item.id}
+                        mode={mode}
+                        referenciaDescripcion={item.costoReferenciaDescripcion}
+                      />
+                    </TabsContent>
+                  )}
                 </div>
               </Tabs>
 
               {/* ── FOOTER FIJO ── */}
-              <div className="flex flex-row items-center justify-between mt-6 -mx-4 -mb-4 px-4 py-4 border-t bg-slate-50 sm:rounded-b-xl shrink-0">
+              <div className="flex flex-row items-center justify-between mt-6 -mx-4 -mb-4 sm:-mx-6 sm:-mb-6 px-4 sm:px-6 py-3 border-t border-slate-200 bg-white sm:rounded-b-xl shrink-0">
                 {/* Botón Atrás (solo para nuevo ítem en paso 2) */}
                 <div>
                   {!isEditing && (

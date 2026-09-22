@@ -7,6 +7,8 @@ import { DataTable } from '@/components/ui/data-table'
 import { NuevoUsuarioButton } from '@/components/usuarios/nuevo-usuario-button'
 import { UsuarioAcciones } from '@/components/usuarios/usuario-acciones'
 import { Users } from 'lucide-react'
+import { PageHeader } from '@/components/ui/page-header'
+import { UI_THEME } from '@/lib/theme'
 
 // El tipo Usuario asumiendo que lo obtenemos del prop
 type Usuario = any
@@ -60,11 +62,7 @@ export function UsuariosClient({ usuarios }: { usuarios: Usuario[] }) {
           return (
             <Badge
               variant={activo ? 'default' : 'secondary'}
-              className={
-                activo
-                  ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/20'
-                  : 'bg-muted text-muted-foreground'
-              }
+              className={activo ? UI_THEME.badge.active : UI_THEME.badge.inactive}
             >
               {activo ? 'Activo' : 'Inactivo'}
             </Badge>
@@ -85,20 +83,11 @@ export function UsuariosClient({ usuarios }: { usuarios: Usuario[] }) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-indigo-900">
-            <Users className="h-6 w-6" />
-            <h1 className="text-2xl font-bold tracking-tight">Usuarios</h1>
-          </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {usuarios.length === 1
-              ? '1 usuario registrado'
-              : `${usuarios.length} usuarios registrados`}
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        icon={Users}
+        title="Usuarios"
+        subtitle={usuarios.length === 1 ? '1 usuario registrado' : `${usuarios.length} usuarios registrados`}
+      />
 
       {/* Tabla Estandarizada */}
       <DataTable

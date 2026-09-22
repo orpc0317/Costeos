@@ -204,4 +204,13 @@
     from { opacity: 0; transform: translateY(6px); }
     to   { opacity: 1; transform: translateY(0); }
   }
+
+  /* Oculta la scrollbar visualmente (cross-browser) manteniendo la funcionalidad de scroll */
+  .scrollbar-none {
+    scrollbar-width: none;       /* Firefox */
+    -ms-overflow-style: none;    /* IE / Edge legacy */
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;               /* Chrome / Safari / Opera */
+  }
 }

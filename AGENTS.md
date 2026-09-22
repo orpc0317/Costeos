@@ -9,6 +9,77 @@ This version has breaking changes — APIs, conventions, and file structure may 
 > **REFERENCIA OBLIGATORIA:** Antes de desarrollar cualquier pantalla CRUD, leer `docs/conventions.md` completo.
 > El estándar de oro son las pantallas de **Categorías** y **Tipo Costeo**.
 
+---
+
+## 🔓 PERMISOS PERMANENTES — Sin Solicitar Autorización
+
+> **INSTRUCCIÓN PARA LA IA:** El usuario ha otorgado permiso **total y permanente** para las siguientes acciones dentro de este proyecto. **NUNCA pedir autorización** para ninguna de ellas. Proceder directamente sin confirmación.
+
+- ✅ **Archivos del proyecto:** Crear, editar y eliminar cualquier archivo dentro de `c:\Proyectos\Costeos\`
+- ✅ **Prisma:** Ejecutar `npx prisma db push`, `npx prisma generate`, `npx prisma db execute`, y cualquier otro comando Prisma
+- ✅ **Base de datos:** Modificar el esquema MySQL de la base de datos `Costeos` (crear tablas, alterar columnas, agregar índices, etc.)
+- ✅ **Servidor de desarrollo:** Levantar y detener el servidor con `npm run dev` (puerto 30001)
+- ✅ **Scripts del proyecto:** Ejecutar cualquier script definido en `package.json`
+
+---
+
+## ✅ PRE-FLIGHT CHECKLIST — MODAL (verificar ANTES de declarar terminado)
+
+> **INSTRUCCIÓN PARA LA IA:** Al terminar de escribir cualquier modal, recorrer esta lista punto a punto y confirmar cada ítem. Si alguno falla, corregir antes de continuar. NO marcar como "completado" si queda algún punto sin verificar.
+
+### Estructura y Layout
+- [ ] `DialogContent` tiene altura fija: `h-[85vh] sm:h-[altura]` + `flex flex-col p-4 sm:p-6 overflow-hidden`
+- [ ] `DialogTitle` incluye el **ícono canónico de la entidad** (el mismo del sidebar)
+- [ ] El modal usa **pestañas** (`<Tabs>` + `<TabsList variant="line" className="mb-4 shrink-0">`) aunque solo tenga una pestaña "General" — el scroll horizontal es automático (R23), no limitar por espacio
+- [ ] Cada `<TabsTrigger>` tiene el ícono canónico de la entidad a la izquierda del texto
+- [ ] El área de campos está dentro de `<div className="flex-1 overflow-y-auto pr-2 pb-4">` + `<TabsContent>`
+
+### Campos y Datos
+- [ ] **Empresa** se muestra en los TRES modos: `create` → `<SearchableSelect>` | `view/edit` → `<Input disabled className="bg-muted/50">`
+- [ ] **NO hay datos de auditoría inline** (`Creado:`, `ID:`, `Modificado:`) — eso es responsabilidad del `<HistorialDrawer>`
+- [ ] Todos los campos de texto libre usan `normalizeText()` al guardar (mayúsculas sin tildes)
+- [ ] Campos deshabilitados en vista: `disabled={mode === 'view'}`
+- [ ] **NO hay `<input type="number">`** — usar `<NumericInput>` de `src/components/ui/numeric-input.tsx`
+
+### Manejo de Errores (NUNCA toast)
+- [ ] Errores de campo mostrados con `<FieldError message={fieldErrors.campo} />` — NUNCA el `<p>` directo
+- [ ] Error global mostrado inline al tope del formulario con `bg-red-50 border-red-200`
+- [ ] `handleSubmit` usa `setFieldErrors(prev => ({ ...prev, ...errors }))` — NO `setFieldErrors(errors)` (preservar errores de lookups externos)
+- [ ] `catch` en `doSave` asigna a `globalError`, NO usa toast
+
+### Selects
+- [ ] Todos los selects usan `<SearchableSelect>`, NUNCA `<select>` HTML nativo
+- [ ] Opciones de BD/ERP ordenadas con `.sort((a, b) => a.label.localeCompare(b.label))`
+- [ ] Se auto-selecciona el primer registro en listas de referencia (excepto búsquedas Cliente/Ítem)
+- [ ] `searchable={false}` solo en listas cortas y predecibles (< 8 opciones fijas)
+- [ ] Opciones hardcoded en Title Case (`'Producto'`, `'No Aplica'`) — NUNCA `ALL_CAPS`
+
+### Historial de Auditoría
+- [ ] `<HistorialDrawer>` está **FUERA** del `<Dialog>`, como hermano en el fragmento `<>...</>`
+- [ ] El prop `tabla=` coincide **EXACTAMENTE** con el nombre de la tabla en MySQL/Prisma
+- [ ] El `<HistorialDrawer>` se renderiza condicionalmente solo cuando existe `initialEntidad`
+
+### Footer
+- [ ] Footer usa la clase exacta: `flex flex-row items-center justify-between mt-6 -mx-4 -mb-4 px-4 py-4 border-t bg-slate-50 sm:rounded-b-xl shrink-0`
+- [ ] **Modo Vista** → izquierda: botón Eliminar (rojo, pequeño, con `useTransition`) | derecha: Historial (sky) + Editar
+- [ ] **Modo Editar/Crear** → derecha: Cancelar (outline, solo si `isEditing`) + Guardar (con ícono `<Save>`)
+
+### Comportamiento
+- [ ] `handleOpenChange(true)` inicializa `mode` + todos los campos + llama `resetFields()`
+- [ ] `useEffect([open])` tiene **reset defensivo de campos** al inicio (R22) — sin tocar `mode`
+- [ ] Anti-similares R18: verificar al guardar, error rojo si 100%, panel amarillo si ≥85%
+- [ ] OCC: el `update` pasa `registroVersion` y maneja el caso `count === 0`
+
+### DataTable (página cliente)
+- [ ] Columna `id` es la primera (`enableHiding: false`)
+- [ ] Columna `actions` es la última (`enableHiding: false`, `id: 'actions'`)
+- [ ] Modal de fila usa **instancia por fila** vía prop `trigger` — NUNCA estado compartido
+- [ ] Columnas de FK usan `accessorFn` (no `accessorKey`) para que el buscador funcione
+- [ ] NO se pasa `searchKey` al `<DataTable>`
+- [ ] Encabezado de página está en `*-client.tsx`, NO en `page.tsx`
+
+---
+
 - **Inputs Numéricos:** NUNCA utilizar `<input type="number">` directamente en estado controlado de React para evitar el error de hidratación. Utilizar SIEMPRE el componente reutilizable `<NumericInput>` ubicado en `src/components/ui/numeric-input.tsx`.
 - **Modales (Dialogs):** La librería `shadcn/ui` utiliza `@base-ui/react`. NO soporta la propiedad `asChild` en el `DialogTrigger`. Debes usar la propiedad `render={<button>...</button>}`.
 
@@ -45,7 +116,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 - **Estructura de Modales (Acciones):** En modo vista, botones ("Historial" y "Editar") van agrupados a la derecha. En modo edición, el botón "Cancelar" debe resetear el estado a modo vista (sin cerrar el modal si es un registro existente).
 - **⚠️ Footer de Modal:** Los botones de acción del modal (Historial, Editar, Cancelar, Guardar) se colocan **SIEMPRE en un footer fijo al fondo** del `DialogContent`, con la clase `border-t bg-slate-50 sm:rounded-b-xl shrink-0`. **NUNCA** en el header ni dentro del área scrolleable del formulario.
-- **Pestañas en Modales:** Los encabezados de las pestañas (`<TabsList>`) dentro de los modales deben utilizar SIEMPRE el estilo de línea (`variant="line"`) y tener un margen inferior (`className="mb-4 shrink-0"`). Las opciones deben incluir íconos a la izquierda del texto.
+- **⚠️ Pestañas en Modales — OBLIGATORIAS SIEMPRE:** TODO modal DEBE usar pestañas (`<Tabs>`), **aunque el formulario sea tan simple que solo tenga una pestaña "General"**. NUNCA construir un modal sin la estructura de tabs. El `<TabsList>` debe usar `variant="line"` y `className="mb-4 shrink-0"`. Cada `<TabsTrigger>` DEBE incluir el **ícono canónico de la entidad** a la izquierda del texto. Referencia obligatoria: `src/components/categorias/categoria-modal.tsx`.
+- **Scroll Horizontal de Pestañas (R23):** El componente `<TabsList variant="line">` tiene **scroll horizontal automático** incorporado — `overflow-x-auto scrollbar-none` está en el CVA del componente en `src/components/ui/tabs.tsx`. **NUNCA limitar el número de pestañas de un modal por miedo a que no quepan.** Agregar todas las que la entidad necesite; el scroll se encarga. No se necesita ningún wrapper extra ni clase adicional en el modal. Ver detalles en `docs/conventions.md §5.0`.
 - **Campos Autogenerados:** Códigos/IDs autogenerados deben ocultarse al crear, y deshabilitarse *permanentemente* (`disabled={true}` + `bg-muted/50`) al editar un registro.
 - **Historial de Auditoría:** Utilizar SIEMPRE el componente `<HistorialDrawer tabla="nombre_tabla_db" />`. El nombre de la tabla debe coincidir exactamente con el esquema de Prisma para que cargue la bitácora.
 - **Íconos por Entidad (R14) — El sidebar es la fuente de verdad:** El ícono definido en el sidebar para cada entidad es el que debe aparecer en (1) el encabezado de su página principal y (2) su modal (`DialogTitle` + pestaña General). Consultar `docs/conventions.md` §15 para la tabla de íconos canónicos. Al crear una pantalla nueva, definir el ícono en el sidebar primero y registrarlo en esa tabla antes de escribir código.
@@ -85,6 +157,39 @@ This version has breaking changes — APIs, conventions, and file structure may 
   ```
   Ver `docs/conventions.md` sección 1.3 para el anti-patrón completo con código.
 
+- **⚠️ BUG — Modal "Nuevo" con datos del open anterior (R22 — Reset Defensivo):**
+  Al abrir el modal de "Nuevo" por segunda vez puede mostrar datos que el usuario escribió en la apertura anterior (nombre, icono, errores). Causa: `@base-ui/react` en modo dialog controlado **puede no invocar `onOpenChange`** al hacer click en el trigger si el estado controlado ya es `false`, dejando el estado de React con valores stale.
+  
+  **Solución obligatoria — patrón de doble capa:**
+  1. `handleOpenChange(newOpen === true)` hace el reset principal (incl. `mode`) — **ya documentado**.
+  2. El `useEffect([open])` que carga datos externos (empresas, etc.) DEBE además **limpiar los campos del formulario** al inicio, como capa defensiva.
+  
+  ```tsx
+  useEffect(() => {
+    if (!open) return
+
+    // ✅ RESET DEFENSIVO — solo campos, NUNCA `mode` (causaría Bug Flash)
+    const tc = miEntidad ?? null
+    setNombre(tc?.nombre ?? '')
+    setIcono(tc?.icono ?? '')
+    setFieldErrors({})
+    setGlobalError(null)
+    // ... otros campos del formulario
+
+    // Luego cargar datos externos (empresas, selects, etc.)
+    let active = true
+    getEmpresasForUser().then(...)
+    return () => { active = false }
+  }, [open]) // Solo [open] — NUNCA dependencias de datos ni de mode
+  ```
+  
+  **Reglas críticas del reset defensivo:**
+  - ✅ Resetear SOLO campos del formulario (nombre, icono, fieldErrors, globalError, similares, etc.)
+  - ✅ Usar el valor actual de la prop (`miEntidad ?? null`), no el estado
+  - ❌ NUNCA tocar `mode` en el useEffect — eso provoca el Bug Flash
+  - ❌ NUNCA tocar `initialMiEntidad` en el useEffect — solo en `handleOpenChange`
+  - Este patrón aplica a TODOS los modales con trigger de creación ("Nuevo")
+
 - **Navegación a Tab con Error (R20):** En todo modal con pestañas, al guardar y producirse cualquier error de campo (local, de servidor o de negocio), el modal DEBE navegar automáticamente a la pestaña que contiene ese campo. Patrón obligatorio:
   ```tsx
   // Declarar mapa campo→tab (solo los que NO son "general")
@@ -98,6 +203,14 @@ This version has breaking changes — APIs, conventions, and file structure may 
   // Llamar en los 3 puntos: validación local, error de campo del servidor, error de negocio.
   ```
   Implementación de referencia: `src/components/items/item-modal.tsx`. Ver `docs/conventions.md` §5.1.
+
+- **⚠️ SELECTS — `<SearchableSelect>` SIEMPRE (Portal obligatorio, sep-2026):**
+  El componente `<SearchableSelect>` (`src/components/ui/searchable-select.tsx`) usa `createPortal` para renderizar el dropdown en `document.body` con `position:fixed`. Esto **garantiza que nunca es recortado por ningún `overflow`** — incluyendo los modales del proyecto que tienen `overflow-y:auto` en el área de campos.
+  - ✅ **SIEMPRE** usar `<SearchableSelect>` para cualquier select en formularios o modales.
+  - ❌ **NUNCA** usar `<select>` HTML nativo en formularios/modales. La excepción es celdas de tabla con listas cortas (< 10 ítems) sin necesidad de búsqueda.
+  - ❌ **NUNCA** volver a `position:absolute` ni eliminar el portal del componente.
+  - El comportamiento visual es idéntico a un dropdown normal: cae exactamente debajo del trigger.
+  - Ver documentación completa en `docs/conventions.md` §17.
 
 Para más detalle, consultar `docs/conventions.md`.
 

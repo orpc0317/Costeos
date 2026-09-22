@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useEffect, useState, useTransition } from 'react'
-import { toast } from 'sonner'
 import { Settings2, Hash, Power, PowerOff, History, Pencil, Info, CalendarDays, CornerDownRight, Network, Building, MapPin, Briefcase, Users, Layers, Box, Component, Folder, ListTree, Tags, ChevronDown } from 'lucide-react'
 import { normalizeText } from '@/lib/utils/text'
 import { cn } from '@/lib/utils'
@@ -10,6 +9,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from '@/components/ui/dialog'
 import { HistorialDrawer } from '@/components/shared/historial-drawer'
 import { Button } from '@/components/ui/button'
@@ -22,10 +22,12 @@ import { SearchableSelect } from '@/components/ui/searchable-select'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { NumericInput } from '@/components/ui/numeric-input'
+import { FieldError } from '@/components/ui/field-error'
 import { getEmpresasForUser } from '@/app/actions/erp'
 import { crearTipoCosteo, editarTipoCosteo, toggleActivo, buscarTipoCosteoSimilares } from '@/app/actions/tipos-costeo'
 import type { TipoCosteoRow } from '@/lib/types/tipos-costeo'
 import type { SimilarItem } from '@/lib/utils/similarity'
+import { UI_THEME } from '@/lib/theme'
 
 const PREDEFINED_COLORS = [
   'bg-white text-slate-900 border-slate-200',
@@ -68,14 +70,9 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
     startTransitionToggle(async () => {
       const result = await toggleActivo(initialTipoCosteo.id, initialTipoCosteo.registroVersion)
       if (result.ok) {
-        toast.success(
-          initialTipoCosteo.activo
-            ? `${initialTipoCosteo.nombre} fue desactivado`
-            : `${initialTipoCosteo.nombre} fue activado`,
-        )
         setOpen(false)
       } else {
-        toast.error(result.error)
+        setError(result.error ?? 'Error al cambiar estado')
       }
     })
   }
@@ -101,6 +98,23 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
   const [manejoPlazo, setManejoPlazo] = useState<'LIBRE'|'FIJO'|'NO_APLICA'>('NO_APLICA')
   const [fijarPlazo, setFijarPlazo] = useState<number>(0)
 
+  function resetFields(tc: TipoCosteoRow | null) {
+    setEmpresaId(tc?.empresaId?.toString() ?? '')
+    setNombre(tc?.nombre ?? '')
+    setCantidadNiveles(tc?.cantidadNiveles ?? 2)
+    setEtiquetasNiveles(tc?.etiquetasNiveles ? tc.etiquetasNiveles.split(',') : ['NIVEL 1', 'NIVEL 2'])
+    setColoresNiveles(tc?.coloresNiveles ? tc.coloresNiveles.split(',') : [PREDEFINED_COLORS[0], PREDEFINED_COLORS[0]])
+    setIconosNiveles(tc?.iconosNiveles ? tc.iconosNiveles.split(',') : [PREDEFINED_ICONS[0], PREDEFINED_ICONS[0]])
+    setNivelConDireccion(tc?.nivelConDireccion ?? 1)
+    setLineaEtiqueta(tc?.lineaEtiqueta ?? '')
+    setBaseEvaluacion(tc?.baseEvaluacion ?? 'GLOBAL')
+    setManejoPlazo(tc?.manejoPlazo ?? 'NO_APLICA')
+    setFijarPlazo(tc?.fijarPlazo ?? 0)
+    setError(null)
+    setFieldErrors({})
+    setSimilares([])
+  }
+
   function handleOpenChange(newOpen: boolean) {
     if (newOpen) {
       // Inicializar SIEMPRE aquí, nunca en useEffect con dependencias de datos
@@ -108,32 +122,7 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
       setInitialTipoCosteo(tc)
       setMode(tc ? 'view' : 'create')
       setActiveTab('general')
-      setEmpresaId(tc?.empresaId?.toString() ?? '')
-      setNombre(tc?.nombre ?? '')
-      setCantidadNiveles(tc?.cantidadNiveles ?? 2)
-      setEtiquetasNiveles(tc?.etiquetasNiveles ? tc.etiquetasNiveles.split(',') : ['NIVEL 1', 'NIVEL 2'])
-      setColoresNiveles(tc?.coloresNiveles ? tc.coloresNiveles.split(',') : [PREDEFINED_COLORS[0], PREDEFINED_COLORS[0]])
-      setIconosNiveles(tc?.iconosNiveles ? tc.iconosNiveles.split(',') : [PREDEFINED_ICONS[0], PREDEFINED_ICONS[0]])
-      setNivelConDireccion(tc?.nivelConDireccion ?? 1)
-      setLineaEtiqueta(tc?.lineaEtiqueta ?? '')
-      setBaseEvaluacion(tc?.baseEvaluacion ?? 'GLOBAL')
-      setManejoPlazo(tc?.manejoPlazo ?? 'NO_APLICA')
-      setFijarPlazo(tc?.fijarPlazo ?? 0)
-      setError(null)
-      setFieldErrors({})
-      setSimilares([])
-
-      // Cargar empresas
-      setCargandoEmpresas(true)
-      getEmpresasForUser()
-        .then(data => {
-          setEmpresas(data.map(e => ({ value: e.id.toString(), label: e.nombre })).sort((a, b) => a.label.localeCompare(b.label)))
-          if (!tc && data.length > 0) {
-            setEmpresaId(data[0].id.toString())
-          }
-        })
-        .catch(err => toast.error('Error al cargar empresas: ' + err.message))
-        .finally(() => setCargandoEmpresas(false))
+      resetFields(tc)
     }
     setOpen(newOpen)
   }
@@ -164,6 +153,22 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
       return newArray.slice(0, cantidadNiveles)
     })
   }, [cantidadNiveles])
+
+  useEffect(() => {
+    if (!open) return
+    let active = true
+    setCargandoEmpresas(true)
+    getEmpresasForUser()
+      .then(data => {
+        if (!active) return
+        const opts = data.map(e => ({ value: e.id.toString(), label: e.nombre })).sort((a, b) => a.label.localeCompare(b.label))
+        setEmpresas(opts)
+        if (!initialTipoCosteo && data.length > 0) setEmpresaId(data[0].id.toString())
+      })
+      .catch(() => { if (active) setError('Error al cargar empresas. Intente de nuevo.') })
+      .finally(() => { if (active) setCargandoEmpresas(false) })
+    return () => { active = false }
+  }, [open])
 
   async function doSave(formData: FormData) {
     setLoading(true)
@@ -199,7 +204,6 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
         throw new Error(result.error)
       }
 
-      toast.success(tipoCosteo ? 'Tipo de costeo actualizado' : 'Tipo de costeo creado')
       if (mode === 'edit') {
         if (result?.data) setInitialTipoCosteo(result.data as TipoCosteoRow)
         setMode('view')
@@ -213,10 +217,26 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
     }
   }
 
+  function buildFormData() {
+    const fd = new FormData()
+    fd.append('empresaId', empresaId)
+    fd.append('nombre', nombre)
+    fd.append('cantidadNiveles', cantidadNiveles.toString())
+    fd.append('etiquetasNiveles', etiquetasNiveles.join(','))
+    fd.append('coloresNiveles', coloresNiveles.join(','))
+    fd.append('iconosNiveles', iconosNiveles.join(','))
+    fd.append('nivelConDireccion', nivelConDireccion.toString())
+    fd.append('lineaEtiqueta', lineaEtiqueta)
+    fd.append('baseEvaluacion', baseEvaluacion)
+    fd.append('manejoPlazo', manejoPlazo)
+    fd.append('fijarPlazo', fijarPlazo.toString())
+    if (initialTipoCosteo?.registroVersion) fd.append('registroVersion', String(initialTipoCosteo.registroVersion))
+    return fd
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
-    setFieldErrors({})
     setSimilares([])
 
     if (!empresaId) {
@@ -248,23 +268,7 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
       }
     }
 
-    // Construir FormData y guardar
-    const formData = new FormData()
-    formData.append('empresaId', empresaId)
-    formData.append('nombre', nombre)
-    formData.append('cantidadNiveles', cantidadNiveles.toString())
-    formData.append('etiquetasNiveles', etiquetasNiveles.join(','))
-    formData.append('coloresNiveles', coloresNiveles.join(','))
-    formData.append('iconosNiveles', iconosNiveles.join(','))
-    formData.append('nivelConDireccion', nivelConDireccion.toString())
-    formData.append('lineaEtiqueta', lineaEtiqueta)
-    formData.append('baseEvaluacion', baseEvaluacion)
-    formData.append('manejoPlazo', manejoPlazo)
-    formData.append('fijarPlazo', fijarPlazo.toString())
-    if (initialTipoCosteo?.registroVersion) {
-      formData.append('registroVersion', String(initialTipoCosteo.registroVersion))
-    }
-    await doSave(formData)
+    await doSave(buildFormData())
   }
 
   function handleUpdateEtiqueta(index: number, value: string) {
@@ -293,13 +297,8 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
 
   return (
     <>
-    {React.cloneElement(trigger as React.ReactElement<any>, {
-      onClick: (e: React.MouseEvent) => {
-        e.stopPropagation()
-        handleOpenChange(true)
-      },
-    })}
     <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger render={trigger as React.ReactElement} />
       <DialogContent className="sm:max-w-[600px] h-[520px] max-h-[90vh] flex flex-col">
 
         <DialogHeader>
@@ -349,7 +348,7 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
                       placeholder={cargandoEmpresas ? "Cargando..." : "Seleccionar empresa"}
                       disabled={mode === 'view' || mode === 'edit' || cargandoEmpresas}
                     />
-                    {fieldErrors.empresaId && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.empresaId}</p>}
+                    <FieldError message={fieldErrors.empresaId} />
                   </div>
 
                 {/* Nombre */}
@@ -378,11 +377,11 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
                       }
                     }}
                   />
-                  {fieldErrors.nombre && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.nombre}</p>}
+                  <FieldError message={fieldErrors.nombre} />
                   {/* Panel R18 — similares */}
                   {similares.length > 0 && mode !== 'view' && (
-                    <div className="mt-1 rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
-                      <p className="text-xs font-semibold text-amber-800">
+                    <div className={UI_THEME.forms.warningSimilar}>
+                      <p className={UI_THEME.forms.warningSimilarTitle}>
                         ⚠️ Advertencia — Nombre similar a {similares.length} tipo{similares.length > 1 ? 's' : ''} existente{similares.length > 1 ? 's' : ''}
                       </p>
                       <p className="text-xs text-amber-700">
@@ -409,20 +408,7 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
                       <div className="flex gap-3 pt-1 border-t border-amber-200">
                         <button type="button" onClick={() => {
                           setSimilares([])
-                          const fd = new FormData()
-                          fd.append('empresaId', empresaId)
-                          fd.append('nombre', nombre)
-                          fd.append('cantidadNiveles', cantidadNiveles.toString())
-                          fd.append('etiquetasNiveles', etiquetasNiveles.join(','))
-                          fd.append('coloresNiveles', coloresNiveles.join(','))
-                          fd.append('iconosNiveles', iconosNiveles.join(','))
-                          fd.append('nivelConDireccion', nivelConDireccion.toString())
-                          fd.append('lineaEtiqueta', lineaEtiqueta)
-                          fd.append('baseEvaluacion', baseEvaluacion)
-                          fd.append('manejoPlazo', manejoPlazo)
-                          fd.append('fijarPlazo', fijarPlazo.toString())
-                          if (initialTipoCosteo?.registroVersion) fd.append('registroVersion', String(initialTipoCosteo.registroVersion))
-                          doSave(fd)
+                          doSave(buildFormData())
                         }}
                           className="text-xs bg-amber-700 text-white px-3 py-1 rounded hover:bg-amber-800 font-medium">
                           Guardar de todas formas
@@ -462,7 +448,7 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
                       }
                     }}
                   />
-                  {fieldErrors.lineaEtiqueta && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.lineaEtiqueta}</p>}
+                  <FieldError message={fieldErrors.lineaEtiqueta} />
                 </div>
               </div>
             </TabsContent>
@@ -488,7 +474,7 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
                       disabled={mode === 'view' || !!tipoCosteo?.enUso}
                       aria-invalid={!!fieldErrors.cantidadNiveles}
                     />
-                    {fieldErrors.cantidadNiveles && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.cantidadNiveles}</p>}
+                    <FieldError message={fieldErrors.cantidadNiveles} />
                   </div>
                   
                   <div className="space-y-1.5 w-1/4">
@@ -508,7 +494,7 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
                       aria-invalid={!!fieldErrors.nivelConDireccion}
                     />
                     <p className="text-[11px] text-muted-foreground !mt-0.5 leading-none">0 = Ningún nivel maneja dirección</p>
-                    {fieldErrors.nivelConDireccion && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.nivelConDireccion}</p>}
+                    <FieldError message={fieldErrors.nivelConDireccion} />
                   </div>
                 </div>
 
@@ -716,7 +702,7 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
                         </div>
                       )}
                     </div>
-                    {fieldErrors.fijarPlazo && <p className="text-xs text-red-500 !mt-0.5 leading-none">{fieldErrors.fijarPlazo}</p>}
+                    <FieldError message={fieldErrors.fijarPlazo} />
                   </div>
                 </div>
               </div>
@@ -724,7 +710,7 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
             </div>
           </Tabs>
 
-          <div className="flex flex-row items-center justify-between mt-6 -mx-4 -mb-4 px-4 py-4 border-t bg-slate-50 sm:rounded-b-xl shrink-0">
+          <div className={UI_THEME.modal.footer}>
             {mode === 'view' ? (
               <>
                 {tipoCosteo && (

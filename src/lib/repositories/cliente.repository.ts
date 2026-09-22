@@ -21,18 +21,6 @@ export const ClienteRepository = {
     return prisma.cliente.findUnique({ where: { id } })
   },
 
-  async findByCodigoErp(codigoErp: string, empresaId: number) {
-    return prisma.cliente.findFirst({
-      where: { codigoErp, empresaId },
-    })
-  },
-
-  async findByNit(nit: string) {
-    return prisma.cliente.findMany({
-      where: { nit },
-      orderBy: { razonSocial: 'asc' },
-    })
-  },
 
   async create(
     data: {

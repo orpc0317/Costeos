@@ -139,14 +139,14 @@ export function CostoTab({ itemId, mode }: CostoTabProps) {
                 id="costo-valor"
                 value={costo ?? undefined}
                 onChange={v => {
-                  setCosto(v)
+                  setCosto(v ?? null)
                   if (fieldErrors.costo) setFieldErrors(prev => { const n = { ...prev }; delete n.costo; return n })
                 }}
-                decimals={4}
                 className="h-8"
                 placeholder="0.0000"
                 aria-invalid={!!fieldErrors.costo}
               />
+
               <FieldError message={fieldErrors.costo} />
             </div>
           </div>

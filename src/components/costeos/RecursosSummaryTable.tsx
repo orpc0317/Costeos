@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useCosteo } from '@/lib/context/CosteoContext';
-import { getTurnosERP, getUniformesERP } from '@/app/actions/erp';
-import type { ErpTurno, ErpUniforme } from '@/lib/erp';
+import { getTurnosERP } from '@/app/actions/erp';
+import type { ErpTurno } from '@/lib/erp';
 import { RecursoCosteo } from '@/lib/types/costeos';
 import {
   ColumnDef,
@@ -12,7 +12,11 @@ import {
   ExpandedState
 } from '@tanstack/react-table';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { TABLE_THEME } from '@/components/ui/data-table';
+import { UI_THEME } from '@/lib/theme';
+import { listarItems } from '@/app/actions/items';
+import type { ItemRow } from '@/lib/types/items';
+import { listarTiposComboRHPorEmpresa } from '@/app/actions/tipos-combo-rh';
+import type { TipoComboRHRow } from '@/lib/types/tipos-combo-rh';
 
 const OPCIONES_CUBRE_DESCANSO = [
   { value: 0, label: '0 - No Aplica' },
@@ -31,7 +35,9 @@ interface HierarchicalData {
   categoria: string;
   cantidadTotal: number;
   turnoDesc: string;
-  uniformeDesc: string;
+  combosRHDesc: Record<number, string>; // tipoComboRHId -> description string
+  /** @deprecated kept only for backward compat display — prefer combosRHDesc */
+  uniformeDesc?: string;
   descansoDesc: string;
   personasCalculadas: number | string;
   ventaAcumulada: number;
@@ -43,7 +49,8 @@ interface HierarchicalData {
 export function RecursosSummaryTable({ recursos }: { recursos: RecursoSummaryItem[] }) {
   const { proyecto } = useCosteo();
   const [turnos, setTurnos] = useState<ErpTurno[]>([]);
-  const [uniformes, setUniformes] = useState<ErpUniforme[]>([]);
+  const [uniformesItems, setUniformesItems] = useState<ItemRow[]>([]);
+  const [tiposComboRH, setTiposComboRH] = useState<TipoComboRHRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<ExpandedState>({});
 
@@ -53,13 +60,16 @@ export function RecursosSummaryTable({ recursos }: { recursos: RecursoSummaryIte
     
     const fetchData = async () => {
       setLoading(true);
-      const [tData, uData] = await Promise.all([
+      const [tData, itemsData, tiposData] = await Promise.all([
         getTurnosERP(proyecto.empresaId),
-        getUniformesERP(proyecto.empresaId)
+        listarItems(),
+        listarTiposComboRHPorEmpresa(proyecto.empresaId),
       ]);
       if (active) {
         setTurnos(tData);
-        setUniformes(uData);
+        // Filtrar items de la empresa con bandera uniforme=1
+        setUniformesItems(itemsData.filter(i => i.empresaId === proyecto.empresaId && i.uniforme === 1));
+        setTiposComboRH(tiposData);
         setLoading(false);
       }
     };
@@ -78,7 +88,6 @@ export function RecursosSummaryTable({ recursos }: { recursos: RecursoSummaryIte
 
       if (r.bonos && r.bonos.length > 0) {
         costo += r.bonos.reduce((sum: number, b: any) => sum + (Number(b.costoUnitario) || 0), 0) * baseFactor;
-        venta += r.bonos.reduce((sum: number, b: any) => sum + (Number(b.precioVentaUnitario) || 0), 0) * baseFactor;
       }
 
       const calcReceta = (receta: any, pCant: number) => {
@@ -99,7 +108,7 @@ export function RecursosSummaryTable({ recursos }: { recursos: RecursoSummaryIte
           categoria: r.categoria || '',
           cantidadTotal: 0,
           turnoDesc: '',
-          uniformeDesc: '',
+          combosRHDesc: {},
           descansoDesc: '',
           personasCalculadas: 0,
           ventaAcumulada: 0,
@@ -109,13 +118,26 @@ export function RecursosSummaryTable({ recursos }: { recursos: RecursoSummaryIte
         };
       }
 
-      const childKey = `${parentId}-${r.turnoCodigo || 'NA'}-${r.uniformeCodigo || 'NA'}-${r.cubreDescanso || 0}-${r.personas || 1}`;
+      // Build childKey using combosRhSeleccionados (falls back to uniformeCodigo for legacy)
+      const comboRHKey = Object.entries(r.combosRhSeleccionados ?? {}).sort().map(([k, v]) => `${k}:${v}`).join('|') || r.uniformeCodigo || 'NA';
+      const childKey = `${parentId}-${r.turnoCodigo || 'NA'}-${comboRHKey}-${r.cubreDescanso || 0}-${r.personas || 1}`;
       let child = padres[parentId].subRows!.find(c => c.id === childKey);
       
       if (!child) {
         const tDesc = turnos.find(t => t.codigo === r.turnoCodigo)?.descripcion || '-';
-        const uDesc = uniformes.find(u => u.codigo === r.uniformeCodigo)?.descripcion || '-';
         const dFull = OPCIONES_CUBRE_DESCANSO.find(o => o.value === (r.cubreDescanso || 0))?.label || '-';
+
+        // Compute combosRHDesc: one entry per TipoComboRH tipo
+        const combosRHDesc: Record<number, string> = {};
+        for (const tipo of tiposComboRH) {
+          const itemIdStr = r.combosRhSeleccionados?.[String(tipo.id)] || '';
+          // Legacy compat: if tipo.nombre === 'UNIFORME' and no combosRhSeleccionados, use uniformeCodigo
+          const effectiveItemIdStr = itemIdStr || (tipo.nombre === 'UNIFORME' ? (r.uniformeCodigo || '') : '');
+          const itemId = parseInt(effectiveItemIdStr, 10);
+          combosRHDesc[tipo.id] = !isNaN(itemId)
+            ? (uniformesItems.find(u => u.id === itemId)?.descripcion || effectiveItemIdStr || '-')
+            : '-';
+        }
         
         child = {
           id: childKey,
@@ -123,7 +145,7 @@ export function RecursosSummaryTable({ recursos }: { recursos: RecursoSummaryIte
           categoria: r.categoria || '',
           cantidadTotal: 0,
           turnoDesc: tDesc,
-          uniformeDesc: uDesc,
+          combosRHDesc,
           descansoDesc: dFull.includes(' - ') ? dFull.split(' - ')[1] : dFull,
           personasCalculadas: 0,
           ventaAcumulada: 0,
@@ -160,18 +182,18 @@ export function RecursosSummaryTable({ recursos }: { recursos: RecursoSummaryIte
         return {
           ...p,
           turnoDesc: child.turnoDesc,
-          uniformeDesc: child.uniformeDesc,
+          combosRHDesc: child.combosRHDesc,
           descansoDesc: child.descansoDesc,
           subRows: undefined // Remove subrows so it's a flat row
         };
       } else {
         p.turnoDesc = 'Variados';
-        p.uniformeDesc = 'Variados';
+        for (const tipo of tiposComboRH) { p.combosRHDesc[tipo.id] = 'Variados'; }
         p.descansoDesc = 'Variados';
         return p;
       }
     });
-  }, [recursos, turnos, uniformes]);
+  }, [recursos, turnos, uniformesItems, tiposComboRH]);
 
   const formatCurrency = (val: number) => {
     try {
@@ -216,16 +238,17 @@ export function RecursosSummaryTable({ recursos }: { recursos: RecursoSummaryIte
         </span>
       ),
     },
-    {
-      id: 'uniformeDesc',
-      header: 'Uniforme',
-      accessorKey: 'uniformeDesc',
-      cell: ({ getValue, row }) => (
+    // Dynamic columns: one per TipoComboRH tipo active for the company
+    ...tiposComboRH.map(tipo => ({
+      id: `comboRH_${tipo.id}`,
+      header: tipo.nombre,
+      accessorFn: (row: HierarchicalData) => row.combosRHDesc?.[tipo.id] ?? '-',
+      cell: ({ getValue, row }: any) => (
         <span className={row.depth > 0 ? 'text-slate-600 text-xs' : 'text-slate-500 text-xs italic'}>
           {getValue() as string}
         </span>
       ),
-    },
+    })),
     {
       id: 'descansoDesc',
       header: 'Descanso',
@@ -264,7 +287,7 @@ export function RecursosSummaryTable({ recursos }: { recursos: RecursoSummaryIte
       accessorKey: 'margenAcumulado',
       cell: ({ getValue }) => <div className="text-right font-medium text-emerald-600">{formatCurrency(getValue() as number)}</div>,
     },
-  ], [proyecto?.moneda]);
+  ], [proyecto?.moneda, tiposComboRH]);
 
   const table = useReactTable({
     data,
@@ -296,11 +319,11 @@ export function RecursosSummaryTable({ recursos }: { recursos: RecursoSummaryIte
       ) : (
         <div className="overflow-x-auto w-full">
           <table className="w-full min-w-[900px] text-sm text-left whitespace-nowrap">
-            <thead className={TABLE_THEME.headerBg}>
+            <thead className={UI_THEME.table.headerBg}>
               {table.getHeaderGroups().map(headerGroup => (
-                <tr key={headerGroup.id} className={`${TABLE_THEME.borderColor} border-b`}>
+                <tr key={headerGroup.id} className={`${UI_THEME.table.border} border-b`}>
                   {headerGroup.headers.map(header => (
-                    <th key={header.id} className={`py-2 px-3 ${TABLE_THEME.headerFont} ${TABLE_THEME.headerTextColor}`}>
+                    <th key={header.id} className={`py-2 px-3 ${UI_THEME.table.headerText}`}>
                       {flexRender(header.column.columnDef.header, header.getContext())}
                     </th>
                   ))}
@@ -323,7 +346,7 @@ export function RecursosSummaryTable({ recursos }: { recursos: RecursoSummaryIte
             </tbody>
             <tfoot className="bg-slate-100 border-t font-semibold text-slate-800">
               <tr>
-                <td colSpan={5} className="py-2 px-3 text-right">Totales:</td>
+                <td colSpan={4 + tiposComboRH.length} className="py-2 px-3 text-right">Totales:</td>
                 <td className="py-2 px-3 text-center">{totalPersonas}</td>
                 <td className="py-2 px-3 text-right">{formatCurrency(totalVenta)}</td>
                 <td className="py-2 px-3 text-right">{formatCurrency(totalCosto)}</td>

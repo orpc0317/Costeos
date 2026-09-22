@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   FileText,
   Users,
+  UserRound,
   Settings,
   Shield,
   ChevronRight,
@@ -13,7 +14,8 @@ import {
   Calculator,
   Network,
   Tags,
-  Package
+  Package,
+  Layers,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -40,9 +42,11 @@ const navItems = [
     icon: Settings,
     children: [
       { label: 'Empresas',     href: '/dashboard/configuracion/empresas',     icon: Building2 },
-      { label: 'Clientes',     href: '/dashboard/configuracion/clientes',     icon: Building2 },
+      { label: 'Clientes',     href: '/dashboard/configuracion/clientes',     icon: UserRound },
+
       { label: 'Tipos Costeo', href: '/dashboard/configuracion/tipos-costeo', icon: Network },
       { label: 'Categorias',   href: '/dashboard/configuracion/categorias',   icon: Tags },
+      { label: 'Tipos Combo',  href: '/dashboard/configuracion/tipos-combo',  icon: Layers },
       { label: 'Items',        href: '/dashboard/configuracion/items',        icon: Package },
       { label: 'Usuarios',     href: '/dashboard/configuracion/usuarios',     icon: Users },
     ],

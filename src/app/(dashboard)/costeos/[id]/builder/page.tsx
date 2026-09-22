@@ -5,6 +5,8 @@ import { auth } from '@/lib/auth';
 import { CosteoProvider } from '@/lib/context/CosteoContext';
 import CosteoBuilderLayout from '@/components/costeos/CosteoBuilderLayout';
 import { ProyectoCosteo, NodoCosteo, RecursoCosteo } from '@/lib/types/costeos';
+import { resolveCategoria } from '@/lib/utils/combos';
+
 
 export default async function CosteoBuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -41,6 +43,51 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
     }
   });
 
+  // Cargar todos los ítems referenciados para resolver la categoría real
+  const itemIds = [...new Set(
+    dbNodos.flatMap(n => n.recursos.map(r => r.itemId))
+  )];
+  const allItems = itemIds.length > 0
+    ? await prisma.item.findMany({ where: { id: { in: itemIds } }, select: { id: true, tipoItem: true, tipoProducto: true } })
+    : [];
+  const itemMap = new Map(allItems.map(i => [i.id, i]));
+
+
+  /** Resuelve la categoría real desde BD, usando resolveCategoria() de combos.ts */
+  const resolveCategoriaBD = (itemId: number, fallback: string): RecursoCosteo['categoria'] => {
+    const it = itemMap.get(itemId);
+    if (!it) return fallback as RecursoCosteo['categoria'];
+    return resolveCategoria(it.tipoItem, it.tipoProducto);
+  };
+
+
+  /** Mapea un NodoRecurso de BD al tipo RecursoCosteo del frontend */
+  type DbRecurso = (typeof dbNodos)[number]['recursos'][number];
+  const mapRecurso = (r: DbRecurso): RecursoCosteo => ({
+    id: r.id.toString(),
+    itemId: r.itemId,
+    nombre: r.itemNombre,
+    categoria: resolveCategoriaBD(r.itemId, r.itemTipo),
+    tipoCosto: r.itemTipoCosto as any,
+    cantidad: r.cantidad,
+    costoUnitario: Number(r.costoUnitarioErp || 0),
+    precioVentaUnitario: r.precioVenta ? Number(r.precioVenta) : undefined,
+    precioVentaOrigen: r.precioVentaOrigen as 'LISTA' | 'MANUAL',
+    turnoCodigo: r.turnoCodigo ?? undefined,
+    uniformeCodigo: r.uniformeCodigo ?? undefined,
+    combosRhSeleccionados: r.combosRhSelec
+      ? (() => { try { return JSON.parse(r.combosRhSelec) } catch { return undefined } })()
+      : undefined,
+    esComboRHId: (r as any).esComboRhId ?? undefined,
+    cubreDescanso: r.cubreDescanso || 0,
+    personas: r.personas || 1,
+    horasSemana: r.horasSemana || 0,
+    recetas: [],
+    bonos: r.bonos ? (typeof r.bonos === 'string' ? JSON.parse(r.bonos) : r.bonos) : [],
+    esCombo: !!r.comboParentId,
+    comboParentId: r.comboParentId?.toString() ?? undefined,
+  });
+
   const buildNodoTree = (parentId: number | null): NodoCosteo[] => {
     return dbNodos
       .filter(n => n.parentId === parentId && n.nombre !== 'DEFAULT')
@@ -62,53 +109,21 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
         horasSemana: n.horasSemana || 0,
         turnoCodigo: n.turnoCodigo ?? undefined,
         uniformeCodigo: n.uniformeCodigo ?? undefined,
+        combosRhSeleccionados: (n as any).combosRhSelec
+          ? (() => { try { return JSON.parse((n as any).combosRhSelec) } catch { return undefined } })()
+          : undefined,
         cubreDescanso: n.cubreDescanso || 0,
-        recursos: n.recursos.map(r => ({
-          id: r.id.toString(),
-          itemId: r.itemId,
-          nombre: r.itemNombre,
-          categoria: r.itemTipo as any,
-          tipoCosto: r.itemTipoCosto as any,
-          cantidad: r.cantidad,
-          costoUnitario: Number(r.costoUnitarioErp || 0),
-          precioVentaUnitario: r.precioVenta ? Number(r.precioVenta) : undefined,
-          precioVentaOrigen: r.precioVentaOrigen as 'LISTA' | 'MANUAL',
-          turnoCodigo: r.turnoCodigo ?? undefined,
-          uniformeCodigo: r.uniformeCodigo ?? undefined,
-          cubreDescanso: r.cubreDescanso || 0,
-          personas: r.personas || 1,
-          horasSemana: r.horasSemana || 0,
-          recetas: [],
-          bonos: r.bonos ? (typeof r.bonos === 'string' ? JSON.parse(r.bonos) : r.bonos) : [],
-          esCombo: !!r.comboParentId,
-          comboParentId: r.comboParentId?.toString() ?? undefined,
-        })),
+        recursos: n.recursos.map(mapRecurso),
         nodos: buildNodoTree(n.id)
       }));
   };
 
   const nodos = buildNodoTree(null);
 
-  // Recursos que esten asignados a 'DEFAULT' root level (nivel 1, nombre 'DEFAULT')
+  // Recursos del nodo DEFAULT (nivel raíz del proyecto)
   const defaultNodo = dbNodos.find(n => n.parentId === null && n.nombre === 'DEFAULT');
-  const recursos = defaultNodo ? defaultNodo.recursos.map(r => ({
-    id: r.id.toString(),
-    itemId: r.itemId,
-    nombre: r.itemNombre,
-    categoria: r.itemTipo as any,
-    tipoCosto: r.itemTipoCosto as any,
-    cantidad: r.cantidad,
-    costoUnitario: Number(r.costoUnitarioErp || 0),
-    precioVentaUnitario: r.precioVenta ? Number(r.precioVenta) : undefined,
-    precioVentaOrigen: r.precioVentaOrigen as 'LISTA' | 'MANUAL',
-    turnoCodigo: r.turnoCodigo ?? undefined,
-    uniformeCodigo: r.uniformeCodigo ?? undefined,
-    cubreDescanso: r.cubreDescanso || 0,
-    personas: r.personas || 1,
-    horasSemana: r.horasSemana || 0,
-    recetas: [],
-    bonos: r.bonos ? (typeof r.bonos === 'string' ? JSON.parse(r.bonos) : r.bonos) : [],
-  })) : [];
+  const recursos = defaultNodo ? defaultNodo.recursos.map(mapRecurso) : [];
+
 
   const dbProyecto: ProyectoCosteo = {
     id: costeo.id.toString(),

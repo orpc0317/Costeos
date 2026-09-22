@@ -114,12 +114,15 @@ export const TipoCosteoService = {
       }
     }
 
+    // Obtener nombre real de la empresa para incluirlo en la respuesta (mismo patrón que listar())
+    const empresa = await prisma.empresa.findUnique({ where: { id: actualizado.empresaId }, select: { nombre: true } })
+
     return {
       ok: true,
       data: {
         ...(actualizado as any),
         manejoPlazo: (actualizado as any).manejoPlazo as 'LIBRE' | 'FIJO' | 'NO_APLICA',
-        empresaNombre: `Empresa ${(actualizado as any).empresaId}`,
+        empresaNombre: empresa?.nombre ?? `Empresa ${actualizado.empresaId}`,
         enUso,
       },
     }

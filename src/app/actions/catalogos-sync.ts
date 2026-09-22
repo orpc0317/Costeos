@@ -40,6 +40,12 @@ function calculateMatchPercentage(str1: string, str2: string): number {
   return ((maxLength - distance) / maxLength) * 100
 }
 
+/** Resuelve el codigoErp de la empresa para pasarlo a los SPs del ERP. */
+async function resolveCodigoErpEmpresa(empresaId: number): Promise<number> {
+  const empresa = await prisma.empresa.findUnique({ where: { id: empresaId }, select: { codigoErp: true } })
+  return empresa?.codigoErp ? Number(empresa.codigoErp) : empresaId
+}
+
 export async function buscarConFuzzyMatch(
   empresaId: number, 
   catalogo: CatalogoTipo, 
@@ -68,7 +74,8 @@ export async function buscarConFuzzyMatch(
 
       let erpResultados: any[] = []
       if (sincronizar) {
-        erpResultados = await erp.buscarCategorias(empresaId, busqueda)
+        const codigoErp = await resolveCodigoErpEmpresa(empresaId)
+        erpResultados = await erp.buscarCategorias(codigoErp, busqueda)
       }
 
       const mergedMap = new Map()
@@ -122,7 +129,8 @@ export async function buscarConFuzzyMatch(
 
       let erpResultados: any[] = []
       if (sincronizar) {
-        erpResultados = await erp.getItems({ empresaId, busqueda })
+        const codigoErp = await resolveCodigoErpEmpresa(empresaId)
+        erpResultados = await erp.getItems({ empresaId: codigoErp, busqueda })
       }
 
       const mergedMap = new Map()
@@ -194,7 +202,8 @@ export async function guardarRegistroCatalogo(
       if (sincronizar) {
         // Enviar al ERP (solo notificación — categoria ya no almacena codigoErp)
         try {
-          await erp.crearCategoria(empresaId, payload.nombre)
+          const codigoErp = await resolveCodigoErpEmpresa(empresaId)
+          await erp.crearCategoria(codigoErp, payload.nombre)
         } catch (erpError: any) {
           console.error("Fallo al guardar Categoría en ERP:", erpError)
           return { error: 'Fallo al sincronizar con el ERP. No se guardó el registro.' }
@@ -224,11 +233,12 @@ export async function guardarRegistroCatalogo(
         }
 
         try {
-          const erpRes = await erp.crearItem(empresaId, {
+          const erpEmpresaCode = await resolveCodigoErpEmpresa(empresaId)
+          const erpRes = await erp.crearItem(erpEmpresaCode, {
             nombre: payload.descripcion,
             descripcion: payload.descripcion,
             categoriaId: categoriaLocal.id,
-            tipo: payload.tipoItem === 2 ? 'SERVICIO' : 'ARTICULO',
+            tipo: payload.tipoItem === 3 ? 'SERVICIO' : 'ARTICULO',
             unidad: payload.unidadMedida
           })
           codigoErp = erpRes.codigoErp.toString()

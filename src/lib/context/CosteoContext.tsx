@@ -1,8 +1,7 @@
-"use client";
+﻿"use client";
 
-import React, { createContext, useContext, useReducer, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, useReducer, useRef, ReactNode, useMemo } from 'react';
 import { ProyectoCosteo, NodoCosteo, RecursoCosteo } from '../types/costeos';
-import { calcularResumenFinanciero, ResumenFinanciero } from '../utils/financial-calculations';
 
 // Definir los tipos de acciones para el reducer
 export type CosteoAction =
@@ -21,17 +20,17 @@ export type CosteoAction =
 
 interface CosteoState {
   proyecto: ProyectoCosteo | null;
-  resumen: ResumenFinanciero | null;
+  // resumen eliminado: FinancialSummaryPanel lo calcula localmente con calcularResumenFinanciero()
   selectedNode: { type: 'NODO' | 'RECURSO' | 'PROYECTO'; id: string } | null;
 }
 
 const initialState: CosteoState = {
   proyecto: null,
-  resumen: null,
   selectedNode: null,
 };
 
-// Funciones recursivas de utilidad
+// -- Funciones recursivas de utilidad -----------------------------------------
+
 function mapNodos(nodos: NodoCosteo[], mapFn: (n: NodoCosteo) => NodoCosteo): NodoCosteo[] {
   return nodos.map(n => {
     const updated = mapFn(n);
@@ -51,7 +50,6 @@ function findNodo(nodos: NodoCosteo[], id: string): NodoCosteo | undefined {
 function findRecurso(proyecto: ProyectoCosteo, id: string): RecursoCosteo | undefined {
   const rootR = proyecto.recursos.find(r => r.id === id);
   if (rootR) return rootR;
-  
   const searchNodos = (nodos: NodoCosteo[]): RecursoCosteo | undefined => {
     for (const n of nodos) {
       const r = n.recursos.find(r => r.id === id);
@@ -64,33 +62,28 @@ function findRecurso(proyecto: ProyectoCosteo, id: string): RecursoCosteo | unde
   return searchNodos(proyecto.nodos);
 }
 
+// -- Reducer ------------------------------------------------------------------
+
 function costeoReducer(state: CosteoState, action: CosteoAction): CosteoState {
   switch (action.type) {
     case 'SET_PROYECTO':
       return {
         ...state,
         proyecto: action.payload,
-        resumen: calcularResumenFinanciero(action.payload),
-        selectedNode: { type: 'PROYECTO', id: action.payload.id }
+        selectedNode: { type: 'PROYECTO', id: action.payload.id },
       };
+
     case 'UPDATE_PROYECTO': {
       if (!state.proyecto) return state;
-      const updatedProyecto = { ...state.proyecto, ...action.payload };
-      return {
-        ...state,
-        proyecto: updatedProyecto,
-        resumen: calcularResumenFinanciero(updatedProyecto),
-      };
+      return { ...state, proyecto: { ...state.proyecto, ...action.payload } };
     }
+
     case 'ADD_NODO': {
       if (!state.proyecto) return state;
       let nuevosNodos = state.proyecto.nodos;
-      
       if (!action.payload.parentId || action.payload.parentId === state.proyecto.id) {
-        // Añadir a la raíz
         nuevosNodos = [...state.proyecto.nodos, action.payload.nodo];
       } else {
-        // Añadir a un padre específico
         nuevosNodos = mapNodos(state.proyecto.nodos, n => {
           if (n.id === action.payload.parentId) {
             return { ...n, nodos: [...n.nodos, action.payload.nodo] };
@@ -98,49 +91,31 @@ function costeoReducer(state: CosteoState, action: CosteoAction): CosteoState {
           return n;
         });
       }
-
-      const proyectoMod = { ...state.proyecto, nodos: nuevosNodos };
-      return {
-        ...state,
-        proyecto: proyectoMod,
-        resumen: calcularResumenFinanciero(proyectoMod),
-      };
+      return { ...state, proyecto: { ...state.proyecto, nodos: nuevosNodos } };
     }
+
     case 'UPDATE_NODO': {
       if (!state.proyecto) return state;
-      const nuevosNodos = mapNodos(state.proyecto.nodos, n => {
-        if (n.id === action.payload.id) {
-          return { ...n, ...action.payload.data };
-        }
-        return n;
-      });
-      const proyectoMod = { ...state.proyecto, nodos: nuevosNodos };
-      return {
-        ...state,
-        proyecto: proyectoMod,
-        resumen: calcularResumenFinanciero(proyectoMod),
-      };
+      const nuevosNodos = mapNodos(state.proyecto.nodos, n =>
+        n.id === action.payload.id ? { ...n, ...action.payload.data } : n
+      );
+      return { ...state, proyecto: { ...state.proyecto, nodos: nuevosNodos } };
     }
+
     case 'REMOVE_NODO': {
       if (!state.proyecto) return state;
-      // Filtramos en la raíz por si acaso
       const rootFilter = state.proyecto.nodos.filter(n => n.id !== action.payload);
-      const nuevosNodos = mapNodos(rootFilter, n => {
-        return { ...n, nodos: n.nodos.filter(child => child.id !== action.payload) };
-      });
-      const proyectoMod = { ...state.proyecto, nodos: nuevosNodos };
-      return {
-        ...state,
-        proyecto: proyectoMod,
-        resumen: calcularResumenFinanciero(proyectoMod),
-      };
+      const nuevosNodos = mapNodos(rootFilter, n => ({
+        ...n,
+        nodos: n.nodos.filter(child => child.id !== action.payload),
+      }));
+      return { ...state, proyecto: { ...state.proyecto, nodos: nuevosNodos } };
     }
+
     case 'ADD_RECURSO': {
       if (!state.proyecto) return state;
       let proyectoMod = { ...state.proyecto };
-      
       if (!action.payload.nodoId || action.payload.nodoId === state.proyecto.id) {
-        // Agregar a la raíz del proyecto
         proyectoMod.recursos = [...proyectoMod.recursos, action.payload.recurso];
       } else {
         proyectoMod.nodos = mapNodos(proyectoMod.nodos, n => {
@@ -150,73 +125,58 @@ function costeoReducer(state: CosteoState, action: CosteoAction): CosteoState {
           return n;
         });
       }
-      return {
-        ...state,
-        proyecto: proyectoMod,
-        resumen: calcularResumenFinanciero(proyectoMod),
-      };
+      return { ...state, proyecto: proyectoMod };
     }
+
     case 'UPDATE_RECURSO': {
       if (!state.proyecto) return state;
       const rId = action.payload.recursoId;
       const rData = action.payload.data;
-      
       let proyectoMod = { ...state.proyecto };
-      // Actualizar si está en la raíz
       proyectoMod.recursos = proyectoMod.recursos.map(r => r.id === rId ? { ...r, ...rData } : r);
-      // Actualizar si está en algún nodo
-      proyectoMod.nodos = mapNodos(proyectoMod.nodos, n => {
-        return {
-          ...n,
-          recursos: n.recursos.map(r => r.id === rId ? { ...r, ...rData } : r)
-        };
-      });
-
-      return {
-        ...state,
-        proyecto: proyectoMod,
-        resumen: calcularResumenFinanciero(proyectoMod),
-      };
+      proyectoMod.nodos = mapNodos(proyectoMod.nodos, n => ({
+        ...n,
+        recursos: n.recursos.map(r => r.id === rId ? { ...r, ...rData } : r),
+      }));
+      return { ...state, proyecto: proyectoMod };
     }
+
     case 'REMOVE_RECURSO': {
       if (!state.proyecto) return state;
       const rId = action.payload.recursoId;
       let proyectoMod = { ...state.proyecto };
 
-      // Elimina recursivamente un recurso y todos sus descendientes combo
-      const filterRecursosDeep = (recursos: RecursoCosteo[], idsAEliminar: Set<string>): RecursoCosteo[] => {
-        // Primero identificar todos los IDs a eliminar (el recurso + hijos directos + nietos, etc.)
-        const collectIds = (id: string) => {
-          recursos.forEach(r => {
-            if (r.comboParentId === id && !idsAEliminar.has(r.id)) {
-              idsAEliminar.add(r.id);
-              collectIds(r.id);
-            }
-          });
-        };
-        collectIds(rId);
-        return recursos.filter(r => !idsAEliminar.has(r.id));
-      };
+      // Recopilar todos los recursos del proyecto en plano para resolver cadena de combos
+      const todosLosRecursos: RecursoCosteo[] = [...proyectoMod.recursos];
+      const walkAll = (nodos: NodoCosteo[]) =>
+        nodos.forEach(n => { todosLosRecursos.push(...n.recursos); walkAll(n.nodos); });
+      walkAll(proyectoMod.nodos);
 
+      // Colectar IDs a eliminar: el recurso + todos sus descendientes combo
       const idsAEliminar = new Set([rId]);
-      proyectoMod.recursos = filterRecursosDeep(proyectoMod.recursos, idsAEliminar);
-      // Reconstruir el set para cada nodo (los IDs pueden ser distintos entre nodos)
-      proyectoMod.nodos = mapNodos(proyectoMod.nodos, n => {
-        const ids = new Set([rId]);
-        return { ...n, recursos: filterRecursosDeep(n.recursos, ids) };
-      });
+      const collectDescendants = (parentId: string) => {
+        todosLosRecursos.forEach(r => {
+          if (r.comboParentId === parentId && !idsAEliminar.has(r.id)) {
+            idsAEliminar.add(r.id);
+            collectDescendants(r.id);
+          }
+        });
+      };
+      collectDescendants(rId);
 
-      return {
-        ...state,
-        proyecto: proyectoMod,
-        resumen: calcularResumenFinanciero(proyectoMod),
-      };
+      const filterRecursos = (recursos: RecursoCosteo[]) =>
+        recursos.filter(r => !idsAEliminar.has(r.id));
+      proyectoMod.recursos = filterRecursos(proyectoMod.recursos);
+      proyectoMod.nodos = mapNodos(proyectoMod.nodos, n => ({
+        ...n,
+        recursos: filterRecursos(n.recursos),
+      }));
+      return { ...state, proyecto: proyectoMod };
     }
+
     case 'SELECT_NODE':
-      return {
-        ...state,
-        selectedNode: action.payload,
-      };
+      return { ...state, selectedNode: action.payload };
+
     case 'REPLACE_IDS': {
       if (!state.proyecto) return state;
       const { nodos, recursos } = action.payload;
@@ -236,138 +196,104 @@ function costeoReducer(state: CosteoState, action: CosteoAction): CosteoState {
         comboParentId: r.comboParentId ? (recursos[r.comboParentId] || r.comboParentId) : undefined,
       });
 
-      const replaceNodos = (nodosArr: NodoCosteo[]): NodoCosteo[] => {
-        return nodosArr.map(n => ({
+      const replaceNodos = (nodosArr: NodoCosteo[]): NodoCosteo[] =>
+        nodosArr.map(n => ({
           ...n,
           id: nodos[n.id] || n.id,
           recursos: n.recursos.map(replaceRecurso),
-          nodos: replaceNodos(n.nodos)
+          nodos: replaceNodos(n.nodos),
         }));
-      };
-
-      const proyectoMod = {
-        ...state.proyecto,
-        nodos: replaceNodos(state.proyecto.nodos),
-        recursos: state.proyecto.recursos.map(replaceRecurso)
-      };
 
       return {
         ...state,
-        proyecto: proyectoMod,
+        proyecto: {
+          ...state.proyecto,
+          nodos: replaceNodos(state.proyecto.nodos),
+          recursos: state.proyecto.recursos.map(replaceRecurso),
+        },
         selectedNode: newSelectedNode,
       };
     }
+
     case 'MOVE_NODO': {
       if (!state.proyecto) return state;
       const { id, newParentId } = action.payload;
-      
       const nodoToMove = findNodo(state.proyecto.nodos, id);
       if (!nodoToMove) return state;
-      
-      // 1. Remove from old place
+
       const rootFilter = state.proyecto.nodos.filter(n => n.id !== id);
-      const cleanNodos = mapNodos(rootFilter, n => {
-        return { ...n, nodos: n.nodos.filter(child => child.id !== id) };
-      });
-      
-      // 2. Adjust level
+      const cleanNodos = mapNodos(rootFilter, n => ({
+        ...n,
+        nodos: n.nodos.filter(child => child.id !== id),
+      }));
+
       let nuevoNivel = 1;
       if (newParentId) {
-         const newParent = findNodo(cleanNodos, newParentId);
-         if (newParent) nuevoNivel = newParent.nivel + 1;
+        const newParent = findNodo(cleanNodos, newParentId);
+        if (newParent) nuevoNivel = newParent.nivel + 1;
       }
-      
-      const updateNiveles = (n: NodoCosteo, currentNivel: number): NodoCosteo => {
-        return {
-          ...n,
-          nivel: currentNivel,
-          nodos: n.nodos.map(child => updateNiveles(child, currentNivel + 1))
-        };
-      };
-      
+
+      const updateNiveles = (n: NodoCosteo, currentNivel: number): NodoCosteo => ({
+        ...n,
+        nivel: currentNivel,
+        nodos: n.nodos.map(child => updateNiveles(child, currentNivel + 1)),
+      });
+
       const movedNodo = updateNiveles(nodoToMove, nuevoNivel);
-      
-      // 3. Add to new place
-      let finalNodos = cleanNodos;
-      if (!newParentId) {
-        finalNodos = [...cleanNodos, movedNodo];
-      } else {
-        finalNodos = mapNodos(cleanNodos, n => {
-          if (n.id === newParentId) {
-            return { ...n, nodos: [...n.nodos, movedNodo] };
-          }
-          return n;
-        });
-      }
-      
-      const proyectoMod = { ...state.proyecto, nodos: finalNodos };
-      return {
-        ...state,
-        proyecto: proyectoMod,
-        resumen: calcularResumenFinanciero(proyectoMod),
-      };
+      const finalNodos = !newParentId
+        ? [...cleanNodos, movedNodo]
+        : mapNodos(cleanNodos, n =>
+            n.id === newParentId ? { ...n, nodos: [...n.nodos, movedNodo] } : n
+          );
+
+      return { ...state, proyecto: { ...state.proyecto, nodos: finalNodos } };
     }
+
     case 'MOVE_RECURSO': {
       if (!state.proyecto) return state;
       const { id, newParentId } = action.payload;
-      
       const recursoToMove = findRecurso(state.proyecto, id);
       if (!recursoToMove) return state;
 
-      // 1. Recopilar combos hijos del recurso primario (en todo el árbol)
-      const collectCombosHijos = (proyecto: ProyectoCosteo, parentId: string): RecursoCosteo[] => {
-        const result: RecursoCosteo[] = [];
-        const search = (recursos: RecursoCosteo[]) => {
-          for (const r of recursos) {
-            if (r.comboParentId === parentId) result.push(r);
-          }
-        };
-        search(proyecto.recursos);
-        const walkNodos = (nodos: NodoCosteo[]) => {
-          for (const n of nodos) {
-            search(n.recursos);
-            walkNodos(n.nodos);
-          }
-        };
-        walkNodos(proyecto.nodos);
-        return result;
-      };
-      const combosHijos = collectCombosHijos(state.proyecto, id);
+      // Recopilar combos hijos del primario en todo el arbol
+      const combosHijos: RecursoCosteo[] = [];
+      const collectHijos = (recursos: RecursoCosteo[]) =>
+        recursos.forEach(r => { if (r.comboParentId === id) combosHijos.push(r); });
+      collectHijos(state.proyecto.recursos);
+      const walkNodos = (nodos: NodoCosteo[]) =>
+        nodos.forEach(n => { collectHijos(n.recursos); walkNodos(n.nodos); });
+      walkNodos(state.proyecto.nodos);
 
-      // 2. Remove primary + combos from their current location
       let proyectoMod = { ...state.proyecto };
       const idsAMover = new Set([id, ...combosHijos.map(c => c.id)]);
-      const filterRecursos = (recursos: RecursoCosteo[]) => recursos.filter(r => !idsAMover.has(r.id));
+      const filterRecursos = (recursos: RecursoCosteo[]) =>
+        recursos.filter(r => !idsAMover.has(r.id));
       proyectoMod.recursos = filterRecursos(proyectoMod.recursos);
-      proyectoMod.nodos = mapNodos(proyectoMod.nodos, n => {
-        return { ...n, recursos: filterRecursos(n.recursos) };
-      });
-      
-      // 3. Add primary + combos to new location
+      proyectoMod.nodos = mapNodos(proyectoMod.nodos, n => ({
+        ...n,
+        recursos: filterRecursos(n.recursos),
+      }));
+
       const recursosAInsertar = [recursoToMove, ...combosHijos];
       if (!newParentId) {
         proyectoMod.recursos = [...proyectoMod.recursos, ...recursosAInsertar];
       } else {
-        proyectoMod.nodos = mapNodos(proyectoMod.nodos, n => {
-          if (n.id === newParentId) {
-            return { ...n, recursos: [...n.recursos, ...recursosAInsertar] };
-          }
-          return n;
-        });
+        proyectoMod.nodos = mapNodos(proyectoMod.nodos, n =>
+          n.id === newParentId
+            ? { ...n, recursos: [...n.recursos, ...recursosAInsertar] }
+            : n
+        );
       }
-      
-      return {
-        ...state,
-        proyecto: proyectoMod,
-        resumen: calcularResumenFinanciero(proyectoMod),
-      };
+      return { ...state, proyecto: proyectoMod };
     }
+
     default:
       return state;
   }
 }
 
-// Contexto
+// -- Contexto -----------------------------------------------------------------
+
 interface CosteoContextProps extends CosteoState {
   dispatch: React.Dispatch<CosteoAction>;
 }
@@ -376,12 +302,13 @@ const CosteoContext = createContext<CosteoContextProps | undefined>(undefined);
 
 export function CosteoProvider({ children, initialProyecto }: { children: ReactNode; initialProyecto?: ProyectoCosteo }) {
   const [state, dispatch] = useReducer(costeoReducer, initialState);
+  const initialized = useRef(false);
 
-  // Inicializar si se pasa un proyecto
+  // Inicializar una sola vez. useRef guard evita re-disparos si el padre re-renderiza.
   React.useEffect(() => {
-    if (initialProyecto) {
-      dispatch({ type: 'SET_PROYECTO', payload: initialProyecto });
-    }
+    if (initialized.current || !initialProyecto) return;
+    initialized.current = true;
+    dispatch({ type: 'SET_PROYECTO', payload: initialProyecto });
   }, [initialProyecto]);
 
   const value = useMemo(() => ({ ...state, dispatch }), [state]);

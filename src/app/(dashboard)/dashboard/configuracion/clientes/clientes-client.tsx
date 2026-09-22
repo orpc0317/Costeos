@@ -4,8 +4,10 @@ import React, { useMemo } from 'react'
 import { ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/ui/data-table'
 import { Button } from '@/components/ui/button'
-import { Building2, Plus } from 'lucide-react'
+import { UserRound, Plus, Eye } from 'lucide-react'
 import { ClienteModal } from '@/components/clientes/cliente-modal'
+import { PageHeader } from '@/components/ui/page-header'
+import { UI_THEME } from '@/lib/theme'
 import type { ClienteRow } from '@/lib/types/clientes'
 
 export function ClientesClient({ data }: { data: ClienteRow[] }) {
@@ -52,8 +54,8 @@ export function ClientesClient({ data }: { data: ClienteRow[] }) {
           <ClienteModal
             cliente={row.original}
             trigger={
-              <button className="p-2 hover:bg-slate-100 rounded-md transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-blue-600"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              <button className={UI_THEME.action.viewButton}>
+                <Eye className="h-4 w-4 text-blue-600" />
               </button>
             }
           />
@@ -75,19 +77,11 @@ export function ClientesClient({ data }: { data: ClienteRow[] }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-indigo-900">
-            <Building2 className="h-6 w-6" />
-            <h1 className="text-2xl font-bold tracking-tight">Clientes</h1>
-          </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {data.length === 1
-              ? '1 cliente registrado'
-              : `${data.length} clientes registrados`}
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        icon={UserRound}
+        title="Clientes"
+        subtitle={data.length === 1 ? '1 cliente registrado' : `${data.length} clientes registrados`}
+      />
 
       <DataTable
         columns={columns}

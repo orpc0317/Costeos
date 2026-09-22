@@ -5,10 +5,12 @@ import { ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/ui/data-table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Package, Plus } from 'lucide-react'
+import { Package, Plus, Eye } from 'lucide-react'
 import { ItemModal } from '@/components/items/item-modal'
 import type { ItemRow } from '@/lib/types/items'
 import type { CategoriaRow } from '@/lib/types/categorias'
+import { PageHeader } from '@/components/ui/page-header'
+import { UI_THEME } from '@/lib/theme'
 
 export function ItemsClient({ data, categorias }: { data: ItemRow[], categorias: CategoriaRow[] }) {
   const columns: ColumnDef<ItemRow>[] = useMemo(
@@ -55,11 +57,7 @@ export function ItemsClient({ data, categorias }: { data: ItemRow[], categorias:
           return (
             <Badge
               variant={activo ? 'default' : 'secondary'}
-              className={
-                activo
-                  ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/20'
-                  : 'bg-muted text-muted-foreground'
-              }
+              className={activo ? UI_THEME.badge.active : UI_THEME.badge.inactive}
             >
               {activo ? 'Activo' : 'Inactivo'}
             </Badge>
@@ -77,8 +75,8 @@ export function ItemsClient({ data, categorias }: { data: ItemRow[], categorias:
             categorias={categorias}
             todosItems={data}
             trigger={
-              <button className="flex h-7 w-7 items-center justify-center rounded-md border border-blue-200 bg-blue-50/50 hover:bg-blue-100 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-blue-600"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              <button className={UI_THEME.action.viewButton}>
+                <Eye className="h-4 w-4 text-blue-600" />
               </button>
             }
           />
@@ -89,32 +87,26 @@ export function ItemsClient({ data, categorias }: { data: ItemRow[], categorias:
   )
 
   const toolbarActions = (
-    <ItemModal
-      categorias={categorias}
-      todosItems={data}
-      trigger={
-        <Button className="gap-2">
-          <Plus className="w-4 h-4" /> Nuevo Ítem
-        </Button>
-      }
-    />
+    <div className="flex items-center gap-2">
+      <ItemModal
+        categorias={categorias}
+        todosItems={data}
+        trigger={
+          <Button className="gap-2">
+            <Plus className="w-4 h-4" /> Nuevo Ítem
+          </Button>
+        }
+      />
+    </div>
   )
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-indigo-900">
-            <Package className="h-6 w-6" />
-            <h1 className="text-2xl font-bold tracking-tight">Items</h1>
-          </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {data.length === 1
-              ? '1 ítem registrado'
-              : `${data.length} ítems registrados`}
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        icon={Package}
+        title="Items"
+        subtitle={data.length === 1 ? '1 ítem registrado' : `${data.length} ítems registrados`}
+      />
 
       <DataTable
         columns={columns}
