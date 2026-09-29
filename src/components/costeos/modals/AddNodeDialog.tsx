@@ -19,6 +19,7 @@ import { normalizeText } from '@/lib/utils/text';
 import { cn } from '@/lib/utils';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { getDepartamentosERP, getMunicipiosERP, getTurnosERP, getServiciosVentaERP, getClienteDireccionesERP } from '@/app/actions/erp';
+import { crearOObtenerSolicitud, getCostoVigente } from '@/app/actions/solicitudes';
 import type { ErpTurno, ErpServicioVenta, ErpDireccionOperativa } from '@/lib/erp';
 import { AddressLookupModal } from './AddressLookupModal';
 import { Search } from 'lucide-react';
@@ -80,6 +81,8 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
   const [tiposCombosNombres, setTiposCombosNombres] = useState<Record<number, string>>({});
 
   const [selectedItemId, setSelectedItemId] = useState<string>('');
+  // Nombre ingresado manualmente para ítems Genéricos (tipoItem=2)
+  const [nombreGenerico, setNombreGenerico] = useState<string>('');
   
   // Dynamic Fields for Línea
   const [cantidad, setCantidad] = useState<number>(1);
@@ -210,6 +213,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
       setIsNewAddress(false);
       setShowAddressLookup(false);
       setSelectedItemId('');
+      setNombreGenerico('');
       setError(null);
       setFieldErrors({});
       setActiveTab('general');
@@ -303,6 +307,10 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
   // Se incluye en la estructura con Costo 0.00 (campo bloqueado, no editable)
   const sinManejoCotos = localItem?.manejoCostos === 99;
 
+  // tipoItem=2 → Ítem Genérico: el usuario debe ingresar un nombre/descripción libre
+  // Manejo Costos siempre es 4 (Solicitar Usuario). NO genera Solicitudes ni Cotizaciones.
+  const isGenerico = localItem?.tipoItem === 2;
+
   // servicioSeleccionado: complemento del ERP — se busca por el codigoErp del ítem local,
   // que coincide con el campo `codigo` del SP sp_buscar_items
   const servicioSeleccionado = localItem?.codigoErp
@@ -364,6 +372,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
   useEffect(() => {
     setCombosSeleccionados({});
     setCombosIncluidos({});
+    setNombreGenerico('');
   }, [selectedItemId]);
 
   useEffect(() => {
@@ -384,16 +393,22 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
     } else {
       setPrecioVenta(undefined);
     }
+    // manejoCostos=1 (Compras): intentar obtener el último costo vigente de las cotizaciones
     // manejoCostos=2 (Manual): auto-cargar el último costo registrado
     // manejoCostos=99 (No Aplica): forzar siempre 0
-    if (localItem?.manejoCostos === 2) {
+    if (localItem?.manejoCostos === 1) {
+      // Async fetch
+      getCostoVigente(localItem.id, proyecto?.id ? Number(proyecto.id) : undefined).then(costo => {
+        setCostoUnitario(costo ?? undefined);
+      });
+    } else if (localItem?.manejoCostos === 2) {
       setCostoUnitario(costosManuales[localItem.id] ?? 0);
     } else if (localItem?.manejoCostos === 99) {
       setCostoUnitario(0);
     } else {
       setCostoUnitario(undefined); // siempre resetear al cambiar item
     }
-  }, [servicioSeleccionado, localItem?.id, localItem?.manejoCostos]);
+  }, [servicioSeleccionado, localItem?.id, localItem?.manejoCostos, proyecto?.id]);
 
   // Al cambiar el bono seleccionado: resetear costo del bono
   useEffect(() => {
@@ -506,6 +521,12 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
           }
         }
 
+        // Ítem Genérico: nombre/descripción es obligatorio
+        if (isGenerico && !normalizeText(nombreGenerico).trim()) {
+          newFieldErrors.nombreGenerico = 'Debe ingresar una descripción para el ítem genérico.';
+          hasFieldErrors = true;
+        }
+
       }
     }
 
@@ -556,6 +577,9 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
         // costoFinal: 0 cuando manejoCostos=99, de lo contrario el valor ingresado/auto-cargado
         const costoFinal = sinManejoCotos ? 0 : (costoUnitario || 0);
 
+        // Nombre del recurso: para Genéricos, usar el nombre ingresado manualmente
+        const nombreRecurso = isGenerico ? normalizeText(nombreGenerico).trim() : localItem.descripcion;
+
         if (isEstandar) {
           // Para Equipos (tipoItem=4): N recursos de cantidad 1 (Activo)
           if (localItem.tipoItem === 4) {
@@ -564,7 +588,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
               recursosNuevos.push({
                 id: `REC-${Date.now()}-${i}`,
                 itemId: localItem.id,
-                nombre: localItem.descripcion,
+                nombre: nombreRecurso,
                 categoria: catStr as any,
                 tipoCosto: 'MENSUAL',
                 cantidad: 1,
@@ -576,11 +600,11 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
               });
             }
           } else {
-            // Estándar u otros (incluyendo sinErp): 1 recurso de cantidad N
+          // Estándar u otros (incluyendo sinErp y Genérico): 1 recurso de cantidad N
             recursosNuevos.push({
               id: `REC-${Date.now()}`,
               itemId: localItem.id,
-              nombre: localItem.descripcion,
+              nombre: nombreRecurso,
               categoria: catStr as any,
               tipoCosto: 'MENSUAL',
               cantidad: cantidad,
@@ -839,11 +863,30 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
         dispatch({ type: 'ADD_NODO', payload: { parentId, nodo: nuevoNodo } });
         dispatch({ type: 'SELECT_NODE', payload: { type: 'NODO', id: nuevoNodo.id } });
       } else {
-        // Opción: Agregar recursos directos a parentId (el nodo actual)
         recursosNuevos.forEach((recurso, idx) => {
           dispatch({ type: 'ADD_RECURSO', payload: { nodoId: parentId, recurso } });
           if (idx === 0) dispatch({ type: 'SELECT_NODE', payload: { type: 'RECURSO', id: recurso.id } });
         });
+      }
+
+      // ── Módulo Compras: Generar Solicitud de Cotización ──────────────────────
+      // Si algún recurso agregado usa manejoCostos = 1 (Compras), intentar crear solicitud.
+      // EXCEPCIÓN: ítems Genéricos (tipoItem=2) NO generan solicitudes ni cotizaciones.
+      const empresasSet = new Set(recursosNuevos.map(r => items.find(i => i.id === r.itemId)?.empresaId).filter(Boolean));
+      // Toma la primera empresa de los ítems (todos deberían ser de la misma empresa)
+      const empId = empresasSet.values().next().value;
+      if (empId) {
+        for (const recurso of recursosNuevos) {
+          const it = items.find(i => i.id === recurso.itemId);
+          if (it?.manejoCostos === 1 && it.tipoItem !== 2) {
+            crearOObtenerSolicitud({
+              itemId: it.id,
+              costeoId: proyecto?.id ? Number(proyecto.id) : undefined,
+              scope: it.cotizacionScope ?? 'GENERAL',
+              empresaId: Number(empId),
+            }).catch(e => console.error('Error auto-creando solicitud cotización:', e));
+          }
+        }
       }
       
       setOpen(false);
@@ -1175,6 +1218,37 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                 </>
               )}
               </div>
+
+              {/* ── Campo Descripción para Ítem Genérico ── */}
+              {selectedItemId && localItem && isGenerico && (
+                <div className="flex flex-col gap-1.5 mt-3 animate-in fade-in slide-in-from-top-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-bold text-amber-700 uppercase tracking-wider border-l-2 border-amber-500 pl-2 leading-none">
+                      ÍTEM
+                    </span>
+                    <div className="flex-1 border-t border-amber-200 mt-0.5" />
+                  </div>
+                  <Label htmlFor="field-nombreGenerico">
+                    Descripción <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="field-nombreGenerico"
+                    value={nombreGenerico}
+                    onChange={e => {
+                      setNombreGenerico(e.target.value);
+                      setFieldErrors(prev => ({ ...prev, nombreGenerico: '' }));
+                    }}
+                    placeholder="Ej. CABLE TIPO THW 12 AWG"
+                    className="uppercase"
+                    aria-invalid={!!fieldErrors.nombreGenerico}
+                    autoFocus
+                  />
+                  <p className="text-xs text-amber-700">
+                    Este ítem es temporal. Ingrese la descripción del recurso que necesita y aún no está en catálogo.
+                  </p>
+                  {fieldErrors.nombreGenerico && <FieldError message={fieldErrors.nombreGenerico} />}
+                </div>
+              )}
             </div>
 
             {selectedItemId && localItem && (() => {

@@ -81,3 +81,13 @@ export function labelManejoCostos(val: unknown): string {
   const found = MANEJO_COSTOS_OPCIONES.find(t => t.value === String(val ?? ''))
   return found ? found.label : String(val ?? '')
 }
+
+export const COTIZACION_SCOPE_OPCIONES: { value: string; label: string }[] = [
+  { value: 'GENERAL',      label: 'General' },
+  { value: 'POR_PROYECTO', label: 'Por Proyecto' },
+]
+
+export function labelCotizacionScopeItem(val: unknown): string {
+  const found = COTIZACION_SCOPE_OPCIONES.find(t => t.value === String(val ?? ''))
+  return found ? found.label : String(val ?? '')
+}

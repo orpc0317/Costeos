@@ -4,7 +4,7 @@ import { requireAuth } from '@/lib/auth-helpers'
 import { getUsuarioErp } from '@/lib/auth-helpers'
 import { erp } from '@/lib/erp'
 import { prisma } from '@/lib/prisma'
-import type { ErpCliente } from '@/lib/erp'
+import type { ErpCliente, ErpProveedor } from '@/lib/erp'
 
 /**
  * erp.ts — Server Actions para consultas al ERP externo.
@@ -141,6 +141,107 @@ export async function searchClientesWizard(
 
         resultado.push({
           ...ec,
+          fuente: 'ERP',
+        })
+      }
+    } catch {
+      // Si el ERP no responde, continuar solo con locales
+    }
+  }
+
+  return resultado
+}
+
+/**
+ * Retorna todas las empresas con flag de sincronización de proveedores con ERP.
+ */
+export async function getEmpresasConSyncProveedores(): Promise<{ id: number; nombre: string; syncProveedores: boolean }[]> {
+  const guard = await requireAuth()
+  if (!guard.ok) return []
+
+  const empresas = await prisma.empresa.findMany({
+    include: { configuracionesSync: true },
+    orderBy: { nombre: 'asc' },
+  })
+
+  return empresas.map(e => ({
+    id:              e.id,
+    nombre:          e.nombre,
+    syncProveedores: e.configuracionesSync.some(
+      s => s.catalogo === 'PROVEEDORES' && s.sincronizar
+    ),
+  }))
+}
+
+// ─── Tipos para la búsqueda combinada de proveedores ──────────────────────────
+
+export type ProveedorWizardResultado = ErpProveedor & {
+  fuente: 'LOCAL' | 'ERP'
+  proveedorLocalId?: number
+}
+
+/**
+ * Búsqueda combinada de proveedores para el wizard de Nuevo Proveedor.
+ *
+ * Flujo:
+ *  1. Busca en costeos_proveedor (BD local) por NIT o nombre.
+ *  2. Si syncProveedores = true → también busca en ERP vía sp_buscar_proveedor.
+ *  3. Combina: primero los locales, luego los exclusivos del ERP.
+ */
+export async function searchProveedoresWizard(
+  empresaId:        number,
+  busqueda:         string,
+  syncProveedores:  boolean,
+): Promise<ProveedorWizardResultado[]> {
+  const guard = await requireAuth()
+  if (!guard.ok) throw new Error('No autorizado')
+
+  const texto = busqueda.trim()
+  if (texto.length < 2) return []
+
+  const resultado: ProveedorWizardResultado[] = []
+
+  // ── 1. Buscar en Costeos local ───────────────────────────────────────────────
+  const locales = await prisma.proveedor.findMany({
+    where: {
+      empresaId,
+      OR: [
+        { nit:       { contains: texto } },
+        { nombre:    { contains: texto } },
+        { codigoErp: { contains: texto } },
+      ],
+    },
+    take: 20,
+  })
+
+  const codigosErpLocales = new Set(
+    locales.map(p => p.codigoErp).filter(Boolean) as string[]
+  )
+
+  for (const p of locales) {
+    resultado.push({
+      fuente:            'LOCAL',
+      proveedorLocalId:  p.id,
+      id:                p.codigoErp ?? undefined,
+      codigo:            p.codigoErp ?? undefined,
+      nit:               p.nit,
+      nombre:            p.nombre,
+      contacto:          p.contacto ?? undefined,
+      telefono:          p.telefono ?? undefined,
+      email:             p.email    ?? undefined,
+    })
+  }
+
+  // ── 2. Si sync ON → también buscar en ERP ────────────────────────────────────
+  if (syncProveedores) {
+    try {
+      const codigoErpEmpresa = await resolveCodigoErpEmpresa(empresaId)
+      const erpProveedores = await erp.getProveedores(codigoErpEmpresa as unknown as number, texto)
+
+      for (const ep of erpProveedores) {
+        if (ep.codigo && codigosErpLocales.has(ep.codigo)) continue
+        resultado.push({
+          ...ep,
           fuente: 'ERP',
         })
       }

@@ -11,7 +11,7 @@
  * Estructura de secciones:
  *   forms   → Labels, Inputs, Selects, Errores de campo
  *   table   → Cabeceras, celdas, filas, contenedor
- *   modal   → Diálogos: título, footer, área de scroll, errores globales
+ *   modal   → Diálogos: título, footer, botones de acción, área de scroll
  *   tabs    → Pestañas en modales (variant="line")
  *   badge   → Píldoras de estado (activo/inactivo/etc.)
  *   select  → Dropdown del SearchableSelect
@@ -141,6 +141,55 @@ export const UI_THEME = {
      * Área de scroll de campos del formulario dentro del modal.
      */
     scrollArea: "flex-1 overflow-y-auto pr-2 pb-4",
+
+    /**
+     * ── Botones de acción en el footer del modal ──────────────────────────────
+     *
+     * REGLA: Siempre usar estos tokens en lugar de hardcodear las clases.
+     *        Esto garantiza uniformidad visual en todos los modales.
+     *
+     * Paleta estándar del footer (modo Vista):
+     *   izquierda → botón rojo de Eliminar (si aplica), o botón de acción especial
+     *   derecha   → botón Historial (sky) + botón Editar (primary default)
+     *
+     * Paleta estándar del footer (modo Edición/Crear):
+     *   derecha   → botón Cancelar (outline default) + botón Guardar (primary default)
+     *
+     * El botón Editar y Guardar usan el <Button> primario sin clases extra.
+     * El botón Cancelar usa variant="outline" sin clases extra.
+     */
+    buttons: {
+      /**
+       * Botón "Historial" — siempre a la derecha en modo Vista.
+       * Paleta sky-blue: suave y distinguible del botón primario de Editar.
+       * Uso: <Button variant="outline" className={UI_THEME.modal.buttons.historial}>
+       */
+      historial:
+        "bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 hover:text-sky-800",
+
+      /**
+       * Botón "Eliminar" — siempre a la izquierda en modo Vista (con mr-auto).
+       * Paleta rojo destructivo: señal clara de acción irreversible.
+       * Uso: <Button variant="outline" size="sm" className={UI_THEME.modal.buttons.eliminar}>
+       */
+      eliminar:
+        "bg-red-50 text-red-700 border-red-200 hover:bg-red-100 hover:text-red-800",
+
+      /**
+       * Botón de "acción especial" opcional en el lado izquierdo del footer.
+       * Ejemplos: "Prioridad" (Categorías), "Reordenar", "Vista previa".
+       * Paleta violet: neutra, no compite con los botones derecha.
+       * Uso: <Button variant="outline" className={UI_THEME.modal.buttons.accionEspecial}>
+       */
+      accionEspecial:
+        "bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100 hover:text-violet-800",
+
+      /**
+       * Contenedor agrupador de botones del lado derecho del footer.
+       * Uso: <div className={UI_THEME.modal.buttons.rightGroup}>
+       */
+      rightGroup: "flex items-center gap-2",
+    },
   },
 
   // ─── PESTAÑAS (variant="line") ───────────────────────────────────────────

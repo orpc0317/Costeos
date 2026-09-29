@@ -4,8 +4,9 @@ import { z } from 'zod'
 // Cada catálogo necesita su propio SP/webservice en el ERP.
 // El orden aquí es el orden de visualización en la pestaña ERP.
 export const CATALOGOS_ERP = [
-  { key: 'CLIENTES', label: 'Clientes' },
-  { key: 'ITEMS',    label: 'Items' },
+  { key: 'CLIENTES',    label: 'Clientes' },
+  { key: 'PROVEEDORES', label: 'Proveedores' },
+  { key: 'ITEMS',       label: 'Items' },
 ] as const
 
 export type CatalogoKey = typeof CATALOGOS_ERP[number]['key']

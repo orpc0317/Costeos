@@ -1,0 +1,35 @@
+## ============================================================
+## PLANTILLA: COSTOS DE REFERENCIA
+## Costeador - Sistema de Costeos (tabla: costeo_item_costo_ref)
+## ============================================================
+##
+## INSTRUCCIONES:
+## 1. Elimina estas líneas de comentario (##) antes de importar.
+## 2. Esta plantilla aplica ÚNICAMENTE a items con manejo_costos=3 (Referencia).
+## 3. Un item de Referencia calcula su costo como un % del costo
+##    de OTRO item (el item de referencia, definido en el campo
+##    costo_referencia_item_id de la plantilla_items.csv).
+## 4. Un mismo item puede tener múltiples registros de % (historial).
+##    El sistema usará el % MÁS RECIENTE (por fecha).
+## 5. El item_id debe existir en la BD ANTES de importar.
+##
+## EJEMPLO DE USO:
+##   Si VEHICULO PATRULLA (manejo_costos=3) referencia a SALARIO BASE OFICIAL
+##   y el % es 15.00, el costo del vehículo = 15% del costo vigente
+##   de SALARIO BASE OFICIAL.
+##
+## CAMPOS:
+##   item_id*        : ID del item (debe tener manejo_costos=3)
+##   item_desc       : Descripción (solo referencia, no se importa)
+##   ref_item_id*    : ID del item cuyo costo se usa como base
+##   ref_item_desc   : Descripción del item base (solo referencia)
+##   pct*            : Porcentaje del costo de referencia (ej: 15.00 = 15%)
+##                     Valor entre 0.01 y 999.99
+##   fecha*          : Fecha de vigencia (YYYY-MM-DD)
+##   usuario_id*     : ID del usuario que registra (normalmente 1 = admin)
+##
+## ============================================================
+item_id,item_desc,ref_item_id,ref_item_desc,pct,fecha,usuario_id
+42,VEHICULO PATRULLA,21,SALARIO BASE OFICIAL,15.00,2026-01-01,1
+43,MOTOCICLETA,21,SALARIO BASE OFICIAL,8.50,2026-01-01,1
+55,COMPUTADORA MONITOREO,21,SALARIO BASE OFICIAL,5.00,2026-01-01,1

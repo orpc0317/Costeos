@@ -43,6 +43,8 @@ export const ItemRepository = {
       recurrente:            boolean
       recurrenteGasto:       boolean
       manejoCostos:          number
+      cotizacionScope?:      string
+      porCosteo?:            number
       costoReferenciaItemId?: number | null
       tipo:                  boolean
       perfil:                boolean
@@ -120,6 +122,8 @@ export const ItemRepository = {
       recurrente:            boolean
       recurrenteGasto:       boolean
       manejoCostos:          number
+      cotizacionScope?:      string
+      porCosteo?:            number
       costoReferenciaItemId?: number | null
       tipo:                  boolean
       perfil:                boolean

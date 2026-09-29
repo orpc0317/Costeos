@@ -482,13 +482,13 @@ export function EmpresaModal({
             {/* ── Footer estándar ── */}
             <div className={UI_THEME.modal.footer}>
               <div />
-              <div className="flex gap-2 justify-end">
+              <div className={UI_THEME.modal.buttons.rightGroup}>
                 {mode === 'view' && (
                   <>
                     <Button
                       type="button"
                       variant="outline"
-                      className="bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 hover:text-sky-800"
+                      className={UI_THEME.modal.buttons.historial}
                       onClick={() => setHistorialOpen(true)}
                     >
                       <History className="mr-2 h-4 w-4" /> Historial

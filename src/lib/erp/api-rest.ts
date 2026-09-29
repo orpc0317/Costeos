@@ -28,6 +28,7 @@ import type {
   ErpItem,
   ErpRecetaItem,
   ErpCliente,
+  ErpProveedor,
   ErpEmpresa,
   ErpDepartamento,
   ErpMunicipio,
@@ -136,6 +137,11 @@ export class ApiRestErpRepository implements ErpRepository {
     // })
     // if (!res.ok) throw new Error(`ERP API error: ${res.status}`)
     // return res.json()
+  }
+
+  async getProveedores(empresaId: number, busqueda: string): Promise<ErpProveedor[]> {
+    // TODO — implementar cuando el ERP tenga el endpoint
+    throw new Error('[ApiRestErpRepository] getProveedores: NOT IMPLEMENTED.')
   }
 
   async getDepartamentos(pais?: string): Promise<ErpDepartamento[]> {

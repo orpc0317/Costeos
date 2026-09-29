@@ -334,17 +334,31 @@ Esta versión de shadcn **NO soporta `asChild`**. Usar siempre `render={}`:
 
 ### Footer estándar
 
+Usar **siempre** el token `UI_THEME.modal.footer` para el contenedor del footer y los tokens `UI_THEME.modal.buttons.*` para los botones. **Nunca** hardcodear las clases Tailwind directamente en el modal.
+
 ```tsx
-{/* Footer — SIEMPRE al fondo, SIEMPRE con este estilo */}
-<div className="flex flex-row items-center justify-between mt-6 -mx-4 -mb-4 px-4 py-4 border-t bg-slate-50 sm:rounded-b-xl shrink-0">
-  <div /> {/* placeholder izquierda (o botón Activar/Desactivar si aplica) */}
-  <div className="flex gap-2 justify-end">
+import { UI_THEME } from '@/lib/theme'
+
+{/* Footer — SIEMPRE al fondo, SIEMPRE con el token */}
+<div className={UI_THEME.modal.footer}>
+  <div /> {/* placeholder izquierda (o botón Eliminar / acción especial si aplica) */}
+  <div className={UI_THEME.modal.buttons.rightGroup}>
     {/* botones según modo — ver §4.1 y §4.2 */}
   </div>
 </div>
 ```
 
-Clases clave: `border-t bg-slate-50 sm:rounded-b-xl shrink-0`. El `shrink-0` evita que el footer se comprima cuando el contenido es largo. El `-mx-4 -mb-4 px-4` extiende el fondo hasta los bordes del diálogo.
+**Tokens disponibles en `UI_THEME.modal`:**
+
+| Token | Descripción | Uso |
+|---|---|---|
+| `modal.footer` | Clases del contenedor del footer | `className={UI_THEME.modal.footer}` |
+| `modal.buttons.historial` | Color sky del botón Historial | `className={UI_THEME.modal.buttons.historial}` |
+| `modal.buttons.eliminar` | Color rojo del botón Eliminar | `className={UI_THEME.modal.buttons.eliminar}` |
+| `modal.buttons.accionEspecial` | Color violet para acciones secundarias opcionales | `className={UI_THEME.modal.buttons.accionEspecial}` |
+| `modal.buttons.rightGroup` | Contenedor agrupador lado derecho | `className={UI_THEME.modal.buttons.rightGroup}` |
+
+> **Nota:** El botón **Editar** usa `<Button type="button">` primario sin className extra. El botón **Cancelar** usa `variant="outline"` sin className extra. El botón **Guardar** usa `<Button type="submit">` primario sin className extra. Solo `Historial`, `Eliminar` y botones de acción especial necesitan los tokens de color.
 
 ### 4.1 Modo Vista (`mode === 'view'`)
 
@@ -358,9 +372,9 @@ Clases clave: `border-t bg-slate-50 sm:rounded-b-xl shrink-0`. El `shrink-0` evi
   )}
 
   {/* Botones a la derecha */}
-  <div className="flex items-center gap-2">
+  <div className={UI_THEME.modal.buttons.rightGroup}>
     <Button type="button" variant="outline"
-      className="bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 hover:text-sky-800"
+      className={UI_THEME.modal.buttons.historial}
       onClick={() => setHistorialOpen(true)}>
       <History className="mr-2 h-4 w-4" /> Historial
     </Button>
@@ -383,7 +397,7 @@ Clases clave: `border-t bg-slate-50 sm:rounded-b-xl shrink-0`. El `shrink-0` evi
       </p>
     )}
   </div>
-  <div className="flex gap-2 justify-end shrink-0">
+  <div className={UI_THEME.modal.buttons.rightGroup}>
     {/* Cancelar: SOLO al editar un registro existente */}
     {isEditing && (
       <Button type="button" variant="outline"
@@ -401,12 +415,12 @@ Clases clave: `border-t bg-slate-50 sm:rounded-b-xl shrink-0`. El `shrink-0` evi
 
 **Tabla resumen de botones:**
 
-| Situación | Botones |
-|---|---|
-| Modo Vista (registro existente) | `Historial` (sky-blue) + `Editar` (primary) → derecha |
-| Modo Crear (nuevo registro) | Solo `Guardar` → derecha. Sin Cancelar. |
-| Modo Editar (registro existente) | `Cancelar` (outline) + `Guardar` → derecha |
-| Activar/Desactivar | Solo en `mode === 'view'`, botón left con `mr-auto` |
+| Situación | Izquierda | Derecha |
+|---|---|---|
+| Modo Vista (registro existente) | — o botón `Eliminar` / acción especial | `Historial` (sky) + `Editar` (primary) |
+| Modo Crear (nuevo registro) | — | Solo `Guardar` (primary). Sin Cancelar. |
+| Modo Editar (registro existente) | — | `Cancelar` (outline) + `Guardar` (primary) |
+| Activar/Desactivar | Botón propio con `mr-auto` | igual a Modo Vista |
 
 ---
 
@@ -429,18 +443,38 @@ Clases clave: `border-t bg-slate-50 sm:rounded-b-xl shrink-0`. El `shrink-0` evi
 - Cada `TabsTrigger` lleva ícono de `lucide-react` (`w-4 h-4 mr-2`) a la izquierda del texto.
 - Siempre existe la pestaña `"general"` como pestaña inicial.
 
-### 5.0 Scroll Horizontal Automático (R23)
+### 5.0 Scroll Horizontal con Flechas de Navegación (R23)
 
-El componente `<TabsList variant="line">` soporta **scroll horizontal nativo** cuando las pestañas no caben en el ancho del modal. Esto es transparente: no se requiere ningún wrapper extra ni clase adicional en el código del modal.
+El componente `<TabsList variant="line">` soporta **scroll horizontal con botones de flecha `‹` / `›`** cuando las pestañas no caben en el ancho del modal. Esto es completamente transparente: no se requiere ningún wrapper extra ni clase adicional en el código del modal.
 
-**Implementación en `src/components/ui/tabs.tsx`:**
-- El variant `"line"` incluye `overflow-x-auto scrollbar-none pb-px` en su CVA.
-- La clase `.scrollbar-none` está definida en `globals.css` con cobertura cross-browser (Firefox, Chrome/Safari, Edge).
-- El `pb-px` evita que el borde inferior del tab activo quede recortado por el overflow.
+**Implementación en [`tabs.tsx`](file:///c:/Proyectos/Costeos/src/components/ui/tabs.tsx):**
+
+El `variant="line"` no renderiza un `<TabsPrimitive.List>` directo sino un componente `ScrollableTabsList` que incluye:
+
+```
+[ ‹ ] [ tab1 | tab2 | tab3 | ... ] [ › ]
+  ↑         ↑                          ↑
+flecha    TabsList con              flecha
+izq.    overflow-x-auto             der.
+(oculta si    scrollbar-none       (oculta si
+ scroll=0)                          al final)
+```
+
+- Las flechas **aparecen y desaparecen dinámicamente** (transición de ancho 0 → 1.5rem) según si hay contenido scroll disponible en cada dirección.
+- Usan `ResizeObserver` + evento `scroll` para actualizarse cuando el modal cambia de tamaño.
+- El `border-b` vive en el **wrapper** (no en el `TabsList`) para que el borde cubra todo el ancho incluyendo las flechas.
+- Las flechas son `aria-hidden` y tienen `tabIndex={-1}` — no interrumpen la navegación de teclado entre pestañas.
+- El click en una flecha hace `scrollBy({ left: ±120, behavior: 'smooth' })`.
+
+**Aspecto visual de las flechas:**
+- Círculo `w-5 h-5` blanco con borde `slate-300` y sombra suave.
+- Ícono `ChevronLeft` / `ChevronRight` de `lucide-react` (`h-3 w-3`, `strokeWidth={2.5}`).
+- Hover: borde `slate-400`, texto más oscuro.
 
 **Comportamiento por dispositivo:**
 | Dispositivo | Gesto de scroll |
 |---|---|
+| Desktop — con flechas | Click en `‹` / `›` |
 | Desktop — trackpad | Dos dedos horizontalmente sobre las tabs |
 | Desktop — mouse | `Shift` + rueda del ratón |
 | Touch / tablet | Deslizar con el dedo |
@@ -1084,8 +1118,11 @@ Cada entidad tiene **un ícono canónico** definido en el sidebar (`app-sidebar.
 | Entidad | Ícono | Importar de |
 |---|---|---|
 | Empresas | `Building2` | `lucide-react` |
+| Clientes | `UserRound` | `lucide-react` |
+| Proveedores | `Truck` | `lucide-react` |
 | Tipos Costeo | `Network` | `lucide-react` |
 | Categorías | `Tags` | `lucide-react` |
+| Tipos Combo | `Layers` | `lucide-react` |
 | Ítems | `Package` | `lucide-react` |
 | Usuarios | `Users` | `lucide-react` |
 

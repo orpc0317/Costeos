@@ -26,6 +26,7 @@ import type {
   ErpItem,
   ErpRecetaItem,
   ErpCliente,
+  ErpProveedor,
   ErpEmpresa,
   ErpDepartamento,
   ErpMunicipio,
@@ -180,6 +181,30 @@ export class SqlServerErpRepository implements ErpRepository {
       municipioNombre:   r.municipio_nombre,
       diasCredito:       r.dias_credito,
     }))
+  }
+
+  async getProveedores(empresaId: number, busqueda: string): Promise<ErpProveedor[]> {
+    try {
+      const pool = await getPool()
+      const result = await pool
+        .request()
+        .input('PrmEmpresa', empresaId)
+        .input('PrmSearchText', busqueda)
+        .execute('sp_buscar_proveedor')
+
+      return result.recordset.map((r) => ({
+        id:       r.codigo != null ? String(r.codigo) : undefined,
+        codigo:   r.codigo != null ? String(r.codigo) : undefined,
+        nit:      r.nit ?? '',
+        nombre:   r.nombre ?? '',
+        contacto: r.contacto ?? undefined,
+        telefono: r.telefono ?? undefined,
+        email:    r.email    ?? undefined,
+      }))
+    } catch (err) {
+      console.error('[SqlServerErpRepository] getProveedores:', err)
+      return []
+    }
   }
 
   async getDepartamentos(pais: string = 'GT'): Promise<ErpDepartamento[]> {

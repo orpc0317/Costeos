@@ -330,12 +330,12 @@ export function UsuarioDialog({ usuario, trigger }: UsuarioDialogProps) {
                       )}
                     </Button>
                   )}
-                  <div className="flex items-center gap-2 ml-auto">
+                  <div className={`${UI_THEME.modal.buttons.rightGroup} ml-auto`}>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 hover:text-sky-800"
+                      className={UI_THEME.modal.buttons.historial}
                       onClick={() => setHistorialOpen(true)}
                     >
                       <History className="mr-2 h-4 w-4" /> Historial

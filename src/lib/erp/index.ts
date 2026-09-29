@@ -38,6 +38,7 @@ export type {
   ErpRepository,
   ErpItem,
   ErpCliente,
+  ErpProveedor,
   ErpRecetaItem,
   ErpPushResult,
   ItemFiltros,

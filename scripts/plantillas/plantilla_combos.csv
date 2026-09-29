@@ -1,0 +1,53 @@
+## ============================================================
+## PLANTILLA: COMBOS DE ITEMS
+## Costeador - Sistema de Costeos (tabla: costeos_detalle_combo)
+## ============================================================
+##
+## INSTRUCCIONES:
+## 1. Elimina estas líneas de comentario (##) antes de importar.
+## 2. Un "Combo" relaciona un Item Principal (de venta) con sus
+##    Items Secundarios (los recursos que lo componen).
+## 3. El item_principal_id es el ITEM DE VENTA (venta=1).
+## 4. El item_secundario_id es el recurso que compone el combo
+##    (salario, equipo, bono, etc.)
+## 5. Ambos IDs deben existir en la BD ANTES de importar.
+##    Si llevas items nuevos, importa primero plantilla_items.csv
+##    y anota los IDs asignados.
+##
+## CAMPOS:
+##   empresa_id*           : 1=WACKTRON | 3=WAGSA
+##   tipo_item*            : 3=Servicio (usualmente)
+##   item_principal_id*    : ID del item de venta (padre del combo)
+##   item_principal_desc   : Descripción (solo referencia, no se importa)
+##   item_secundario_id*   : ID del item componente del combo
+##   item_secundario_desc  : Descripción (solo referencia, no se importa)
+##
+##   nuevo_cantidad*       : Cantidad en costeos NUEVO contrato (puede ser decimal, ej: 0.5 para medio tiempo)
+##   nuevo_incluido*       : 0=No incluido | 1=Incluido en el precio base (NUEVO)
+##   nuevo_requerido*      : 0=Opcional | 1=Obligatorio en el costeo (NUEVO)
+##
+##   renovacion_cantidad*  : Cantidad en costeos RENOVACION
+##   renovacion_incluido*  : 0=No incluido | 1=Incluido (RENOVACION)
+##   renovacion_requerido* : 0=Opcional | 1=Obligatorio (RENOVACION)
+##
+## NOTA: Si el negocio no diferencia Nuevo vs Renovación, usa
+##       los mismos valores en ambas columnas.
+##
+## ============================================================
+empresa_id,tipo_item,item_principal_id,item_principal_desc,item_secundario_id,item_secundario_desc,nuevo_cantidad,nuevo_incluido,nuevo_requerido,renovacion_cantidad,renovacion_incluido,renovacion_requerido
+3,3,4,JEFE GRUPOS,2,JEFE GRUPO A,1,1,1,1,1,1
+3,3,4,JEFE GRUPOS,21,SALARIO BASE OFICIAL,1,1,1,1,1,1
+3,3,4,JEFE GRUPOS,24,BONO PRODUCCION,1,1,0,1,1,0
+3,3,4,JEFE GRUPOS,27,BONO NOCTURNO,0.5,1,0,0.5,1,0
+3,3,4,JEFE GRUPOS,28,CUOTA IGSS PATRONAL,1,1,1,1,1,1
+3,3,4,JEFE GRUPOS,31,INDEMNIZACION,1,1,1,1,1,1
+3,3,4,JEFE GRUPOS,32,VACACIONES,1,1,1,1,1,1
+3,3,4,JEFE GRUPOS,33,BONO 14,1,1,1,1,1,1
+3,3,4,JEFE GRUPOS,34,AGUINALDO,1,1,1,1,1,1
+3,3,7,COORDINADOR,22,SALARIO BASE COORDINADOR,1,1,1,1,1,1
+3,3,7,COORDINADOR,24,BONO PRODUCCION,1,1,0,1,1,0
+3,3,7,COORDINADOR,28,CUOTA IGSS PATRONAL,1,1,1,1,1,1
+3,3,7,COORDINADOR,31,INDEMNIZACION,1,1,1,1,1,1
+3,3,7,COORDINADOR,32,VACACIONES,1,1,1,1,1,1
+3,3,7,COORDINADOR,33,BONO 14,1,1,1,1,1,1
+3,3,7,COORDINADOR,34,AGUINALDO,1,1,1,1,1,1

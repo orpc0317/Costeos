@@ -11,15 +11,76 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ---
 
+## 🚨 PASO 0 — LECTURA OBLIGATORIA ANTES DE ESCRIBIR CUALQUIER COMPONENTE
+
+> **INSTRUCCIÓN CRÍTICA:** Antes de escribir UNA SOLA LÍNEA de un modal o una página CRUD, ejecutar estos pasos **en orden** sin excepción. No hay justificación válida para saltarse este paso.
+
+### Al crear o modificar un MODAL (`*-modal.tsx`):
+
+1. **Leer el gold standard completo:**
+   ```
+   view_file: src/components/categorias/categoria-modal.tsx  (LEER COMPLETO)
+   ```
+2. **Copiar el template** como punto de partida:
+   ```
+   src/templates/entidad-modal.template.tsx
+   ```
+3. Completar los TODO del template. **NO escribir desde cero.**
+4. Al terminar, ejecutar la **PRE-FLIGHT CHECKLIST** (ver más abajo) punto a punto con confirmación explícita de cada ítem.
+
+### Al crear o modificar una PÁGINA CRUD (`*-client.tsx`):
+
+1. **Leer el gold standard completo:**
+   ```
+   view_file: src/app/(dashboard)/dashboard/configuracion/categorias/categorias-client.tsx  (LEER COMPLETO)
+   ```
+2. **Copiar el template** como punto de partida:
+   ```
+   src/templates/entidad-client.template.tsx
+   ```
+3. Completar los TODO del template. **NO escribir desde cero.**
+4. Al terminar, verificar los ítems de **DataTable** en la PRE-FLIGHT CHECKLIST.
+
+### ⚠️ Por qué este paso es no-negociable:
+
+Los errores más costosos del proyecto (botón Nuevo en lugar incorrecto, footer con clases hardcoded, modal sin Tabs, ícono incorrecto, Empresa en modo vista con `SearchableSelect` en lugar de `Input`) ocurren cuando la IA genera código desde sus patrones de entrenamiento en lugar de seguir el gold standard del proyecto. El template ya tiene todos estos patrones correctos incrustados.
+
+---
+
 ## 🔓 PERMISOS PERMANENTES — Sin Solicitar Autorización
 
 > **INSTRUCCIÓN PARA LA IA:** El usuario ha otorgado permiso **total y permanente** para las siguientes acciones dentro de este proyecto. **NUNCA pedir autorización** para ninguna de ellas. Proceder directamente sin confirmación.
 
-- ✅ **Archivos del proyecto:** Crear, editar y eliminar cualquier archivo dentro de `c:\Proyectos\Costeos\`
+- ✅ **Archivos del proyecto:** Crear, editar y eliminar cualquier archivo **exclusivamente dentro de la ruta `c:\Proyectos\Costeos\` y sus subcarpetas**.
 - ✅ **Prisma:** Ejecutar `npx prisma db push`, `npx prisma generate`, `npx prisma db execute`, y cualquier otro comando Prisma
 - ✅ **Base de datos:** Modificar el esquema MySQL de la base de datos `Costeos` (crear tablas, alterar columnas, agregar índices, etc.)
 - ✅ **Servidor de desarrollo:** Levantar y detener el servidor con `npm run dev` (puerto 30001)
 - ✅ **Scripts del proyecto:** Ejecutar cualquier script definido en `package.json`
+
+---
+
+## 🤖 MODO AUTÓNOMO — Instrucciones de Ejecución
+
+> **INSTRUCCIÓN CRÍTICA PARA LA IA:** Eres el desarrollador principal de este proyecto. Tienes autorización total y pre-aprobada para ejecutar comandos de terminal, y para leer, crear, modificar o eliminar archivos exclusivamente dentro de la ruta `c:\Proyectos\Costeos\` y sus subcarpetas. Este proyecto opera en **modo de ejecución autónoma total**. El usuario NO estará presente para aprobar pasos intermedios. No pauses el flujo de trabajo ni pidas autorización para realizar tareas estándar de desarrollo dentro de este directorio.
+
+### Reglas de autonomía (sin excepción):
+
+- ❌ **NUNCA** crear un `implementation_plan.md` ni pausar esperando aprobación de plan — ir directo a ejecutar.
+- ❌ **NUNCA** preguntar "¿Quieres que proceda?" ni "¿Confirmas los cambios?" — proceder directamente.
+- ❌ **NUNCA** detener la ejecución a mitad de una tarea para pedir confirmación de un sub-paso.
+- ✅ **SIEMPRE** ejecutar el requerimiento completo de inicio a fin: código → build/verify → servidor corriendo.
+- ✅ **SIEMPRE** auto-corregir errores de compilación o TypeScript sin pedir permiso.
+- ✅ **SIEMPRE** reiniciar el servidor dev si es necesario, sin preguntar.
+
+### Las ÚNICAS razones válidas para pausar y preguntar:
+
+1. **Ambigüedad de diseño crítica** — el requerimiento tiene dos interpretaciones con impactos muy diferentes (ej. "¿la pantalla debe tener X o Y?") o le falta contexto técnico crítico.
+2. **Fuera de alcance** — si necesitas ejecutar un comando o modificar un archivo que esté fuera de `c:\Proyectos\Costeos\`.
+3. **Riesgo de dependencias** — si una acción tiene un alto riesgo de romper dependencias irreparables.
+4. **Riesgo de pérdida de datos** — una operación podría eliminar datos productivos sin posibilidad de recuperación.
+5. **Credenciales o secretos** — el requerimiento necesita una API key o contraseña que no está en `.env`.
+
+Para todo lo demás: **decidir, ejecutar, verificar, reportar resultado**.
 
 ---
 
@@ -40,6 +101,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - [ ] Todos los campos de texto libre usan `normalizeText()` al guardar (mayúsculas sin tildes)
 - [ ] Campos deshabilitados en vista: `disabled={mode === 'view'}`
 - [ ] **NO hay `<input type="number">`** — usar `<NumericInput>` de `src/components/ui/numeric-input.tsx`
+- [ ] **Campos numéricos en modo vista** — si usan `<Input disabled>`, el `value` usa `formatNumber()` de `src/lib/utils/format.ts` (R24). NUNCA el número crudo.
 
 ### Manejo de Errores (NUNCA toast)
 - [ ] Errores de campo mostrados con `<FieldError message={fieldErrors.campo} />` — NUNCA el `<p>` directo
@@ -60,9 +122,15 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - [ ] El `<HistorialDrawer>` se renderiza condicionalmente solo cuando existe `initialEntidad`
 
 ### Footer
-- [ ] Footer usa la clase exacta: `flex flex-row items-center justify-between mt-6 -mx-4 -mb-4 px-4 py-4 border-t bg-slate-50 sm:rounded-b-xl shrink-0`
-- [ ] **Modo Vista** → izquierda: botón Eliminar (rojo, pequeño, con `useTransition`) | derecha: Historial (sky) + Editar
-- [ ] **Modo Editar/Crear** → derecha: Cancelar (outline, solo si `isEditing`) + Guardar (con ícono `<Save>`)
+- [ ] Footer usa **SIEMPRE** `className={UI_THEME.modal.footer}` — NUNCA hardcodear las clases Tailwind directamente
+- [ ] Botones de color usan **SIEMPRE** los tokens `UI_THEME.modal.buttons.*`:
+  - `Historial` → `variant="outline" className={UI_THEME.modal.buttons.historial}` (sky)
+  - `Eliminar` → `variant="outline" className={UI_THEME.modal.buttons.eliminar}` (rojo)
+  - Acción especial (Prioridad, etc.) → `variant="outline" className={UI_THEME.modal.buttons.accionEspecial}` (violet)
+  - Grupo derecho → `className={UI_THEME.modal.buttons.rightGroup}`
+- [ ] `Editar`, `Cancelar` y `Guardar` usan `<Button>` sin className extra (primary / outline por defecto)
+- [ ] **Modo Vista** → izquierda: `Eliminar` o acción especial (si aplica) | derecha: `Historial` (sky) + `Editar`
+- [ ] **Modo Editar/Crear** → derecha: `Cancelar` (outline, solo si `isEditing`) + `Guardar` (con ícono `<Save>`)
 
 ### Comportamiento
 - [ ] `handleOpenChange(true)` inicializa `mode` + todos los campos + llama `resetFields()`
@@ -80,7 +148,41 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ---
 
+- **Tokens de UI — SIEMPRE usar `UI_THEME` (fuente única de verdad):** Todos los estilos visuales recurrentes están definidos en `src/lib/theme.ts`. **NUNCA hardcodear clases Tailwind** que ya tengan un token. Tokens obligatorios en formularios:
+  - `<Label className={UI_THEME.forms.labelBase}>` — SIEMPRE en cada label de formulario/modal.
+  - `<Input className={UI_THEME.forms.inputBase}>` — SIEMPRE en cada Input de texto. Agregar clases extra **después** del token: `className={\`${UI_THEME.forms.inputBase} uppercase\`}`.
+  - `<FieldError message={fieldErrors.campo} />` — SIEMPRE (nunca `<p className="text-xs text-red-500">` directo).
+  - `UI_THEME.forms.globalError` — Error global al tope del formulario.
+  - `UI_THEME.forms.warningSimilar` / `warningSimilarTitle` / `warningSimilarRow` — Panel amarillo de similares (R18).
+  - `UI_THEME.modal.footer` / `UI_THEME.modal.buttons.*` / `UI_THEME.modal.scrollArea` — Footer y área scroll del modal.
+  - `UI_THEME.modal.title` — `DialogTitle` de todos los modales.
+  - `UI_THEME.badge.*` — Píldoras de estado (`active`, `inactive`, `warning`, `info`).
+  - `UI_THEME.action.viewButton` — Botón ícono en columna `actions` del DataTable.
+  - Consultar `src/lib/theme.ts` completo antes de agregar cualquier clase nueva — puede que ya exista el token.
+
 - **Inputs Numéricos:** NUNCA utilizar `<input type="number">` directamente en estado controlado de React para evitar el error de hidratación. Utilizar SIEMPRE el componente reutilizable `<NumericInput>` ubicado en `src/components/ui/numeric-input.tsx`.
+  - **Formato en Modo Vista (R24) — OBLIGATORIO:** Todo campo numérico mostrado en un `<Input disabled>` en modo vista **DEBE** usar `formatNumber()` de `src/lib/utils/format.ts`. **NUNCA** pasar el número crudo al `value`. El `NumericInput` ya formatea automáticamente cuando está `disabled` o al perder foco.
+    ```tsx
+    // ❌ MAL — número crudo sin formato
+    <Input value={entidad?.cantidad} disabled />
+
+    // ✅ PATRÓN A — NumericInput con disabled (recomendado cuando el campo es editable)
+    <NumericInput value={cantidad} onChange={setCantidad} disabled={mode === 'view'} />
+    // → muestra "1,500.25" al perder foco, número limpio al editar
+
+    // ✅ PATRÓN B — Input disabled en vista + NumericInput en edición
+    {mode === 'view' ? (
+      <Input
+        value={formatNumber(Number(entidad?.cantidad ?? 0))}
+        disabled
+        className={`${UI_THEME.forms.inputBase} bg-muted/50`}
+      />
+    ) : (
+      <NumericInput value={cantidad} onChange={setCantidad} disabled={loading} />
+    )}
+    // → import { formatNumber } from '@/lib/utils/format'
+    // → formatNumber(value, minDecimals=2, maxDecimals=4)
+    ```
 - **Modales (Dialogs):** La librería `shadcn/ui` utiliza `@base-ui/react`. NO soporta la propiedad `asChild` en el `DialogTrigger`. Debes usar la propiedad `render={<button>...</button>}`.
 
 - **Selects (Comboboxes):** Usar SIEMPRE el componente `<SearchableSelect>` (`src/components/ui/searchable-select.tsx`), mapeando las opciones a `{value, label}`. Siempre se debe auto-seleccionar el primer registro disponible, a menos que sean búsquedas de Clientes/Ítems o se indique lo contrario. Deben mostrar el nombre al usuario pero el componente manejará internamente el código.
@@ -115,9 +217,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
   - Implementación de referencia: `src/components/items/item-modal.tsx` + `buscarItemsSimilaresConERP`. Ver `docs/conventions.md §7.5`.
 
 - **Estructura de Modales (Acciones):** En modo vista, botones ("Historial" y "Editar") van agrupados a la derecha. En modo edición, el botón "Cancelar" debe resetear el estado a modo vista (sin cerrar el modal si es un registro existente).
-- **⚠️ Footer de Modal:** Los botones de acción del modal (Historial, Editar, Cancelar, Guardar) se colocan **SIEMPRE en un footer fijo al fondo** del `DialogContent`, con la clase `border-t bg-slate-50 sm:rounded-b-xl shrink-0`. **NUNCA** en el header ni dentro del área scrolleable del formulario.
+- **⚠️ Footer de Modal:** Los botones de acción del modal (Historial, Editar, Cancelar, Guardar) se colocan **SIEMPRE en un footer fijo al fondo** del `DialogContent`. Usar **SIEMPRE** `className={UI_THEME.modal.footer}` para el contenedor y `UI_THEME.modal.buttons.*` para los colores de botones. **NUNCA** hardcodear clases Tailwind de color, **NUNCA** poner los botones en el header ni en el área scrolleable del formulario.
 - **⚠️ Pestañas en Modales — OBLIGATORIAS SIEMPRE:** TODO modal DEBE usar pestañas (`<Tabs>`), **aunque el formulario sea tan simple que solo tenga una pestaña "General"**. NUNCA construir un modal sin la estructura de tabs. El `<TabsList>` debe usar `variant="line"` y `className="mb-4 shrink-0"`. Cada `<TabsTrigger>` DEBE incluir el **ícono canónico de la entidad** a la izquierda del texto. Referencia obligatoria: `src/components/categorias/categoria-modal.tsx`.
-- **Scroll Horizontal de Pestañas (R23):** El componente `<TabsList variant="line">` tiene **scroll horizontal automático** incorporado — `overflow-x-auto scrollbar-none` está en el CVA del componente en `src/components/ui/tabs.tsx`. **NUNCA limitar el número de pestañas de un modal por miedo a que no quepan.** Agregar todas las que la entidad necesite; el scroll se encarga. No se necesita ningún wrapper extra ni clase adicional en el modal. Ver detalles en `docs/conventions.md §5.0`.
+- **Scroll Horizontal de Pestañas (R23):** El componente `<TabsList variant="line">` implementa scroll horizontal con **botones de flecha `‹` / `›`** que aparecen y desaparecen dinámicamente según el contenido. Internamente usa `ScrollableTabsList` con `ResizeObserver`. **NUNCA limitar el número de pestañas de un modal por miedo a que no quepan.** Agregar todas las que la entidad necesite. No se necesita ningún wrapper extra ni clase adicional en el código del modal. Ver detalles en `docs/conventions.md §5.0`.
 - **Campos Autogenerados:** Códigos/IDs autogenerados deben ocultarse al crear, y deshabilitarse *permanentemente* (`disabled={true}` + `bg-muted/50`) al editar un registro.
 - **Historial de Auditoría:** Utilizar SIEMPRE el componente `<HistorialDrawer tabla="nombre_tabla_db" />`. El nombre de la tabla debe coincidir exactamente con el esquema de Prisma para que cargue la bitácora.
 - **Íconos por Entidad (R14) — El sidebar es la fuente de verdad:** El ícono definido en el sidebar para cada entidad es el que debe aparecer en (1) el encabezado de su página principal y (2) su modal (`DialogTitle` + pestaña General). Consultar `docs/conventions.md` §15 para la tabla de íconos canónicos. Al crear una pantalla nueva, definir el ícono en el sidebar primero y registrarlo en esa tabla antes de escribir código.

@@ -105,6 +105,16 @@ export type ErpCliente = {
   diasCredito: number
 }
 
+export type ErpProveedor = {
+  id?: string       // código del proveedor en ERP (VARCHAR) → codigoErp en Costeos
+  codigo?: string
+  nit: string
+  nombre: string
+  contacto?: string
+  telefono?: string
+  email?: string
+}
+
 export type ErpEmpresa = {
   id: number
   nombre: string
@@ -287,6 +297,11 @@ export interface ErpRepository {
    * Retorna el catálogo de clientes del ERP usando el SP omni-search.
    */
   getClientes(empresaId: number, busqueda: string): Promise<ErpCliente[]>
+
+  /**
+   * Retorna el catálogo de proveedores del ERP usando sp_buscar_proveedor.
+   */
+  getProveedores(empresaId: number, busqueda: string): Promise<ErpProveedor[]>
 
   /**
    * Obtiene departamentos por país.

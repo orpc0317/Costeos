@@ -1,0 +1,143 @@
+## ============================================================
+## PLANTILLA: ITEMS (Items Primarios y Items de Combo)
+## Costeador - Sistema de Costeos
+## ============================================================
+##
+## INSTRUCCIONES:
+## 1. Elimina estas líneas de comentario (##) antes de importar.
+## 2. NO modifiques los nombres de columnas de la fila de encabezado.
+## 3. Los campos marcados con * son OBLIGATORIOS.
+## 4. Guarda como CSV con codificación UTF-8.
+##
+## VALORES VÁLIDOS:
+##
+## empresa_id: 1=WACKTRON | 3=WAGSA
+##
+## tipo_item:
+##   1 = Producto          (tipo_producto siempre 0)
+##   2 = Generico          (tipo_producto siempre 1)
+##   3 = Servicio          (tipo_producto: 0=Estandar | 1=Outsourcing)
+##   4 = Equipo            (tipo_producto siempre 1)
+##   5 = Financiero        (tipo_producto siempre 0)
+##   6 = Bono              (tipo_producto siempre 0)
+##
+## tipo_producto: Solo aplica cuando tipo_item=3 (Servicio)
+##   0 = Estandar
+##   1 = Outsourcing
+##   Para otros tipos_item, deja en blanco o 0 (se ignora)
+##
+## categoria_id (WAGSA / empresa_id=3):
+##   1 = RECURSOS HUMANOS
+##   2 = SALARIOS
+##   3 = BONOS
+##   4 = ARMAMENTO
+##   5 = UNIFORME
+##   WACKTRON: categorías deben crearse en la UI primero.
+##
+## manejo_costos:
+##   1  = Compras (cotización de proveedor)
+##   2  = Manual  (se carga en plantilla_costos_manuales.csv)
+##   3  = Referencia (% del costo de otro item — ver plantilla_costos_referencia.csv)
+##   4  = Solicitar Usuario
+##   5  = Tabla Item
+##   99 = No Aplica (la mayoría de items de Recursos Humanos)
+##
+## cotizacion_scope (solo si manejo_costos=1):
+##   GENERAL     = una solicitud por item (compartida)
+##   POR_PROYECTO= una solicitud por item+costeo
+##
+## venta, recurrente, recurrente_gasto, precio_venta_cero, uniforme, perfil, tipo, activo:
+##   0 = No  |  1 = Sí
+##
+## tipo_combo_id (WAGSA):
+##   5 = UNIFORME
+##   6 = EQUIPO SEGURIDAD
+##   (dejar vacío si no aplica)
+##
+## costo_referencia_item_id: Solo si manejo_costos=3.
+##   Pon el ID del item cuyo costo se usará como base.
+##   El item referencia debe existir antes de importar este item.
+##
+## ============================================================
+empresa_id,descripcion,unidad_medida,tipo_item,tipo_producto,categoria_id,venta,recurrente,recurrente_gasto,manejo_costos,cotizacion_scope,por_costeo,precio_venta_cero,uniforme,perfil,tipo,activo,codigo_erp,tipo_combo_id,costo_referencia_item_id
+3,OFICIAL DE SEGURIDAD DIURNO,PERSONA,3,1,1,1,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,OFICIAL DE SEGURIDAD NOCTURNO,PERSONA,3,1,1,1,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,OFICIAL DE SEGURIDAD FERIADO,PERSONA,3,1,1,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,OFICIAL DE SEGURIDAD MIXTO,PERSONA,3,1,1,1,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,COORDINADOR DE AREA,PERSONA,3,1,1,1,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,COORDINADOR SENIOR,PERSONA,3,1,1,1,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,SUPERVISOR GENERAL,PERSONA,3,1,1,1,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,JEFE DE GRUPOS,PERSONA,3,1,1,1,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,JEFE OPERATIVO,PERSONA,3,1,1,1,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,AGENTE K9,PERSONA,3,1,1,1,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,AGENTE K9 NOCTURNO,PERSONA,3,1,1,1,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,OFICIAL VIP,PERSONA,3,1,1,1,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,ESCOLTA EJECUTIVO,PERSONA,3,1,1,1,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,GUARDIAN ELECTRONICO,SERVICIO,3,1,1,1,0,0,99,GENERAL,0,0,0,0,0,1,,
+3,MONITOREO CCTV 24H,SERVICIO,3,1,1,1,0,0,99,GENERAL,0,0,0,0,0,1,,
+3,MONITOREO ALARMAS,SERVICIO,3,1,1,0,0,0,99,GENERAL,0,0,0,0,0,1,,
+3,RESPUESTA MOVIL,SERVICIO,3,0,1,1,0,0,99,GENERAL,0,0,0,0,0,1,,
+3,PATRULLAJE VEHICULAR,SERVICIO,3,0,1,1,0,0,99,GENERAL,0,0,0,0,0,1,,
+3,CUSTODIA DE VALORES,SERVICIO,3,1,1,1,0,0,99,GENERAL,0,0,0,0,0,1,,
+3,TRANSPORTE SEGURO,SERVICIO,3,1,1,1,0,0,99,GENERAL,0,0,0,0,0,1,,
+3,SALARIO BASE OFICIAL,PERSONA,3,0,2,0,1,0,2,GENERAL,0,0,0,0,0,1,,
+3,SALARIO BASE COORDINADOR,PERSONA,3,0,2,0,1,0,2,GENERAL,0,0,0,0,0,1,,
+3,SALARIO BASE SUPERVISOR,PERSONA,3,0,2,0,1,0,2,GENERAL,0,0,0,0,0,1,,
+3,BONO PRODUCCION,PAGO,6,0,3,0,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,BONO ASISTENCIA,PAGO,6,0,3,0,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,BONO ANTIGUEDAD,PAGO,6,0,3,0,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,BONO NOCTURNO,PAGO,6,0,3,0,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,CUOTA IGSS PATRONAL,PAGO,5,0,2,0,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,CUOTA IRTRA PATRONAL,PAGO,5,0,2,0,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,CUOTA INTECAP PATRONAL,PAGO,5,0,2,0,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,INDEMNIZACION,PAGO,5,0,2,0,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,VACACIONES,PAGO,5,0,2,0,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,BONO 14,PAGO,5,0,2,0,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,AGUINALDO,PAGO,5,0,2,0,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,REVOLVER CALIBRE 38,UNIDAD,1,0,4,0,0,0,1,GENERAL,0,0,0,0,0,1,,
+3,PISTOLA 9MM,UNIDAD,1,0,4,0,0,0,1,GENERAL,0,0,0,0,0,1,,
+3,ESCOPETA CALIBRE 12,UNIDAD,1,0,4,0,0,0,1,GENERAL,0,0,0,0,0,1,,
+3,HOLSTER PARA REVOLVER,UNIDAD,1,0,4,0,0,0,1,GENERAL,0,0,0,0,0,1,,
+3,CARGADOR EXTRA PISTOLA,UNIDAD,1,0,4,0,0,0,1,GENERAL,0,0,0,0,0,1,,
+3,RADIO PORTATIL,UNIDAD,4,1,4,0,0,0,1,GENERAL,0,0,0,0,0,1,,
+3,RADIO MOVIL VEHICULAR,UNIDAD,4,1,4,0,0,0,1,GENERAL,0,0,0,0,0,1,,
+3,VEHICULO PATRULLA,UNIDAD,4,1,4,0,0,0,3,GENERAL,0,0,0,0,0,1,,
+3,MOTOCICLETA,UNIDAD,4,1,4,0,0,0,3,GENERAL,0,0,0,0,0,1,,
+3,CAMISA BEIGE OFICIAL,UNIDAD,1,0,5,0,0,0,1,GENERAL,0,0,1,0,0,1,,
+3,PANTALON NEGRO OFICIAL,UNIDAD,1,0,5,0,0,0,1,GENERAL,0,0,1,0,0,1,,
+3,BOTAS NEGRAS PUNTA ACERO,PAR,1,0,5,0,0,0,1,GENERAL,0,0,1,0,0,1,,
+3,CINTURON NEGRO,UNIDAD,1,0,5,0,0,0,1,GENERAL,0,0,1,0,0,1,,
+3,GORRA LOGOTIPO,UNIDAD,1,0,5,0,0,0,1,GENERAL,0,0,1,0,0,1,,
+3,CHALECO ANTIBALAS NIJ III,UNIDAD,1,0,5,0,0,0,1,GENERAL,0,0,0,0,0,1,,
+3,CHALECO TACTICO,UNIDAD,1,0,5,0,0,0,1,GENERAL,0,0,0,0,0,1,,
+3,BASTON POLICIAL,UNIDAD,1,0,4,0,0,0,1,GENERAL,0,0,0,0,0,1,,
+3,ESPOSAS ACERO,UNIDAD,1,0,4,0,0,0,1,GENERAL,0,0,0,0,0,1,,
+3,LINTERNA TACTICA,UNIDAD,4,1,4,0,0,0,1,GENERAL,0,0,0,0,0,1,,
+3,CELULAR SERVICIO,UNIDAD,4,1,4,0,0,0,2,GENERAL,0,0,0,0,0,1,,
+3,COMPUTADORA MONITOREO,UNIDAD,4,1,4,0,0,0,3,GENERAL,0,0,0,0,0,1,,
+3,CAMARA CCTV EXTERIOR,UNIDAD,4,1,4,0,0,0,1,GENERAL,0,0,0,0,0,1,,
+3,DVR 16 CANALES,UNIDAD,4,1,4,0,0,0,1,GENERAL,0,0,0,0,0,1,,
+3,ALARMA CENTRAL MONITOREO,UNIDAD,4,1,4,0,0,0,1,GENERAL,0,0,0,0,0,1,,
+3,UPS 1000VA,UNIDAD,4,1,4,0,0,0,1,GENERAL,0,0,0,0,0,1,,
+3,PERRO ENTRENADO K9,UNIDAD,4,1,4,0,0,0,2,GENERAL,0,0,0,0,0,1,,
+3,ALIMENTO PERRO K9,KG,1,0,4,0,1,0,2,GENERAL,0,0,0,0,0,1,,
+3,MANTENIMIENTO VEHICULO,SERVICIO,3,0,4,0,0,1,2,GENERAL,0,0,0,0,0,1,,
+3,COMBUSTIBLE PATRULLA,GALON,1,0,4,0,0,1,2,GENERAL,0,0,0,0,0,1,,
+3,SEGURO VEHICULO,PAGO,5,0,4,0,1,0,1,GENERAL,0,0,0,0,0,1,,
+3,SEGURO VIDA COLECTIVO,PAGO,5,0,2,0,1,0,1,GENERAL,0,0,0,0,0,1,,
+3,ALQUILER GARITA,SERVICIO,3,0,1,0,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,ALQUILER OFICINA OPERATIVA,SERVICIO,3,0,1,0,1,0,99,GENERAL,0,0,0,0,0,1,,
+3,SERVICIO MEDICO EMPRESA,SERVICIO,3,0,2,0,1,0,1,GENERAL,0,0,0,0,0,1,,
+3,CAPACITACION ANUAL,SERVICIO,3,0,2,0,0,0,1,GENERAL,0,0,0,0,0,1,,
+3,EXAMEN PSICOLOGICO,SERVICIO,3,0,2,0,0,0,2,GENERAL,0,0,0,0,0,1,,
+3,GASTOS ADMINISTRATIVOS,SERVICIO,3,0,2,0,0,0,99,GENERAL,0,0,0,0,0,1,,
+1,TECNICO ELECTRONICO SR,PERSONA,3,0,,1,1,0,99,GENERAL,0,0,0,0,0,1,,
+1,TECNICO ELECTRONICO JR,PERSONA,3,0,,1,1,0,99,GENERAL,0,0,0,0,0,1,,
+1,INSTALADOR SISTEMAS,PERSONA,3,0,,1,1,0,99,GENERAL,0,0,0,0,0,1,,
+1,TECNICO REDES,PERSONA,3,0,,1,1,0,99,GENERAL,0,0,0,0,0,1,,
+1,INGENIERO DE SOPORTE,PERSONA,3,0,,1,1,0,99,GENERAL,0,0,0,0,0,1,,
+1,COORDINADOR TI,PERSONA,3,0,,1,1,0,99,GENERAL,0,0,0,0,0,1,,
+1,SOPORTE HELP DESK,PERSONA,3,0,,1,1,0,99,GENERAL,0,0,0,0,0,1,,
+1,MONITOREO NOC 24H,SERVICIO,3,1,,1,0,0,99,GENERAL,0,0,0,0,0,1,,
+1,INSTALACION FIBRA OPTICA,SERVICIO,3,0,,1,0,0,1,GENERAL,0,0,0,0,0,1,,
+1,MANTENIMIENTO PREVENTIVO TI,SERVICIO,3,0,,1,0,0,1,GENERAL,0,0,0,0,0,1,,

@@ -466,8 +466,8 @@ export function MiEntidadModal({ miEntidad, trigger }: MiEntidadModalProps) {
               </div>
             </Tabs>
 
-            {/* ── Footer fijo — CLASE EXACTA, no modificar ──────────────── */}
-            <div className="flex flex-row items-center justify-between mt-6 -mx-4 -mb-4 px-4 py-4 border-t bg-slate-50 sm:rounded-b-xl shrink-0">
+            {/* ── Footer fijo — usar SIEMPRE UI_THEME.modal.footer ──────────── */}
+            <div className={UI_THEME.modal.footer}>
 
               {/* Izquierda — Eliminar (solo en modo vista, registro existente) */}
               <div>
@@ -489,7 +489,7 @@ export function MiEntidadModal({ miEntidad, trigger }: MiEntidadModalProps) {
               </div>
 
               {/* Derecha — botones de acción según modo */}
-              <div className="flex gap-2 justify-end">
+              <div className={UI_THEME.modal.buttons.rightGroup}>
 
                 {/* Modo Vista → Historial (sky) + Editar */}
                 {mode === 'view' && (
@@ -498,7 +498,7 @@ export function MiEntidadModal({ miEntidad, trigger }: MiEntidadModalProps) {
                       <Button
                         type="button"
                         variant="outline"
-                        className="bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 hover:text-sky-800"
+                        className={UI_THEME.modal.buttons.historial}
                         onClick={() => setHistorialOpen(true)}
                       >
                         <History className="mr-2 h-4 w-4" /> Historial

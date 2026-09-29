@@ -15,7 +15,7 @@ import type { ErpTurno, ErpServicioVenta, ErpDireccionOperativa } from '@/lib/er
 
 import { AddressLookupModal } from './modals/AddressLookupModal';
 import { Search } from 'lucide-react';
-import { MapPin, Settings2, Calculator, Trash2, CornerUpRight, Gift, Layers } from 'lucide-react';
+import { MapPin, Settings2, Calculator, Trash2, CornerUpRight, Gift, Layers, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { RecursosSummaryTable } from './RecursosSummaryTable';
 import { ConfirmDeleteDialog } from './modals/ConfirmDeleteDialog';
 import { MoveNodeDialog } from './modals/MoveNodeDialog';
@@ -29,6 +29,10 @@ import type { ItemRow } from '@/lib/types/items';
 import type { TipoComboRHRow } from '@/lib/types/tipos-combo-rh';
 import { buildCombosDisponibles } from '@/lib/utils/combos';
 import { FieldError } from '@/components/ui/field-error';
+import { resolverCostosProyecto, type ItemParaCostear } from '@/app/actions/costear';
+import { SolicitarCostosModal, type ItemSolicitarCosto } from './modals/SolicitarCostosModal';
+import { FuenteCostoPanel } from './FuenteCostoPanel';
+
 
 const OPCIONES_CUBRE_DESCANSO = [
   { value: '0', label: '0 - No Aplica' },
@@ -402,6 +406,145 @@ export default function EditorPanel() {
   // undefined = derivado de si ya existe un recurso hijo; true/false = elección explícita del usuario
   const [combosOptIncluidos, setCombosOptIncluidos] = useState<Record<number, boolean | undefined>>({});
 
+  // ── Estado del proceso Costear ────────────────────────────────────────────
+  type CostearEstado = 'idle' | 'loading' | 'solicitando' | 'done' | 'error';
+  const [costearEstado, setCostearEstado] = useState<CostearEstado>('idle');
+  const [costearResultado, setCostearResultado] = useState<{
+    sinCosto: { itemId: number; nombre: string; motivo: string }[];
+  } | null>(null);
+  const [itemsSolicitar, setItemsSolicitar] = useState<ItemSolicitarCosto[]>([]);
+  const [pendingItems, setPendingItems] = useState<ItemParaCostear[]>([]);
+
+  /**
+   * Recopila todos los ítems únicos del árbol del proyecto con su manejoCostos.
+   */
+  const recopilarItemsDelArbol = (): ItemParaCostear[] => {
+    if (!proyecto) return [];
+    const mapaItems = new Map<number, ItemParaCostear>();
+
+    const procesarRecurso = (r: RecursoCosteo) => {
+      if (!mapaItems.has(r.itemId)) {
+        // Buscar en el catálogo para obtener manejoCostos y costoReferenciaItemId
+        const itemCatalogo = catalogoItems.find(i => i.id === r.itemId);
+        mapaItems.set(r.itemId, {
+          itemId:               r.itemId,
+          manejoCostos:         itemCatalogo?.manejoCostos ?? 0,
+          costoReferenciaItemId: itemCatalogo?.costoReferenciaItemId ?? null,
+          cotizacionScope:      itemCatalogo?.cotizacionScope ?? 'GENERAL',
+          porCosteo:            itemCatalogo?.porCosteo ?? 0,
+        });
+      }
+    };
+
+    const walkNodos = (nodos: NodoCosteo[]) => {
+      for (const n of nodos) {
+        n.recursos.forEach(procesarRecurso);
+        walkNodos(n.nodos);
+      }
+    };
+
+    proyecto.recursos.forEach(procesarRecurso);
+    walkNodos(proyecto.nodos);
+
+    return Array.from(mapaItems.values());
+  };
+
+  /**
+   * Recopila los ítems "Solicitar Usuario" (manejoCostos=4) que tienen costo=0
+   * en TODOS los recursos del árbol. Si un ítem tiene al menos un recurso con
+   * costo>0, no se solicita (ya fue ingresado antes).
+   */
+  const recopilarItemsSolicitarSinCosto = (items: ItemParaCostear[]): ItemSolicitarCosto[] => {
+    if (!proyecto) return [];
+
+    // Mapa itemId → { costoMax, cantidadTotal }
+    const itemStats = new Map<number, { costoMax: number; cantidadTotal: number }>();
+
+    const procesarRecurso = (r: RecursoCosteo) => {
+      const itemCatalogo = catalogoItems.find(i => i.id === r.itemId);
+      if (itemCatalogo?.manejoCostos !== 4) return;
+      const prev = itemStats.get(r.itemId) ?? { costoMax: 0, cantidadTotal: 0 };
+      itemStats.set(r.itemId, {
+        costoMax:       Math.max(prev.costoMax, r.costoUnitario ?? 0),
+        cantidadTotal:  prev.cantidadTotal + (r.cantidad ?? 1),
+      });
+    };
+
+    const walkNodos = (nodos: NodoCosteo[]) => {
+      for (const n of nodos) {
+        n.recursos.forEach(procesarRecurso);
+        walkNodos(n.nodos);
+      }
+    };
+    proyecto.recursos.forEach(procesarRecurso);
+    walkNodos(proyecto.nodos);
+
+    return items
+      .filter(i => i.manejoCostos === 4)
+      .map(i => {
+        const stats   = itemStats.get(i.itemId);
+        const nombre  = catalogoItems.find(c => c.id === i.itemId)?.descripcion ?? `Ítem ${i.itemId}`;
+        return {
+          itemId:      i.itemId,
+          nombre,
+          cantidad:    stats?.cantidadTotal ?? 0,
+          costoActual: stats?.costoMax ?? 0,
+        };
+      })
+      // Solo los que tienen costoActual=0 (nunca se ingresó)
+      .filter(i => i.costoActual === 0);
+  };
+
+  /**
+   * Ejecuta el proceso de costeo completo.
+   * Si hay ítems "Solicitar" sin costo, primero muestra el modal.
+   */
+  const handleCostear = async (costosSolicitar: Record<number, number> = {}) => {
+    if (!proyecto) return;
+
+    const allItems = recopilarItemsDelArbol();
+
+    // Si aún no hemos preguntado por los ítems Solicitar, detectar y preguntar
+    if (Object.keys(costosSolicitar).length === 0) {
+      const solicitarSinCosto = recopilarItemsSolicitarSinCosto(allItems);
+      if (solicitarSinCosto.length > 0) {
+        setItemsSolicitar(solicitarSinCosto);
+        setPendingItems(allItems);
+        setCostearEstado('solicitando');
+        return; // Esperar la respuesta del modal
+      }
+    }
+
+    // Ejecutar el costeo
+    setCostearEstado('loading');
+    setCostearResultado(null);
+
+    try {
+      const costeoId = parseInt(proyecto.id, 10);
+      const result = await resolverCostosProyecto(costeoId, allItems, costosSolicitar);
+
+      if (!result.ok) {
+        setCostearEstado('error');
+        return;
+      }
+
+      // Actualizar todos los costos en el árbol de una sola vez
+      dispatch({ type: 'ACTUALIZAR_COSTOS_MASIVO', payload: result.data.costosResueltos });
+
+      setCostearResultado({ sinCosto: result.data.sinCosto });
+      setCostearEstado('done');
+
+      // Resetear el estado después de 8 segundos
+      setTimeout(() => {
+        setCostearEstado('idle');
+        setCostearResultado(null);
+      }, 8000);
+    } catch (err) {
+      console.error('[handleCostear] Error:', err);
+      setCostearEstado('error');
+    }
+  };
+
   // Uniformes: ítems del catálogo Costeos con bandera uniforme=1 (derivado, sin llamada ERP)
   // Mantenido para compatibilidad con costeos viejos que usan uniformeCodigo
   const uniformesItems = catalogoItems.filter(i => i.uniforme === 1);
@@ -603,6 +746,103 @@ export default function EditorPanel() {
                     />
                   </div>
                 </div>
+
+                {/* ── Sección Costear ────────────────────────────────────── */}
+                <div className="pt-4 border-t mt-2">
+                  <div className="flex items-center mb-3 min-h-[24px]">
+                    <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-wider border-l-2 border-indigo-500 pl-2 leading-none">
+                      COSTEO
+                    </h3>
+                    <div className="flex-1 border-t border-indigo-200 ml-3 mt-0.5" />
+                  </div>
+
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Ejecuta el proceso de costeo del proyecto. El sistema buscará y actualizará
+                    el costo unitario de cada ítem según su configuración de manejo de costos.
+                  </p>
+
+                  <div className="flex items-center gap-3">
+                    <Button
+                      onClick={() => handleCostear()}
+                      disabled={costearEstado === 'loading'}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                    >
+                      {costearEstado === 'loading' ? (
+                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Costeando...</>
+                      ) : (
+                        <><Calculator className="h-4 w-4 mr-2" />Costear Proyecto</>
+                      )}
+                    </Button>
+
+                    {costearEstado === 'done' && costearResultado && (
+                      <span className="flex items-center gap-1.5 text-sm font-medium text-emerald-600">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Costeo completado
+                      </span>
+                    )}
+
+                    {costearEstado === 'error' && (
+                      <span className="flex items-center gap-1.5 text-sm font-medium text-red-600">
+                        <AlertCircle className="h-4 w-4" />
+                        Error al costear
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Panel de resultados: ítems sin costo */}
+                  {costearEstado === 'done' && costearResultado && costearResultado.sinCosto.length > 0 && (
+                    <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                        <p className="text-sm font-medium text-amber-700">
+                          {costearResultado.sinCosto.length} ítem{costearResultado.sinCosto.length !== 1 ? 's' : ''} sin costo
+                        </p>
+                      </div>
+                      <ul className="space-y-0.5 max-h-32 overflow-y-auto">
+                        {costearResultado.sinCosto.map(item => (
+                          <li key={item.itemId} className="text-xs text-amber-700 flex gap-2">
+                            <span className="font-medium truncate">{item.nombre}</span>
+                            <span className="text-amber-500 shrink-0">— {item.motivo}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {costearEstado === 'done' && costearResultado && costearResultado.sinCosto.length === 0 && (
+                    <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-md">
+                      <p className="text-sm text-emerald-700 flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 shrink-0" />
+                        Todos los ítems tienen costo asignado.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Modal Solicitar Costos — se monta aquí en el árbol del componente */}
+                <SolicitarCostosModal
+                  open={costearEstado === 'solicitando'}
+                  items={itemsSolicitar}
+                  onConfirm={(costos) => {
+                    setCostearEstado('idle');
+                    // Continuar el proceso con los costos proporcionados por el usuario
+                    // Usamos pendingItems para no recompilar el árbol (evitar inconsistencia)
+                    void (async () => {
+                      setCostearEstado('loading');
+                      setCostearResultado(null);
+                      try {
+                        const costeoId = parseInt(proyecto.id, 10);
+                        const result = await resolverCostosProyecto(costeoId, pendingItems, costos);
+                        if (!result.ok) { setCostearEstado('error'); return; }
+                        dispatch({ type: 'ACTUALIZAR_COSTOS_MASIVO', payload: result.data.costosResueltos });
+                        setCostearResultado({ sinCosto: result.data.sinCosto });
+                        setCostearEstado('done');
+                        setTimeout(() => { setCostearEstado('idle'); setCostearResultado(null); }, 8000);
+                      } catch { setCostearEstado('error'); }
+                    })();
+                  }}
+                  onCancel={() => setCostearEstado('idle')}
+                />
               </TabsContent>
               
               <TabsContent value="resumen" className="outline-none">
@@ -624,6 +864,8 @@ export default function EditorPanel() {
           </div>
           </div>
         )}
+
+
 
         {selectedNode.type === 'NODO' && (
           <div className="p-6 pt-4 overflow-y-auto h-full w-full">
@@ -1047,6 +1289,16 @@ export default function EditorPanel() {
                 </div>
               </div>
             </div>
+
+            {/* ── FUENTE COSTO ─────────────────────────────────────────────────
+                Visible para cualquier recurso que tenga itemId definido         */}
+            {nodeData.itemId > 0 && (
+              <FuenteCostoPanel
+                itemId={nodeData.itemId}
+                costeoId={parseInt(proyecto.id, 10)}
+                costoActual={nodeData.costoUnitario ?? 0}
+              />
+            )}
 
             <div className="space-y-2 max-w-[460px] mt-4">
             {nodeData.recetas && nodeData.recetas.length > 0 && (

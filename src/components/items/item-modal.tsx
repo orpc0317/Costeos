@@ -75,6 +75,8 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
   const [recurrente, setRecurrente] = useState(false)
   const [recurrenteGasto, setRecurrenteGasto] = useState(false)
   const [manejoCostos, setManejoCostos] = useState<string>('99')
+  const [cotizacionScope, setCotizacionScope] = useState<string>('GENERAL')
+  const [porCosteo, setPorCosteo] = useState<boolean>(false)
   const [costoReferenciaItemId, setCostoReferenciaItemId] = useState<string>('')
   // Contador de registros en costeo_item_costo_ref — controla la inmutabilidad del ítem de referencia
   const [contadorCostosRef, setContadorCostosRef] = useState<number>(0)
@@ -120,6 +122,8 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
     setFieldErrors({})
     setGlobalError(null)
     setSimilares([])
+    setCotizacionScope(tc?.cotizacionScope ?? 'GENERAL')
+    setPorCosteo(tc ? Boolean(tc.porCosteo) : false)
     setTiposComboAsocs(tc?.tiposCombo?.map(t => ({ tipoComboId: t.tipoComboId, obligatorio: t.obligatorio })) ?? [])
 
     // ── Cargar empresas ───────────────────────────────────────────────────────
@@ -172,6 +176,13 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
     if (fijo !== null) setTipoProducto(String(fijo))
   }, [tipoItem])
 
+  // Items Genéricos (tipoItem=2): Manejo Costos siempre = Solicitar Usuario (4)
+  useEffect(() => {
+    if (Number(tipoItem) === 2) {
+      setManejoCostos('4')
+    }
+  }, [tipoItem])
+
 
   // Lista de categorías filtrada por empresa y ordenada alfabéticamente.
   // fallback false: si aún no hay empresa seleccionada no se muestra ninguna categoría.
@@ -197,6 +208,8 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
     setRecurrente(data ? Boolean(data.recurrente) : false)
     setRecurrenteGasto(data ? Boolean(data.recurrenteGasto) : false)
     setManejoCostos(data ? String(data.manejoCostos) : '99')
+    setCotizacionScope(data?.cotizacionScope ?? 'GENERAL')
+    setPorCosteo(data ? Boolean(data.porCosteo) : false)
     setTipo(data ? Boolean(data.tipo) : false)
     setPerfil(data ? Boolean(data.perfil) : false)
     setUniforme(data ? Boolean(data.uniforme) : false)
@@ -360,6 +373,8 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
       recurrente,
       recurrenteGasto,
       manejoCostos: Number(manejoCostos),
+      cotizacionScope: manejoCostos === '1' ? cotizacionScope : 'GENERAL',
+      porCosteo: manejoCostos === '1' ? (porCosteo ? 1 : 0) : 0,
       costoReferenciaItemId: manejoCostos === '3' && costoReferenciaItemId
         ? parseInt(costoReferenciaItemId, 10)
         : null,
@@ -943,16 +958,58 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                       <div className="flex flex-col gap-1.5 col-span-1">
                         <Label htmlFor="manejoCostos">
                           Manejo Costos
+                          {Number(tipoItem) === 2 && (
+                            <span className="ml-1.5 text-[10px] bg-amber-100 text-amber-700 border border-amber-200 rounded px-1 py-0.5 font-semibold align-middle">
+                              Forzado
+                            </span>
+                          )}
                         </Label>
                         <SearchableSelect
                           options={MANEJO_COSTOS_OPCIONES}
                           value={manejoCostos}
                           onChange={setManejoCostos}
-                          disabled={mode === 'view'}
+                          disabled={mode === 'view' || Number(tipoItem) === 2}
                           searchable={false}
                         />
                         <FieldError message={fieldErrors.manejoCostos} />
+                        {Number(tipoItem) === 2 && (
+                          <p className="text-xs text-amber-700 mt-0.5">
+                            Los ítems Genéricos siempre usan "Solicitar Usuario".
+                          </p>
+                        )}
+                        {/* Por Costeo — siempre visible, solo editable cuando manejoCostos = Compras */}
+                        <div className="flex items-center gap-2 mt-1">
+                          <Checkbox
+                            id="porCosteo"
+                            checked={manejoCostos === '1' && porCosteo}
+                            onCheckedChange={checked => setPorCosteo(checked as boolean)}
+                            disabled={mode === 'view' || manejoCostos !== '1'}
+                          />
+                          <Label
+                            htmlFor="porCosteo"
+                            className={`font-normal ${manejoCostos === '1' && mode !== 'view' ? 'cursor-pointer' : 'cursor-default text-muted-foreground'}`}
+                          >
+                            Por Costeo
+                          </Label>
+                        </div>
                       </div>
+
+                      {/* ─── Scope Cotización — solo visible cuando manejoCostos = Compras (1) ─── */}
+                      {manejoCostos === '1' && (
+                        <div className="col-span-1 flex flex-col gap-1.5">
+                          <Label className={UI_THEME.forms.labelBase}>Scope Cotización</Label>
+                          <SearchableSelect
+                            options={[
+                              { value: 'GENERAL',      label: 'General' },
+                              { value: 'POR_PROYECTO', label: 'Por Proyecto' },
+                            ]}
+                            value={cotizacionScope}
+                            onChange={setCotizacionScope}
+                            disabled={mode === 'view'}
+                            searchable={false}
+                          />
+                        </div>
+                      )}
 
                       {/* ─── Panel Ítem de Referencia — solo visible cuando manejoCostos = Referencia ─── */}
                       {manejoCostos === '3' && (
@@ -1141,7 +1198,9 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
               </Tabs>
 
               {/* ── FOOTER FIJO ── */}
-              <div className="flex flex-row items-center justify-between mt-6 -mx-4 -mb-4 sm:-mx-6 sm:-mb-6 px-4 sm:px-6 py-3 border-t border-slate-200 bg-white sm:rounded-b-xl shrink-0">
+              {/* Nota: sm:-mx-6 sm:-mb-6 sm:px-6 extienden UI_THEME.modal.footer
+                  porque este DialogContent usa sm:p-6 (padding mayor al estándar sm:p-4) */}
+              <div className={`${UI_THEME.modal.footer} sm:-mx-6 sm:-mb-6 sm:px-6`}>
                 {/* Botón Atrás (solo para nuevo ítem en paso 2) */}
                 <div>
                   {!isEditing && (
@@ -1155,13 +1214,13 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                     </Button>
                   )}
                 </div>
-                <div className="flex gap-2 justify-end">
+                <div className={UI_THEME.modal.buttons.rightGroup}>
                   {mode === 'view' && (
                     <>
                       <Button
                         type="button"
                         variant="outline"
-                        className="bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 hover:text-sky-800"
+                        className={UI_THEME.modal.buttons.historial}
                         onClick={() => setHistorialOpen(true)}
                       >
                         <History className="mr-2 h-4 w-4" /> Historial

@@ -26,6 +26,8 @@ export const itemSchema = z.object({
   recurrente:             z.boolean().default(false),
   recurrenteGasto:        z.boolean().default(false),
   manejoCostos:           z.coerce.number().default(99),
+  cotizacionScope:        z.string().default('GENERAL'),
+  porCosteo:              z.coerce.number().min(0).max(1).default(0),
   costoReferenciaItemId:  z.coerce.number().nullable().optional(),
   tipo:                   z.boolean().default(false),
   perfil:                 z.boolean().default(false),
@@ -78,6 +80,8 @@ export type ItemRow = {
   recurrente:                  number
   recurrenteGasto:             number
   manejoCostos:                number
+  cotizacionScope:             string
+  porCosteo:                   number
   costoReferenciaItemId?:      number | null
   costoReferenciaDescripcion?: string | null
   tipo:                        number

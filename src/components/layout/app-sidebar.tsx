@@ -16,6 +16,9 @@ import {
   Tags,
   Package,
   Layers,
+  Truck,
+  ShoppingCart,
+  ClipboardList,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -32,6 +35,15 @@ const navItems = [
     icon: Calculator,
   },
   {
+    label: 'COMPRAS',
+    href: '/dashboard/compras',
+    icon: ShoppingCart,
+    children: [
+      { label: 'Solicitudes',  href: '/dashboard/compras/solicitudes',  icon: ClipboardList },
+      { label: 'Cotizaciones', href: '/dashboard/compras/cotizaciones', icon: FileText },
+    ],
+  },
+  {
     label: 'CONTRATOS',
     href: '/dashboard/contratos',
     icon: FileText,
@@ -43,6 +55,7 @@ const navItems = [
     children: [
       { label: 'Empresas',     href: '/dashboard/configuracion/empresas',     icon: Building2 },
       { label: 'Clientes',     href: '/dashboard/configuracion/clientes',     icon: UserRound },
+      { label: 'Proveedores',  href: '/dashboard/configuracion/proveedores',  icon: Truck },
 
       { label: 'Tipos Costeo', href: '/dashboard/configuracion/tipos-costeo', icon: Network },
       { label: 'Categorias',   href: '/dashboard/configuracion/categorias',   icon: Tags },

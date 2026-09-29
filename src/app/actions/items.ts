@@ -523,6 +523,8 @@ export async function autoCrearItemDesdeERP(
     recurrente:      opcion.erpRecurrente ?? false,
     recurrenteGasto: false,
     manejoCostos:    opcion.erpManejoCostos ?? 99,
+    cotizacionScope: 'GENERAL',
+    porCosteo:       0,
     tipo:            false,
     perfil:          opcion.erpPerfil ?? false,
     uniforme:        opcion.erpUniforme ?? false,

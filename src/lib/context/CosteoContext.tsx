@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { createContext, useContext, useReducer, useRef, ReactNode, useMemo } from 'react';
 import { ProyectoCosteo, NodoCosteo, RecursoCosteo } from '../types/costeos';
@@ -16,7 +16,10 @@ export type CosteoAction =
   | { type: 'SELECT_NODE'; payload: { type: 'NODO' | 'RECURSO' | 'PROYECTO'; id: string } }
   | { type: 'REPLACE_IDS'; payload: { nodos: Record<string, string>; recursos: Record<string, string> } }
   | { type: 'MOVE_NODO'; payload: { id: string; newParentId: string | null } }
-  | { type: 'MOVE_RECURSO'; payload: { id: string; newParentId: string | null } };
+  | { type: 'MOVE_RECURSO'; payload: { id: string; newParentId: string | null } }
+  /** Actualiza costoUnitario masivamente para todos los recursos cuyo itemId
+   *  aparezca en el mapa. También actualiza bonos si hay ítems bono en el mapa. */
+  | { type: 'ACTUALIZAR_COSTOS_MASIVO'; payload: Record<number, number> };
 
 interface CosteoState {
   proyecto: ProyectoCosteo | null;
@@ -287,10 +290,39 @@ function costeoReducer(state: CosteoState, action: CosteoAction): CosteoState {
       return { ...state, proyecto: proyectoMod };
     }
 
+    case 'ACTUALIZAR_COSTOS_MASIVO': {
+      if (!state.proyecto) return state;
+      const costosMap = action.payload; // itemId → costoUnitario
+
+      const actualizarRecursos = (recursos: RecursoCosteo[]): RecursoCosteo[] =>
+        recursos.map(r => {
+          const nuevoCosto = costosMap[r.itemId];
+          if (nuevoCosto === undefined) return r;
+          return { ...r, costoUnitario: nuevoCosto };
+        });
+
+      const actualizarNodos = (nodos: NodoCosteo[]): NodoCosteo[] =>
+        nodos.map(n => ({
+          ...n,
+          recursos: actualizarRecursos(n.recursos),
+          nodos: actualizarNodos(n.nodos),
+        }));
+
+      return {
+        ...state,
+        proyecto: {
+          ...state.proyecto,
+          recursos: actualizarRecursos(state.proyecto.recursos),
+          nodos: actualizarNodos(state.proyecto.nodos),
+        },
+      };
+    }
+
     default:
       return state;
   }
 }
+
 
 // -- Contexto -----------------------------------------------------------------
 

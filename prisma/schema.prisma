@@ -51,6 +51,25 @@ model Cliente {
   @@map("costeos_cliente")
 }
 
+// --- PROVEEDORES ---------------------------------------------------------------
+
+model Proveedor {
+  id              Int              @id @default(autoincrement())
+  empresaId       Int              @default(0) @map("empresa_id")
+  nit             String           @db.VarChar(30)
+  nombre          String           @db.VarChar(200)
+  contacto        String?          @db.VarChar(100)
+  telefono        String?          @db.VarChar(45)
+  email           String?          @db.VarChar(100)
+  codigoErp       String?          @map("codigo_erp") @db.VarChar(15)
+  usuarioCreo     Int              @default(0) @map("usuario_creo")
+  fechaCreo       DateTime         @default(now()) @map("fecha_creo")
+  registroVersion Int              @default(1) @map("registro_version")
+  cotizaciones    CotizacionItem[]
+
+  @@map("costeos_proveedor")
+}
+
 model Contrato {
   id            Int       @id @default(autoincrement())
   clienteId     Int       @map("cliente_id")
@@ -146,7 +165,6 @@ model NodoRecurso {
   @@index([comboParentId], map: "costeos_nodo_recurso_combo_parent_id_fkey")
   @@map("costeos_nodo_recurso")
 }
-
 
 model RecetaSnap {
   id            Int         @id @default(autoincrement())
@@ -346,6 +364,8 @@ model Item {
   recurrente            Int             @default(0) @db.TinyInt
   recurrenteGasto       Int             @default(0) @map("recurrente_gasto") @db.TinyInt
   manejoCostos          Int             @default(0) @map("manejo_costos") @db.TinyInt
+  cotizacionScope       String          @default("GENERAL") @map("cotizacion_scope") @db.VarChar(20)
+  porCosteo             Int             @default(0) @map("por_costeo") @db.TinyInt
   costoReferenciaItemId Int?            @map("costo_referencia_item_id")
   tipo                  Int             @default(0) @db.TinyInt
   perfil                Int             @default(0) @db.TinyInt
@@ -366,6 +386,7 @@ model Item {
   costosRef             ItemCostoRef[]
   tiposComboRH          ItemTipoComboRH[]
   tiposCombo            ItemTipoCombo[]
+  solicitudesCotizacion SolicitudCotizacion[]
 
   @@index([categoriaId], map: "CATEGORIA")
   @@index([empresaId], map: "costeos_item_empresa_id_fkey")
@@ -502,11 +523,11 @@ model TipoComboRH {
 // - NECESITA: ítem RH que necesita selección de este tipo al agregarse al costeo
 // - DISPONIBLE: ítem no-RH que puede ser seleccionado como este tipo
 model ItemTipoComboRH {
-  itemId        Int                    @map("item_id")
-  tipoComboRHId Int                    @map("tipo_combo_rh_id")
-  rol           ItemComboRHRol         @default(DISPONIBLE)
-  item          Item                   @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  tipoComboRH   TipoComboRH            @relation(fields: [tipoComboRHId], references: [id], onDelete: Cascade)
+  itemId        Int            @map("item_id")
+  tipoComboRHId Int            @map("tipo_combo_rh_id")
+  rol           ItemComboRHRol @default(DISPONIBLE)
+  item          Item           @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  tipoComboRH   TipoComboRH    @relation(fields: [tipoComboRHId], references: [id], onDelete: Cascade)
 
   @@id([itemId, tipoComboRHId])
   @@index([tipoComboRHId], map: "costeos_item_tipo_combo_rh_tipo_id_fkey")
@@ -550,4 +571,68 @@ model ItemTipoCombo {
   @@id([itemId, tipoComboId])
   @@index([tipoComboId], map: "costeos_item_tipo_combo_tipo_id_fkey")
   @@map("costeos_item_tipo_combo")
+}
+
+// ─── Módulo Cotizaciones Compras ──────────────────────────────────────────────
+//
+// SolicitudCotizacion: "carpeta" creada automáticamente al agregar al costeo
+// un ítem con manejoCostos=1 (Compras).
+// - GENERAL (scope): una sola solicitud por ítem (costeoId=0)
+// - POR_PROYECTO (scope): una solicitud por (itemId + costeoId)
+//
+// Estados de la solicitud:
+//   1 = Ingresada  → recién creada, sin cotización vigente
+//   2 = Vigente    → Compras marcó una CotizacionItem como vigente
+//   3 = Anulada    → cancelada manualmente
+
+model SolicitudCotizacion {
+  id              Int              @id @default(autoincrement())
+  empresaId       Int              @default(0) @map("empresa_id")
+  itemId          Int              @default(0) @map("item_id")
+  costeoId        Int              @default(0) @map("costeo_id")
+  cantidad        Decimal          @default(0) @map("cantidad") @db.Decimal(18, 4)
+  fecha           DateTime         @default(now()) @map("fecha")
+  scope           String           @default("GENERAL") @map("scope") @db.VarChar(20)
+  estado          Int              @default(1)
+  usuarioCreo     Int              @default(0) @map("usuario_creo")
+  fechaCreo       DateTime         @default(now()) @map("fecha_creo")
+  registroVersion Int              @default(1) @map("registro_version")
+  item            Item             @relation(fields: [itemId], references: [id])
+  cotizaciones    CotizacionItem[]
+
+  @@index([empresaId], map: "costeos_solicitud_compra_empresa_id_fkey")
+  @@index([itemId], map: "costeos_solicitud_compra_item_id_fkey")
+  @@map("costeos_solicitud_compra")
+}
+
+// CotizacionItem: cada cotización concreta registrada por Compras
+// para una SolicitudCotizacion.
+// Estados: 0=Borrador, 1=Ingresada, 2=Anulada
+// vigente=1 indica la cotización que se usa en Costeos (solo una por solicitud)
+// costoUnitario = total / cantidad (calculado, no almacenado)
+model CotizacionItem {
+  id              Int                 @id @default(autoincrement())
+  solicitudId     Int?                 @map("solicitud_id")
+  empresaId       Int?                 @map("empresa_id")   // solo en cotizaciones directas
+  itemId          Int?                 @map("item_id")      // solo en cotizaciones directas
+  proveedorId     Int                 @default(0) @map("proveedor_id")
+  referencia      String?             @map("referencia") @db.VarChar(100)
+  fecha           DateTime            @map("fecha") @db.Date
+  cantidad        Decimal             @map("cantidad") @db.Decimal(18, 4)
+  total           Decimal             @map("total") @db.Decimal(18, 4)
+  impuestos       Int                 @default(0) @map("impuestos") @db.TinyInt
+  comentario      String?             @map("comentario") @db.VarChar(15)
+  archivoUrl      String?             @map("archivo_url") @db.VarChar(500)
+  archivoNombre   String?             @map("archivo_nombre") @db.VarChar(200)
+  vigente         Int                 @default(0) @map("vigente") @db.TinyInt
+  estado          Int                 @default(0) @map("estado") @db.TinyInt
+  usuarioCreo     Int                 @default(0) @map("usuario_creo")
+  fechaCreo       DateTime            @default(now()) @map("fecha_creo")
+  registroVersion Int                 @default(1) @map("registro_version")
+  solicitud       SolicitudCotizacion? @relation(fields: [solicitudId], references: [id], onDelete: SetNull)
+  proveedor       Proveedor           @relation(fields: [proveedorId], references: [id])
+
+  @@index([solicitudId], map: "costeos_cotizacion_solicitud_id_fkey")
+  @@index([proveedorId], map: "costeos_cotizacion_proveedor_id_fkey")
+  @@map("costeos_cotizacion")
 }
