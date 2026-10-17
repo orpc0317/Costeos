@@ -9,15 +9,10 @@ import { Label } from '@/components/ui/label'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { NumericInput } from '@/components/ui/numeric-input'
 import { FieldError } from '@/components/ui/field-error'
+import { PageHeader } from '@/components/ui/page-header'
+import { UI_THEME } from '@/lib/theme'
 import { createCosteo } from '@/app/actions/costeos'
 import { Calculator, Search, Plus, Database } from 'lucide-react'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -208,18 +203,15 @@ export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
   // ── Render ─────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
-      {/* Encabezado (R15 + R14) */}
-      <div>
-        <div className="flex items-center gap-2 text-indigo-900">
-          <Calculator className="h-6 w-6" />
-          <h1 className="text-2xl font-bold tracking-tight">Nuevo Costeo</h1>
-        </div>
-        <p className="text-sm text-muted-foreground mt-0.5">Completa los pasos para crear un costeo.</p>
-      </div>
+      <PageHeader
+        icon={Calculator}
+        title="Nuevo Costeo"
+        subtitle="Completa los pasos para crear un costeo."
+      />
 
       {/* Error global de carga (antes de mostrar form) */}
       {formError && !showForm && (
-        <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
+        <div className={UI_THEME.forms.globalError}>
           {formError}
         </div>
       )}
@@ -379,7 +371,7 @@ export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
           </CardHeader>
           <CardContent>
             {formError && (
-              <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-600">
+              <div className={`${UI_THEME.forms.globalError} mb-4`}>
                 {formError}
               </div>
             )}
@@ -390,7 +382,7 @@ export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
                   <Input
                     id="nombreProyecto"
                     placeholder="Ej. Seguridad Oficinas Centrales"
-                    className="uppercase focus:ring-2 focus:ring-indigo-500"
+                    className={`${UI_THEME.forms.inputBase} uppercase`}
                     value={nombreProyecto}
                     aria-invalid={!!fieldErrors.nombreProyecto}
                     onChange={e => {
@@ -428,15 +420,16 @@ export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
 
                 <div className="space-y-2">
                   <Label htmlFor="monedaSelect">Moneda</Label>
-                  <Select value={moneda} onValueChange={v => v && setMoneda(v)}>
-                    <SelectTrigger id="monedaSelect">
-                      <SelectValue placeholder="Moneda" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="GTQ">Quetzales (GTQ)</SelectItem>
-                      <SelectItem value="USD">Dólares (USD)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    id="monedaSelect"
+                    options={[
+                      { value: 'GTQ', label: 'Quetzales (GTQ)' },
+                      { value: 'USD', label: 'Dólares (USD)' },
+                    ]}
+                    value={moneda}
+                    onChange={setMoneda}
+                    searchable={false}
+                  />
                 </div>
               </div>
 

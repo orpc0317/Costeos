@@ -243,13 +243,13 @@ return (
           )}
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
-            <TabsList variant="line" className="mb-4 shrink-0">
+            <TabsList variant="line" className={UI_THEME.tabs.listClass}>
               <TabsTrigger value="general">
                 <Settings2 className="w-4 h-4 mr-2" /> General
               </TabsTrigger>
             </TabsList>
 
-            <div className="flex-1 overflow-y-auto pr-2 pb-4">
+            <div className={UI_THEME.modal.scrollArea}>
               <TabsContent value="general" className="outline-none mt-0">
                 <div className="grid grid-cols-2 gap-x-6 gap-y-4">
                   {/* Campos del formulario */}
@@ -427,7 +427,7 @@ import { UI_THEME } from '@/lib/theme'
 ## 5. PESTAÑAS EN MODALES
 
 ```tsx
-<TabsList variant="line" className="mb-4 shrink-0">
+<TabsList variant="line" className={UI_THEME.tabs.listClass}>
   <TabsTrigger value="general">
     <Settings2 className="w-4 h-4 mr-2" /> General
   </TabsTrigger>
@@ -435,11 +435,19 @@ import { UI_THEME } from '@/lib/theme'
     <Sliders className="w-4 h-4 mr-2" /> Configuración
   </TabsTrigger>
 </TabsList>
+
+<div className={UI_THEME.modal.scrollArea}>
+  <TabsContent value="general" className="mt-0">
+    {/* campos */}
+  </TabsContent>
+</div>
 ```
 
 **Reglas:**
 - `variant="line"` siempre. Sin excepciones.
-- `className="mb-4 shrink-0"` siempre.
+- `className={UI_THEME.tabs.listClass}` siempre. No agregar margen inferior: el panel de campos va pegado a la línea de las pestañas.
+- Las pestañas quedan sobre el fondo del modal (`bg-slate-50` del `DialogContent`).
+- Los campos van dentro de `UI_THEME.modal.scrollArea`: panel blanco (`bg-white`) con borde `slate-200`. El borde superior lo da la línea de las pestañas (`border-t-0` en el panel). El footer queda fuera.
 - Cada `TabsTrigger` lleva ícono de `lucide-react` (`w-4 h-4 mr-2`) a la izquierda del texto.
 - Siempre existe la pestaña `"general"` como pestaña inicial.
 
@@ -536,7 +544,8 @@ irATabConError('descripcion')
   <div className="flex flex-col gap-1.5 col-span-2">
     <Label htmlFor="nombre">Nombre <span className="text-red-500">*</span></Label>
     <Input id="nombre" value={nombre} onChange={e => setNombre(e.target.value)}
-      disabled={mode === 'view'} className="h-8 py-1 uppercase"
+      disabled={mode === 'view'} data-view-mode={mode === 'view'}
+      className={`${UI_THEME.forms.inputBase} uppercase`}
       aria-invalid={!!fieldErrors.nombre} />
     <FieldError message={fieldErrors.nombre} />
   </div>
@@ -544,6 +553,8 @@ irATabConError('descripcion')
 ```
 
 Clases estándar: contenedor `flex flex-col gap-1.5`, inputs `h-8 py-1`, grid `gap-x-6 gap-y-4`.
+
+En modo vista el input lleva `disabled` y `data-view-mode={true}`. Ese atributo **conserva** el subrayado inferior (`border-b-2 border-slate-200`), el mismo de nuevo y editar. `inputBase` solo quita la interacción: sin puntero, opacidad al 100 % y sin sombra. No volver a poner el borde en transparente.
 
 ### 6.2 Campos Autogenerados (Código, ID)
 
@@ -553,7 +564,7 @@ Ocultos al crear. Deshabilitados **permanentemente** al editar (no condicional c
 {isEditing && (
   <div className="flex flex-col gap-1.5 col-span-1">
     <Label>Código</Label>
-    <Input value={codigo} disabled={true} className="bg-muted/50 font-mono text-sm" />
+    <Input value={codigo} disabled={true} data-view-mode={true} className={`${UI_THEME.forms.inputBase} font-mono`} />
   </div>
 )}
 ```
@@ -828,8 +839,8 @@ Colocar inmediatamente debajo del `<FieldError>` del campo nombre:
 | `categoria-modal.tsx` | `nombre` | Por empresa | ✅ Implementado |
 | `cliente-modal.tsx` | `nombre` | Por empresa + ERP | ✅ Implementado |
 | `empresa-modal.tsx` | `nombre` | Global | ✅ Implementado |
-| `tipo-costeo-dialog.tsx` | `nombre` | Por empresa | ✅ Implementado |
-| `usuario-dialog.tsx` | N/A | — | ❌ No aplica (unicidad por email) |
+| `tipo-costeo-modal.tsx` | `nombre` | Por empresa | ✅ Implementado |
+| `usuario-modal.tsx` | N/A | — | ❌ No aplica (unicidad por email) |
 
 ---
 
@@ -1335,6 +1346,7 @@ Cambiar un token en `theme.ts` lo propaga automáticamente a todos los component
 | `forms.inputBase` | Base de todos los inputs, selects | `Input`, `SearchableSelect` (trigger), `NumericInput` |
 | `forms.labelBase` | Estilo del label de campo | `Label` |
 | `forms.fieldError` | Mensaje de error de campo | `FieldError` |
+| `forms.sectionTitle` | Título de sección dentro del formulario | Modales con bloques internos |
 | `forms.globalError` | Error global del servidor (top del form) | Todos los modales |
 | `forms.warningSimilar` | Panel de advertencia similares (R18) | Modales con campo Nombre |
 | `forms.warningSimilarTitle` | Encabezado del panel de similares | Modales con campo Nombre |
@@ -1348,9 +1360,11 @@ Cambiar un token en `theme.ts` lo propaga automáticamente a todos los component
 | `table.container` | Contenedor de la tabla | `DataTable` |
 | `modal.title` | Título del modal (`DialogTitle`) | `dialog.tsx` → todos los modales |
 | `modal.footer` | Footer fijo al fondo del modal | Todos los modales |
-| `modal.scrollArea` | Área scrolleable de campos | Todos los modales |
+| `modal.scrollArea` | Interior de la pestaña: panel blanco con borde | Todos los modales |
+| `tabs.listClass` | Pestañas sobre el fondo del modal, sin margen inferior | `TabsList variant="line"` |
 | `badge.active` | Badge "Activo" | `*-client.tsx` con columna Estado |
 | `badge.inactive` | Badge "Inactivo" | `*-client.tsx` con columna Estado |
+| `badge.danger` | Badge anulado / rechazado | Estados cancelados |
 | `badge.warning` | Badge de advertencia | Disponible para uso futuro |
 | `badge.info` | Badge informativo | Disponible para uso futuro |
 | `select.dropdown` | Contenedor del dropdown portal | `SearchableSelect` |

@@ -427,7 +427,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
           }
         >
           <DialogHeader className="mb-2 shrink-0">
-            <DialogTitle className="flex items-center gap-2 text-xl">
+            <DialogTitle className={UI_THEME.modal.title}>
               <Building2 className="w-5 h-5 text-slate-500" />
               {isEditing
                 ? mode === 'view' ? 'Detalle Cliente' : 'Editar Cliente'
@@ -482,7 +482,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                       }}
                       className="accent-indigo-600"
                     />
-                    <span className="text-sm">Nombre / Razón Social</span>
+                    <span className={UI_THEME.forms.labelBase}>Nombre / Razón Social</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -498,7 +498,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                       }}
                       className="accent-indigo-600"
                     />
-                    <span className="text-sm">NIT (exacto)</span>
+                    <span className={UI_THEME.forms.labelBase}>NIT (exacto)</span>
                   </label>
                 </div>
               </div>
@@ -521,7 +521,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                     if (busquedaRealizada) { setBusquedaRealizada(false); setResultadosBusqueda([]) }
                   }}
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleBuscar() } }}
-                  className={`h-9 ${tipoBusqueda === 'nombre' ? 'uppercase' : ''}`}
+                  className={tipoBusqueda === 'nombre' ? `${UI_THEME.forms.inputBase} uppercase` : UI_THEME.forms.inputBase}
                   placeholder={tipoBusqueda === 'nombre' ? 'Ej. CONSTRUCTORA SOLIDA' : 'Ej. 123456-7'}
                   autoFocus
                 />
@@ -537,7 +537,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                 ) : (
                   <div className="space-y-2">
                     {has100EnCosteos && (
-                      <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">
+                      <div className={UI_THEME.forms.globalError}>
                         🚫 Este cliente ya existe en el sistema. No es posible crear un duplicado.
                       </div>
                     )}
@@ -638,35 +638,26 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                 onValueChange={setActiveTab}
                 className="w-full flex-1 flex flex-col min-h-0"
               >
-                <TabsList variant="line" className="mb-4 shrink-0">
+                <TabsList variant="line" className={UI_THEME.tabs.listClass}>
                   <TabsTrigger value="general">
                     <Settings2 className="w-4 h-4 mr-2" />
                     General
                   </TabsTrigger>
                 </TabsList>
 
-                <div className="flex-1 overflow-y-auto pr-2 pb-4">
+                <div className={UI_THEME.modal.scrollArea}>
                   <TabsContent value="general" className="mt-0">
                     <div className="grid grid-cols-4 gap-x-6 gap-y-4">
 
-                      {/* Empresa — read-only en nuevo, select disabled en edición */}
-                      {isEditing ? (
-                        <div className="flex flex-col gap-1.5 col-span-4">
-                          <Label>Empresa</Label>
-                          <SearchableSelect
-                            options={empresas}
-                            value={empresaId}
-                            onChange={setEmpresaId}
-                            disabled
-                            placeholder={cargandoEmpresas ? 'Cargando...' : 'Seleccionar empresa'}
-                          />
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-1.5 col-span-4">
-                          <Label>Empresa</Label>
-                          <Input value={empresaNombre} disabled className="h-8 bg-muted/50" />
-                        </div>
-                      )}
+                      <div className="flex flex-col gap-1.5 col-span-4">
+                        <Label className={UI_THEME.forms.labelBase}>Empresa</Label>
+                        <Input
+                          value={empresaNombre}
+                          disabled
+                          data-view-mode={true}
+                          className={UI_THEME.forms.inputBase}
+                        />
+                      </div>
 
                       {/* NIT */}
                       <div className="flex flex-col gap-1.5 col-span-2">
@@ -681,7 +672,8 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                             if (fieldErrors.nit) setFieldErrors(prev => { const n = { ...prev }; delete n.nit; return n })
                           }}
                           disabled={disabledPorERP}
-                          className={`h-8 py-1 ${erpVinculado ? 'bg-blue-50 border-blue-200 text-blue-800 font-medium' : ''}`}
+                          data-view-mode={disabledPorERP}
+                          className={UI_THEME.forms.inputBase}
                           aria-invalid={!!fieldErrors.nit}
                         />
                         <FieldError message={fieldErrors.nit} />
@@ -701,7 +693,8 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                             if (fieldErrors.razonSocial) setFieldErrors(prev => { const n = { ...prev }; delete n.razonSocial; return n })
                           }}
                           disabled={disabledPorERP}
-                          className={`h-8 py-1 uppercase ${erpVinculado ? 'bg-blue-50 border-blue-200 text-blue-800 font-medium' : ''}`}
+                          data-view-mode={disabledPorERP}
+                          className={`${UI_THEME.forms.inputBase} uppercase`}
                           aria-invalid={!!fieldErrors.razonSocial}
                         />
                         <FieldError message={fieldErrors.razonSocial} />
@@ -730,7 +723,8 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                                 if (fieldErrors.direccionFiscal) setFieldErrors(prev => { const n = { ...prev }; delete n.direccionFiscal; return n })
                               }}
                               disabled={mode === 'view' || (erpVinculado !== null && !!erpVinculado?.direccion)}
-                              className={`h-8 py-1 uppercase ${erpVinculado?.direccion ? 'bg-blue-50 border-blue-200 text-blue-800 font-medium' : ''}`}
+                              data-view-mode={mode === 'view' || (erpVinculado !== null && !!erpVinculado?.direccion)}
+                              className={`${UI_THEME.forms.inputBase} uppercase`}
                               aria-invalid={!!fieldErrors.direccionFiscal}
                               placeholder="Ej. ZONA 10, CIUDAD CAPITAL"
                             />
@@ -800,7 +794,8 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                           id="codigoErp"
                           value={codigoErp && codigoErp !== 'NULL' ? codigoErp : ''}
                           disabled
-                          className="h-8 bg-muted/50 font-mono"
+                          data-view-mode={true}
+                          className={`${UI_THEME.forms.inputBase} font-mono`}
                           title="Asignado automáticamente al vincular con el ERP"
                         />
                       </div>

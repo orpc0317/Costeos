@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import { erp } from '@/lib/erp'
 import { normalizeText } from '@/lib/utils/text'
+import { requireManagerOrAdmin } from '@/lib/auth-helpers'
 
 export type CatalogoTipo = 'ITEMS' | 'CATEGORIAS'
 
@@ -51,6 +52,9 @@ export async function buscarConFuzzyMatch(
   catalogo: CatalogoTipo, 
   busqueda: string
 ) {
+  const guard = await requireManagerOrAdmin()
+  if (!guard.ok) return { error: guard.error }
+
   if (busqueda.length < 3) {
     return { data: [], error: 'Ingrese al menos 3 caracteres' }
   }
@@ -188,8 +192,11 @@ export async function guardarRegistroCatalogo(
   empresaId: number, 
   catalogo: CatalogoTipo, 
   payload: any, 
-  usuarioId: number
 ) {
+  const guard = await requireManagerOrAdmin()
+  if (!guard.ok) return { error: guard.error }
+  const usuarioId = guard.userId
+
   try {
     const config = await prisma.empresaCatalogoSync.findUnique({
       where: {

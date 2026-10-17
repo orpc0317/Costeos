@@ -13,7 +13,7 @@ Para mantener la consistencia en el proyecto, **todas las pantallas CRUD** (list
 ## Características del DataTable
 
 Al utilizar `DataTable`, heredas automáticamente:
-- **Paginación**
+- **Paginación**: 25 registros por página (configurable con la prop `pageSize`). Muestra un contador `"X–Y de N registros"` siempre visible. Los botones de navegación (◀/▶) solo aparecen cuando hay más de una página. Al realizar una búsqueda en servidor o cambiar el filtro local, la tabla regresa automáticamente a la página 1.
 - **Ordenamiento de columnas**
 - **Búsqueda global** (buscando coincidencias en *cualquier* campo visible de la fila). **IMPORTANTE:** Para que la búsqueda global funcione correctamente en todos los campos, NO debes enviar la propiedad `searchKey` al instanciar el componente, a menos que haya una justificación estricta para limitar la búsqueda a una sola columna.
 - **Ocultamiento de columnas** y reordenamiento mediante drag-and-drop en el encabezado.
@@ -122,8 +122,8 @@ Para mantener una apariencia corporativa ("ERP state of the art"):
     - Para que las pestañas (`TabsList`) no se pierdan al hacer scroll y los botones de acción (`Footer`) queden fijos abajo, el formulario debe utilizar Flexbox:
       - `<form className="flex-1 overflow-hidden flex flex-col pt-2">`
       - El contenedor principal de Tabs: `<Tabs className="w-full flex-1 flex flex-col min-h-0">`
-      - El Listado de Tabs: `<TabsList className="mb-4 shrink-0">`
-      - El Contenedor de contenido con scroll: `<div className="flex-1 overflow-y-auto pr-2 pb-4"> <TabsContent ...> </div>`
+      - El Listado de Tabs: `<TabsList variant="line" className={UI_THEME.tabs.listClass}>` (sin margen inferior; las pestañas quedan sobre el fondo del modal)
+      - El contenedor de campos: `<div className={UI_THEME.modal.scrollArea}>` — panel blanco con borde, pegado a la línea de las pestañas. `<TabsContent ...>` va adentro. El footer queda fuera.
       - El Footer: `<div className="flex flex-row items-center justify-between mt-6 -mx-4 -mb-4 px-4 py-4 border-t bg-slate-50 sm:rounded-b-xl shrink-0">`
 11. **Mensajes de Campos Bloqueados**: Si un registro "en uso" bloquea ciertos campos (modo de edición restringido), evita mostrar cajas de alerta (blocks amarillos) en el formulario que rompen la estética. En su lugar, agrega un "foot note" pequeño (ej. `<p className="text-[11px] text-amber-700">`) del lado izquierdo del footer para mantener el diseño limpio.
 12. **Flujo de Edición (Editar -> Guardar -> Ver)**:
@@ -144,7 +144,7 @@ Para mantener una apariencia corporativa ("ERP state of the art"):
 Para garantizar un estilo visual uniforme (estilo "Premium" con fondo transparente y borde inferior azul/índigo) en los formularios y pantallas que utilicen pestañas, se debe utilizar siempre la variante `line` provista por nuestro sistema de diseño:
 
 - **Configuración del Componente**:
-  - Utilizar `<TabsList variant="line" className="mb-4">` (u otro margen inferior si aplica).
+  - Utilizar `<TabsList variant="line" className={UI_THEME.tabs.listClass}>`. En modales no agregar margen inferior: el panel `UI_THEME.modal.scrollArea` arranca en la línea de las pestañas.
   - Los `<TabsTrigger>` no necesitan ninguna clase personalizada manual; el componente central `ui/tabs.tsx` se encargará de estilizarlos automáticamente.
 
 Ejemplo correcto:
@@ -168,3 +168,109 @@ Ejemplo correcto:
 
 Al definir las acciones para cada fila en las tablas CRUD, se deben seguir estos lineamientos para mantener la consistencia visual en toda la aplicación:
 - **Ícono "Ver detalles" o "Ver/Editar"**: Se debe utilizar siempre el ícono `Eye` de `lucide-react` para la acción principal de visualizar o editar en detalle un registro (ej. `<Eye className="h-4 w-4 text-blue-600" />`). Evitar utilizar `Search` u otros íconos para este propósito.
+
+## Patrón de Búsqueda con Servidor (isServerSearch)
+
+Para catálogos con muchos registros, se usa búsqueda server-side con debounce:
+
+```ts
+// En el *-client.tsx:
+const LIMIT_INICIAL  = 50   // registros más recientes al cargar
+const LIMIT_BUSQUEDA = 150  // máximo de resultados al buscar
+
+const [searchQuery, setSearchQuery] = useState('')
+const debouncedQuery = useDebounce(searchQuery, 400)
+
+useEffect(() => {
+  if (debouncedQuery.length === 1) return // muy corto, ignorar
+  let cancelled = false
+  setLoading(true)
+  listarEntidad({
+    search: debouncedQuery.length >= 2 ? debouncedQuery : undefined,
+    limit:  debouncedQuery.length >= 2 ? LIMIT_BUSQUEDA : LIMIT_INICIAL,
+  })
+    .then(result => { if (!cancelled) setData(result) })
+    .finally(() => { if (!cancelled) setLoading(false) })
+  return () => { cancelled = true }
+}, [debouncedQuery])
+
+// En <DataTable>:
+<DataTable
+  ...
+  isServerSearch
+  searchValue={searchQuery}
+  onSearchChange={setSearchQuery}
+  loading={loading}
+/>
+```
+
+El subtítulo de la página debe cambiar dinámicamente:
+```ts
+const subtitulo = debouncedQuery.length >= 2
+  ? `${data.length} resultado${data.length !== 1 ? 's' : ''} para "${debouncedQuery}"`
+  : `Últimos ${data.length} registros`
+```
+
+## Sort y Filtro por columna en DataTable
+
+El `<DataTable>` incluye sort y filtro por columna automáticamente — no requiere configuración adicional por pantalla.
+
+### Sort por columna
+- Click en el header de cualquier columna cicla: sin orden → ascendente → descendente.
+- Los íconos ↕/↑/↓ son **siempre visibles** (no solo en hover).
+- Al recibir nueva `data` del servidor (cambio de búsqueda), el sorting se resetea automáticamente.
+- Implementado con `getSortedRowModel()` + estado `SortingState` de TanStack Table.
+
+### Filtro por columna (`ColumnFilterPopover`)
+Componente: `src/components/ui/column-filter-popover.tsx`
+
+**Tab Lista**
+- Muestra todos los valores únicos de la columna (de todos los registros, no solo la página actual).
+- Búsqueda en tiempo real sobre la lista de valores.
+- Multi-selección con checkboxes. "Seleccionar todo" con estado indeterminado.
+- Contador de seleccionados y botón Limpiar.
+
+**Tab Avanzado** — 12 condiciones de filtro:
+| Texto | Numérico | Vacío |
+|---|---|---|
+| Contiene / No contiene | Mayor que / Mayor o igual | Está vacío |
+| Igual a / No es igual a | Menor que / Menor o igual | No está vacío |
+| Empieza con / Termina con | | |
+
+**Reglas del filtro por columna**:
+- Opera **client-side únicamente** — nunca dispara requests al servidor.
+- Al cambiar el `searchText` (nueva búsqueda en servidor), columnFilters y sorting se resetean.
+- La función `columnFilterFn` está registrada en TanStack Table como `filterFns: { columnFilter: columnFilterFn }`.
+
+## Árbol de Combos en pantallas de catálogo
+
+Cuando un ítem puede tener sub-ítems que a su vez tienen sus propios sub-ítems (combos anidados), se usa el patrón de árbol expansible del Costeador.
+
+### Patrón: buildComboTree
+```ts
+// Pre-calcular el árbol una sola vez (useMemo)
+const comboTree = useMemo(
+  () => buildComboTree(combos, allItems, getLabel, new Set([itemId])),
+  [combos, allItems, itemId]
+)
+
+// Render recursivo — trabaja sobre nodos pre-calculados, sin lookups
+const renderComboRow = (node: ComboTreeItem, depth: number, idx: number | null) => {
+  const tieneHijos = node.hijos.length > 0
+  const isExpanded = expandedIds.has(node.productoSecundarioId)
+  return (
+    <React.Fragment key={`row-${depth}-${node.productoSecundarioId}`}>
+      <tr>...</tr>
+      {tieneHijos && isExpanded && node.hijos.map(hijo => renderComboRow(hijo, depth + 1, null))}
+    </React.Fragment>
+  )
+}
+```
+
+**Reglas**:
+- El árbol se pre-calcula con `buildComboTree()` — idéntico al `buildCombosDisponibles()` de `src/lib/utils/combos.ts`.
+- `allItems` debe ser el catálogo **completo sin paginación** (`listarItems()` sin `limit`).
+- `expandedIds` vacío = todo colapsado por defecto. El usuario expande manualmente.
+- `TreeGuide` con líneas punteadas marca la sangría por nivel (20px por nivel).
+- Ciclos se cortan en `buildComboTree()` vía el `visited: Set<number>`.
+- Las filas de niveles anidados son read-only (sin acciones edit/delete).

@@ -1,0 +1,17 @@
+---
+description: Fuente de verdad; mapa de lectura
+alwaysApply: true
+---
+
+# Fuente de verdad
+
+Usar **Casa A**. Mapa: `docs/ai-index.md`.
+
+- `AGENTS.md`, `docs/conventions.md`, `docs/crud-standard.md`
+- Gold: `categorias-client.tsx` y `categoria-modal.tsx`
+- Templates: `src/templates/entidad-*.template.tsx`
+- Tokens: `src/lib/theme.ts`
+
+CRUD: copiar template; no escribir desde cero. Formularios: `useState`, no React Hook Form. Errores: `FieldError` + error global, no toast. ERP: `import { erp } from '@/lib/erp'`.
+
+Tarea del día: `tareas/HOY.md` (forma vacía: `tareas/PLANTILLA.md`). Al ejecutarla, cumplir la regla de cierre.

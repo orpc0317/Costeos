@@ -11,9 +11,16 @@ type TxClient = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transa
 
 export const ProveedorRepository = {
 
-  async findAll() {
+  async findAll(params?: { search?: string; limit?: number }) {
+    const { search, limit } = params ?? {}
+    const searchId = search ? parseInt(search, 10) : NaN
+    const where = search
+      ? { OR: [{ nombre: { contains: search } }, { nit: { contains: search } }, ...(!isNaN(searchId) ? [{ id: searchId }] : [])] }
+      : undefined
     return prisma.proveedor.findMany({
-      orderBy: { nombre: 'asc' },
+      where,
+      orderBy: search ? { nombre: 'asc' } : { id: 'desc' },
+      take: limit,
     })
   },
 

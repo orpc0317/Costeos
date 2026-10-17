@@ -417,7 +417,7 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
                       }}
                       className="accent-indigo-600"
                     />
-                    <span className="text-sm">Nombre</span>
+                    <span className={UI_THEME.forms.labelBase}>Nombre</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -433,7 +433,7 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
                       }}
                       className="accent-indigo-600"
                     />
-                    <span className="text-sm">NIT (exacto)</span>
+                    <span className={UI_THEME.forms.labelBase}>NIT (exacto)</span>
                   </label>
                 </div>
               </div>
@@ -456,7 +456,7 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
                     if (busquedaRealizada) { setBusquedaRealizada(false); setResultadosBusqueda([]) }
                   }}
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleBuscar() } }}
-                  className={`h-9 ${tipoBusqueda === 'nombre' ? 'uppercase' : ''}`}
+                  className={tipoBusqueda === 'nombre' ? `${UI_THEME.forms.inputBase} uppercase` : UI_THEME.forms.inputBase}
                   placeholder={tipoBusqueda === 'nombre' ? 'Ej. DISTRIBUIDORA SIGMA' : 'Ej. 123456-7'}
                   autoFocus
                 />
@@ -472,7 +472,7 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
                 ) : (
                   <div className="space-y-2">
                     {has100EnCosteos && (
-                      <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">
+                      <div className={UI_THEME.forms.globalError}>
                         🚫 Este proveedor ya existe en el sistema. No es posible crear un duplicado.
                       </div>
                     )}
@@ -572,31 +572,26 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
                 onValueChange={setActiveTab}
                 className="w-full flex-1 flex flex-col min-h-0"
               >
-                <TabsList variant="line" className="mb-4 shrink-0">
+                <TabsList variant="line" className={UI_THEME.tabs.listClass}>
                   <TabsTrigger value="general">
                     <Truck className="w-4 h-4 mr-2" />
                     General
                   </TabsTrigger>
                 </TabsList>
 
-                <div className="flex-1 overflow-y-auto pr-2 pb-4">
+                <div className={UI_THEME.modal.scrollArea}>
                   <TabsContent value="general" className="mt-0">
                     <div className="grid grid-cols-4 gap-x-6 gap-y-4">
 
                       {/* Empresa */}
                       <div className="flex flex-col gap-1.5 col-span-4">
-                        <Label>Empresa</Label>
-                        {mode === 'view' ? (
-                          <Input value={empresaNombre} disabled className="bg-muted/50" />
-                        ) : (
-                          <SearchableSelect
-                            options={empresas}
-                            value={empresaId}
-                            onChange={setEmpresaId}
-                            disabled
-                            placeholder={cargandoEmpresas ? 'Cargando...' : 'Seleccionar empresa'}
-                          />
-                        )}
+                        <Label className={UI_THEME.forms.labelBase}>Empresa</Label>
+                        <Input
+                          value={empresaNombre}
+                          disabled
+                          data-view-mode={true}
+                          className={UI_THEME.forms.inputBase}
+                        />
                       </div>
 
                       {/* NIT */}
@@ -612,7 +607,8 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
                             if (fieldErrors.nit) setFieldErrors(prev => { const n = { ...prev }; delete n.nit; return n })
                           }}
                           disabled={disabledPorERP}
-                          className={`h-8 py-1 ${erpVinculado ? 'bg-blue-50 border-blue-200 text-blue-800 font-medium' : ''}`}
+                          data-view-mode={disabledPorERP}
+                          className={UI_THEME.forms.inputBase}
                           aria-invalid={!!fieldErrors.nit}
                         />
                         <FieldError message={fieldErrors.nit} />
@@ -631,7 +627,8 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
                             if (fieldErrors.nombre) setFieldErrors(prev => { const n = { ...prev }; delete n.nombre; return n })
                           }}
                           disabled={disabledPorERP}
-                          className={`h-8 py-1 uppercase ${erpVinculado ? 'bg-blue-50 border-blue-200 text-blue-800 font-medium' : ''}`}
+                          data-view-mode={disabledPorERP}
+                          className={`${UI_THEME.forms.inputBase} uppercase`}
                           aria-invalid={!!fieldErrors.nombre}
                         />
                         <FieldError message={fieldErrors.nombre} />
@@ -645,7 +642,8 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
                           value={contacto}
                           onChange={e => setContacto(e.target.value)}
                           disabled={mode === 'view'}
-                          className="h-8 py-1 uppercase"
+                          data-view-mode={mode === 'view'}
+                          className={`${UI_THEME.forms.inputBase} uppercase`}
                           placeholder="Nombre del contacto"
                         />
                       </div>
@@ -658,7 +656,8 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
                           value={telefono}
                           onChange={e => setTelefono(e.target.value)}
                           disabled={mode === 'view'}
-                          className="h-8 py-1"
+                          data-view-mode={mode === 'view'}
+                          className={UI_THEME.forms.inputBase}
                           placeholder="Ej. 2222-1111"
                         />
                       </div>
@@ -672,7 +671,8 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
                           value={email}
                           onChange={e => setEmail(e.target.value)}
                           disabled={mode === 'view'}
-                          className="h-8 py-1"
+                          data-view-mode={mode === 'view'}
+                          className={UI_THEME.forms.inputBase}
                           placeholder="contacto@empresa.com"
                         />
                       </div>
@@ -684,7 +684,8 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
                           id="codigoErp"
                           value={codigoErp && codigoErp !== 'NULL' ? codigoErp : ''}
                           disabled
-                          className="h-8 bg-muted/50 font-mono"
+                          data-view-mode={true}
+                          className={`${UI_THEME.forms.inputBase} font-mono`}
                           title="Asignado automáticamente al vincular con el ERP"
                         />
                       </div>

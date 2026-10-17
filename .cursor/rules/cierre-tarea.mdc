@@ -1,0 +1,24 @@
+---
+description: Cierre al ejecutar la tarea del día (tareas/HOY.md)
+alwaysApply: true
+---
+
+# Cierre de tarea
+
+Aplica cuando el usuario pida ejecutar `tareas/HOY.md` o «la tarea de hoy». En cualquier otro chat, no exige este cierre.
+
+1. Leer `tareas/HOY.md`. Si `estado` no es `lista`, o el Objetivo sigue siendo el texto de la plantilla, parar y decir qué falta. No inventar el encargo.
+2. Hacer solo lo que el archivo pide. No modificar lo listado en «No tocar».
+3. Respetar «Datos»: sin permiso no se escribe en MySQL ni se consulta el ERP.
+4. No crear `implementation_plan.md`. No pedir confirmación de sub-pasos.
+5. No hacer commit salvo que la sección Commit lo pida.
+
+## Terminado
+
+Declarar terminado solo si se cumplen las tres:
+
+- `npm test` terminó en verde. Si falla, corregir y volver a correr.
+- Cada ítem de «Hecho cuando» está cubierto. Si la tarea cambia UI, recorrer ese flujo en el navegador (local: `http://localhost:30001`; nube: el escritorio del agente).
+- El reporte final dice qué cambió, cómo se comprobó y qué quedó sin comprobar.
+
+Si un criterio no se cumple, la primera línea del reporte lo dice. Ese resultado no se presenta como terminado.

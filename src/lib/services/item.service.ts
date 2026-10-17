@@ -44,9 +44,9 @@ const CAMPOS_ITEM = [
 
 export const ItemService = {
 
-  async listar(): Promise<ItemRow[]> {
+  async listar(params?: { search?: string; limit?: number }): Promise<ItemRow[]> {
     const [rows, empresas, categorias, tiposCombos, todosItems] = await Promise.all([
-      ItemRepository.findAll(),
+      ItemRepository.findAll(params),
       prisma.empresa.findMany({ select: { id: true, nombre: true } }),
       prisma.categoriaItem.findMany({ select: { id: true, nombre: true } }),
       prisma.tipoCombo.findMany({ select: { id: true, nombre: true } }),

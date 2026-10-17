@@ -91,15 +91,15 @@ Para todo lo demás: **decidir, ejecutar, verificar, reportar resultado**.
 ### Estructura y Layout
 - [ ] `DialogContent` tiene altura fija: `h-[85vh] sm:h-[altura]` + `flex flex-col p-4 sm:p-6 overflow-hidden`
 - [ ] `DialogTitle` incluye el **ícono canónico de la entidad** (el mismo del sidebar)
-- [ ] El modal usa **pestañas** (`<Tabs>` + `<TabsList variant="line" className="mb-4 shrink-0">`) aunque solo tenga una pestaña "General" — el scroll horizontal es automático (R23), no limitar por espacio
+- [ ] El modal usa **pestañas** (`<Tabs>` + `<TabsList variant="line" className={UI_THEME.tabs.listClass}>`) aunque solo tenga una pestaña "General" — el scroll horizontal es automático (R23), no limitar por espacio
 - [ ] Cada `<TabsTrigger>` tiene el ícono canónico de la entidad a la izquierda del texto
-- [ ] El área de campos está dentro de `<div className="flex-1 overflow-y-auto pr-2 pb-4">` + `<TabsContent>`
+- [ ] El área de campos está dentro de `<div className={UI_THEME.modal.scrollArea}>` + `<TabsContent>`. Ese contenedor es el panel blanco con borde; las pesta�as quedan sobre el fondo del modal
 
 ### Campos y Datos
-- [ ] **Empresa** se muestra en los TRES modos: `create` → `<SearchableSelect>` | `view/edit` → `<Input disabled className="bg-muted/50">`
+- [ ] **Empresa** se muestra en los TRES modos: `create` → `<SearchableSelect>` | `view/edit` → `<Input disabled data-view-mode={true} className={UI_THEME.forms.inputBase}>`
 - [ ] **NO hay datos de auditoría inline** (`Creado:`, `ID:`, `Modificado:`) — eso es responsabilidad del `<HistorialDrawer>`
 - [ ] Todos los campos de texto libre usan `normalizeText()` al guardar (mayúsculas sin tildes)
-- [ ] Campos deshabilitados en vista: `disabled={mode === 'view'}`
+- [ ] Campos deshabilitados en vista: `disabled={mode === 'view'}` y `data-view-mode={mode === 'view'}`. El subrayado inferior se conserva (mismo `border-b-2` de nuevo/editar); no ocultarlo.
 - [ ] **NO hay `<input type="number">`** — usar `<NumericInput>` de `src/components/ui/numeric-input.tsx`
 - [ ] **Campos numéricos en modo vista** — si usan `<Input disabled>`, el `value` usa `formatNumber()` de `src/lib/utils/format.ts` (R24). NUNCA el número crudo.
 
@@ -175,7 +175,9 @@ Para todo lo demás: **decidir, ejecutar, verificar, reportar resultado**.
       <Input
         value={formatNumber(Number(entidad?.cantidad ?? 0))}
         disabled
-        className={`${UI_THEME.forms.inputBase} bg-muted/50`}
+                              disabled
+                              data-view-mode={true}
+                              className={UI_THEME.forms.inputBase}
       />
     ) : (
       <NumericInput value={cantidad} onChange={setCantidad} disabled={loading} />
@@ -218,9 +220,9 @@ Para todo lo demás: **decidir, ejecutar, verificar, reportar resultado**.
 
 - **Estructura de Modales (Acciones):** En modo vista, botones ("Historial" y "Editar") van agrupados a la derecha. En modo edición, el botón "Cancelar" debe resetear el estado a modo vista (sin cerrar el modal si es un registro existente).
 - **⚠️ Footer de Modal:** Los botones de acción del modal (Historial, Editar, Cancelar, Guardar) se colocan **SIEMPRE en un footer fijo al fondo** del `DialogContent`. Usar **SIEMPRE** `className={UI_THEME.modal.footer}` para el contenedor y `UI_THEME.modal.buttons.*` para los colores de botones. **NUNCA** hardcodear clases Tailwind de color, **NUNCA** poner los botones en el header ni en el área scrolleable del formulario.
-- **⚠️ Pestañas en Modales — OBLIGATORIAS SIEMPRE:** TODO modal DEBE usar pestañas (`<Tabs>`), **aunque el formulario sea tan simple que solo tenga una pestaña "General"**. NUNCA construir un modal sin la estructura de tabs. El `<TabsList>` debe usar `variant="line"` y `className="mb-4 shrink-0"`. Cada `<TabsTrigger>` DEBE incluir el **ícono canónico de la entidad** a la izquierda del texto. Referencia obligatoria: `src/components/categorias/categoria-modal.tsx`.
+- **⚠️ Pestañas en Modales — OBLIGATORIAS SIEMPRE:** TODO modal DEBE usar pestañas (`<Tabs>`), **aunque el formulario sea tan simple que solo tenga una pestaña "General"**. NUNCA construir un modal sin la estructura de tabs. El `<TabsList>` debe usar `variant="line"` y `className={UI_THEME.tabs.listClass}` (sin margen inferior). Los campos van dentro de `UI_THEME.modal.scrollArea`: panel blanco con borde, pegado a la l�nea de las pesta�as. Las pesta�as quedan sobre el fondo del modal. Cada `<TabsTrigger>` DEBE incluir el **ícono canónico de la entidad** a la izquierda del texto. Referencia obligatoria: `src/components/categorias/categoria-modal.tsx`.
 - **Scroll Horizontal de Pestañas (R23):** El componente `<TabsList variant="line">` implementa scroll horizontal con **botones de flecha `‹` / `›`** que aparecen y desaparecen dinámicamente según el contenido. Internamente usa `ScrollableTabsList` con `ResizeObserver`. **NUNCA limitar el número de pestañas de un modal por miedo a que no quepan.** Agregar todas las que la entidad necesite. No se necesita ningún wrapper extra ni clase adicional en el código del modal. Ver detalles en `docs/conventions.md §5.0`.
-- **Campos Autogenerados:** Códigos/IDs autogenerados deben ocultarse al crear, y deshabilitarse *permanentemente* (`disabled={true}` + `bg-muted/50`) al editar un registro.
+- **Campos Autogenerados:** Códigos/IDs autogenerados deben ocultarse al crear, y deshabilitarse *permanentemente* (`disabled={true}` + `data-view-mode={true}`) al editar un registro.
 - **Historial de Auditoría:** Utilizar SIEMPRE el componente `<HistorialDrawer tabla="nombre_tabla_db" />`. El nombre de la tabla debe coincidir exactamente con el esquema de Prisma para que cargue la bitácora.
 - **Íconos por Entidad (R14) — El sidebar es la fuente de verdad:** El ícono definido en el sidebar para cada entidad es el que debe aparecer en (1) el encabezado de su página principal y (2) su modal (`DialogTitle` + pestaña General). Consultar `docs/conventions.md` §15 para la tabla de íconos canónicos. Al crear una pantalla nueva, definir el ícono en el sidebar primero y registrarlo en esa tabla antes de escribir código.
 
@@ -374,3 +376,26 @@ Para más detalle, consultar `docs/conventions.md`.
   ```
   **Para FKs del ERP** (departamento, municipio, turno, etc.): llamar `erp.getDepartamentos()` / `erp.getMunicipios()` ANTES de la transacción Prisma y pasar los mapas como closures al `transform`.
   **Para FKs locales de BD** (empresaId, categoriaId, etc.): usar `prisma.entidad.findMany()` ANTES de la transacción para construir el Map.
+
+- **B�squeda por ID en Repositorios (R25) � OBLIGATORIO en todo `findAll` con `search`:**
+  Todo m�todo `findAll` que acepte un par�metro `search` DEBE incluir el campo `id` (num�rico, b�squeda exacta) como condici�n adicional en su cl�usula `OR`. El ID solo se agrega cuando el texto ingresado es un entero v�lido (`!isNaN(parseInt(search, 10))`).
+
+  **Patr�n obligatorio:**
+  ```ts
+  const searchId = search ? parseInt(search, 10) : NaN
+  const where = search
+    ? {
+        OR: [
+          { nombre: { contains: search } },                        // campos de texto de la entidad
+          { codigoErp: { contains: search } },                     // otros string si los hay
+          ...(!isNaN(searchId) ? [{ id: searchId }] : []),         // SIEMPRE agregar esto
+        ],
+      }
+    : undefined
+  ```
+
+  **Reglas:**
+  - La b�squeda por `id` es **exacta** (`{ id: searchId }`), no `contains` � el ID es un n�mero �nico.
+  - Si el texto no es entero v�lido, `NaN` hace que el spread sea `...[]` (vac�o), sin afectar el query.
+  - Aplica a **todos los repositorios actuales y futuros**: `categoria`, `cliente`, `empresa`, `item`, `proveedor`, `tipo-combo`, `tipo-costeo`, `usuario`, y cualquier repositorio nuevo.
+  - Si el `findAll` no tiene par�metro `search` (carga total sin filtro), esta regla no aplica.

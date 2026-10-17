@@ -1,6 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/auth-helpers'
 
 export interface CambioCampo {
   campo: string
@@ -78,6 +79,9 @@ function formatValor(valor: any, campo: string): string {
 }
 
 export async function obtenerHistorial(tabla: string, registroId: number): Promise<HistorialEntry[]> {
+  const guard = await requireAuth()
+  if (!guard.ok) return []
+
   const logs = await prisma.auditLog.findMany({
     where: {
       tabla,

@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UI_THEME } from '@/lib/theme'
 import { getDepartamentosERP, getMunicipiosERP, getTurnosERP, getClienteDireccionesERP } from '@/app/actions/erp';
 
 import type { ErpTurno, ErpServicioVenta, ErpDireccionOperativa } from '@/lib/erp';
@@ -700,7 +701,7 @@ export default function EditorPanel() {
           <div className="p-6 pt-4 overflow-y-auto h-full w-full">
           <div className="max-w-4xl">
             <Tabs defaultValue="general" className="w-full">
-              <TabsList variant="line" className="mb-4 shrink-0">
+              <TabsList variant="line" className={`${UI_THEME.tabs.listClass} mb-4`}>
                 <TabsTrigger value="general">
                   <Settings2 className="w-4 h-4 mr-2" />
                   General
@@ -883,7 +884,7 @@ export default function EditorPanel() {
         {selectedNode.type === 'RECURSO' && (
           <Tabs defaultValue="general" className="flex-1 flex flex-col min-h-0 w-full">
             <div className="px-6 pt-4 shrink-0">
-              <TabsList variant="line" className="mb-4 shrink-0">
+              <TabsList variant="line" className={`${UI_THEME.tabs.listClass} mb-4`}>
                 <TabsTrigger value="general">
                   <Settings2 className="w-4 h-4 mr-2" />
                   General
@@ -907,11 +908,11 @@ export default function EditorPanel() {
             <div className="grid grid-cols-12 gap-3">
               <div className="col-span-4 flex flex-col gap-1.5">
                 <Label>Código</Label>
-                <Input type="text" className="bg-slate-100 text-slate-500 cursor-not-allowed font-mono text-sm h-8 py-1" value={nodeData.itemServicio?.codigo || nodeData.itemId || 'N/A'} readOnly title="Código ERP" />
+                <Input type="text" data-view-mode={true} className={`${UI_THEME.forms.inputBase} font-mono`} value={nodeData.itemServicio?.codigo || nodeData.itemId || 'N/A'} readOnly title="Código ERP" />
               </div>
               <div className="col-span-8 flex flex-col gap-1.5">
                 <Label>Descripción</Label>
-                <Input type="text" className="bg-slate-100 text-slate-500 cursor-not-allowed uppercase text-sm h-8 py-1" value={nodeData.nombre} readOnly title="No editable directamente" />
+                <Input type="text" data-view-mode={true} className={`${UI_THEME.forms.inputBase} uppercase`} value={nodeData.nombre} readOnly title="No editable directamente" />
               </div>
             </div>
 
@@ -956,7 +957,7 @@ export default function EditorPanel() {
                         placeholder="Seleccione..."
                       />
                     ) : (
-                      <Input value={turnos.find(t => t.codigo === nodeData.turnoCodigo)?.descripcion || `Cód: ${nodeData.turnoCodigo}`} readOnly className="bg-slate-100 text-slate-500 cursor-not-allowed text-sm uppercase h-8 py-1 px-2.5" />
+                      <Input value={turnos.find(t => t.codigo === nodeData.turnoCodigo)?.descripcion || `Cód: ${nodeData.turnoCodigo}`} readOnly data-view-mode={true} className={`${UI_THEME.forms.inputBase} uppercase`} />
                     )}
                   </div>
                 </div>
@@ -981,7 +982,7 @@ export default function EditorPanel() {
                         nodeData.cubreDescanso === 1 ? '1 - Descansero' :
                         nodeData.cubreDescanso === 2 ? '2 - Extrero' :
                         nodeData.cubreDescanso === 3 ? '3 - Bono Descanso' : '0 - No Aplica'
-                      } readOnly className="bg-slate-100 text-slate-500 cursor-not-allowed text-sm h-8 py-1 px-2.5" />
+                      } readOnly data-view-mode={true} className={UI_THEME.forms.inputBase} />
                     )}
                   </div>
                 </div>
@@ -1001,7 +1002,7 @@ export default function EditorPanel() {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label>Unidad Medida</Label>
-                  <Input value={nodeData.itemServicio?.unidad_medida || 'UNIDAD'} readOnly className="bg-slate-100 text-slate-500 cursor-not-allowed uppercase text-sm h-8 py-1" />
+                  <Input value={nodeData.itemServicio?.unidad_medida || 'UNIDAD'} readOnly data-view-mode={true} className={`${UI_THEME.forms.inputBase} uppercase`} />
                 </div>
               </div>
             )}
@@ -1146,7 +1147,7 @@ export default function EditorPanel() {
                                  <Input
                                    value={opcionesCombo.find(o => o.value === currentVal)?.label || currentVal || '—'}
                                    readOnly
-                                   className="bg-slate-100 text-slate-500 cursor-not-allowed text-sm uppercase h-8 py-1 px-2.5"
+                                   data-view-mode={true} className={`${UI_THEME.forms.inputBase} uppercase`}
                                  />
                                )}
                              </td>
@@ -1206,7 +1207,7 @@ export default function EditorPanel() {
                       return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factor * (nodeData.precioVentaUnitario || 0));
                     })()} 
                     readOnly tabIndex={-1} 
-                    className="bg-slate-100 text-slate-500 cursor-not-allowed text-sm px-2.5 h-8 py-1 w-full rounded-sm border border-slate-200 outline-none" 
+                    data-view-mode={true} className={UI_THEME.forms.inputBase} 
                   />
                 </div>
                 <div className="col-span-1 flex flex-col gap-1.5">
@@ -1217,7 +1218,7 @@ export default function EditorPanel() {
                       return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factor * (nodeData.precioVentaUnitario || 0));
                     })()} 
                     readOnly tabIndex={-1} 
-                    className="bg-blue-50/50 text-blue-700 font-bold border-blue-200 text-sm px-2.5 h-8 py-1 w-full rounded-sm border outline-none" 
+                    data-view-mode={true} className={UI_THEME.forms.inputBase} 
                   />
                 </div>
                 </>
@@ -1231,7 +1232,7 @@ export default function EditorPanel() {
                   <Input 
                     value={(nodeData.costoUnitario || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} 
                     readOnly tabIndex={-1} 
-                    className="bg-slate-100 text-slate-500 cursor-not-allowed text-sm px-2.5 h-8 py-1" 
+                    data-view-mode={true} className={UI_THEME.forms.inputBase} 
                   />
                 </div>
                 <div className="col-span-1 flex flex-col gap-1.5">
@@ -1242,7 +1243,7 @@ export default function EditorPanel() {
                       return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factor * (nodeData.costoUnitario || 0));
                     })()} 
                     readOnly tabIndex={-1} 
-                    className="bg-slate-100 text-slate-500 cursor-not-allowed text-sm px-2.5 h-8 py-1" 
+                    data-view-mode={true} className={UI_THEME.forms.inputBase} 
                   />
                 </div>
                 <div className="col-span-1 flex flex-col gap-1.5">
@@ -1254,7 +1255,7 @@ export default function EditorPanel() {
                       return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factor * bonosTotal);
                     })()} 
                     readOnly tabIndex={-1} 
-                    className="bg-slate-100 text-slate-500 cursor-not-allowed text-sm px-2.5 h-8 py-1" 
+                    data-view-mode={true} className={UI_THEME.forms.inputBase} 
                   />
                 </div>
                 <div className="col-span-1 flex flex-col gap-1.5">
@@ -1648,7 +1649,7 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas, proye
   return (
     <div className="max-w-4xl">
       <Tabs defaultValue="general" className="w-full">
-        <TabsList variant="line" className="mb-4 shrink-0">
+        <TabsList variant="line" className={`${UI_THEME.tabs.listClass} mb-4`}>
           <TabsTrigger value="general">
             <Settings2 className="w-4 h-4 mr-2" />
             General
@@ -1729,7 +1730,7 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas, proye
                       <Input
                         value="GUATEMALA"
                         disabled
-                        className="bg-slate-100 text-slate-500 cursor-not-allowed"
+                        data-view-mode={true} className={UI_THEME.forms.inputBase}
                       />
                     </div>
                 <div className="space-y-1.5 col-span-1">

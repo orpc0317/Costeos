@@ -274,7 +274,7 @@ export function EmpresaModal({
 
         <DialogContent className="sm:max-w-[500px] h-[85vh] sm:h-[600px] flex flex-col p-4 sm:p-6 overflow-hidden">
           <DialogHeader className="mb-2 shrink-0">
-            <DialogTitle className="flex items-center gap-2 text-xl">
+            <DialogTitle className={UI_THEME.modal.title}>
               <Building2 className="w-5 h-5 text-slate-500" />
               {title}
             </DialogTitle>
@@ -289,7 +289,7 @@ export function EmpresaModal({
 
           <form onSubmit={handleSave} noValidate className="flex-1 min-h-0 flex flex-col pt-2">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
-              <TabsList variant="line" className="mb-4 shrink-0">
+              <TabsList variant="line" className={UI_THEME.tabs.listClass}>
                 <TabsTrigger value="general">
                   <Building2 className="w-4 h-4 mr-2" />
                   General
@@ -302,7 +302,7 @@ export function EmpresaModal({
                 )}
               </TabsList>
 
-              <div className="flex-1 overflow-y-auto pr-2 pb-4">
+              <div className={UI_THEME.modal.scrollArea}>
 
                 {/* ── Pestaña General ──────────────────────────────────────────── */}
                 <TabsContent value="general" className="mt-0">
@@ -316,7 +316,8 @@ export function EmpresaModal({
                         value={nombre}
                         onChange={e => setNombre(e.target.value)}
                         disabled={mode === 'view'}
-                        className="h-8 py-1 uppercase"
+                        data-view-mode={mode === 'view'}
+                        className={`${UI_THEME.forms.inputBase} uppercase`}
                         aria-invalid={!!fieldErrors.nombre}
                       />
                       <FieldError message={fieldErrors.nombre} />
@@ -369,7 +370,8 @@ export function EmpresaModal({
                         value={razonSocial}
                         onChange={e => setRazonSocial(e.target.value)}
                         disabled={mode === 'view'}
-                        className="h-8 py-1 uppercase"
+                        data-view-mode={mode === 'view'}
+                        className={`${UI_THEME.forms.inputBase} uppercase`}
                         aria-invalid={!!fieldErrors.razonSocial}
                       />
                       <FieldError message={fieldErrors.razonSocial} />
@@ -383,7 +385,8 @@ export function EmpresaModal({
                         value={nit}
                         onChange={e => setNit(e.target.value)}
                         disabled={mode === 'view'}
-                        className="h-8 py-1 font-mono text-sm uppercase"
+                        data-view-mode={mode === 'view'}
+                        className={`${UI_THEME.forms.inputBase} font-mono uppercase`}
                         aria-invalid={!!fieldErrors.nit}
                       />
                       <FieldError message={fieldErrors.nit} />
@@ -398,7 +401,9 @@ export function EmpresaModal({
                             id="empresa-codigo-erp"
                             value={codigoErp}
                             disabled={true}
-                            className="h-8 py-1 bg-muted/50 font-mono text-sm"
+                            disabled={true}
+                            data-view-mode={true}
+                            className={`${UI_THEME.forms.inputBase} font-mono`}
                           />
                           {nombreErp && (
                             <p className="text-xs text-emerald-600 !mt-0.5 leading-none font-medium">
@@ -419,7 +424,7 @@ export function EmpresaModal({
                               }}
                               onBlur={handleCodigoErpBlur}
                               maxLength={10}
-                              className="h-8 py-1 font-mono text-sm pr-8"
+                              className={`${UI_THEME.forms.inputBase} font-mono pr-8`}
                               placeholder="Opcional"
                               aria-invalid={!!fieldErrors.codigoErp}
                             />

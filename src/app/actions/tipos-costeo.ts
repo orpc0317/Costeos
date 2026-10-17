@@ -14,10 +14,10 @@ import { TipoCosteoRepository } from '@/lib/repositories/tipo-costeo.repository'
 
 const PATH = '/dashboard/configuracion/tipos-costeo'
 
-export async function listarTiposCosteo(): Promise<TipoCosteoRow[]> {
+export async function listarTiposCosteo(params?: { search?: string }): Promise<TipoCosteoRow[]> {
   const guard = await requireAdmin()
   if (!guard.ok) return []
-  return TipoCosteoService.listar()
+  return TipoCosteoService.listar(params)
 }
 
 export async function crearTipoCosteo(

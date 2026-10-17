@@ -24,8 +24,14 @@ const SELECT_PUBLICO = {
 
 export const UsuarioRepository = {
 
-  async findAll() {
+  async findAll(params?: { search?: string }) {
+    const { search } = params ?? {}
+    const searchId = search ? parseInt(search, 10) : NaN
+    const where = search
+      ? { OR: [{ nombre: { contains: search } }, { email: { contains: search } }, ...(!isNaN(searchId) ? [{ id: searchId }] : [])] }
+      : undefined
     return prisma.usuario.findMany({
+      where,
       select: SELECT_PUBLICO,
       orderBy: [{ activo: 'desc' }, { nombre: 'asc' }],
     })

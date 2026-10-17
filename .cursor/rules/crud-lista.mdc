@@ -1,0 +1,16 @@
+---
+description: Pantallas CRUD de listado (page + *-client)
+globs: src/app/(dashboard)/dashboard/configuracion/**/*.tsx,src/templates/entidad-client.template.tsx
+alwaysApply: false
+---
+
+# CRUD lista
+
+Antes de editar: leer `src/app/(dashboard)/dashboard/configuracion/categorias/categorias-client.tsx` y copiar `src/templates/entidad-client.template.tsx`.
+
+- Encabezado en `*-client.tsx`, no en `page.tsx`
+- `<DataTable>` sin `searchKey`
+- Columna `id` primera, `actions` última (`enableHiding: false`)
+- FK con `accessorFn`, no `accessorKey` del id
+- Modal de fila: instancia por fila vía `trigger`, no estado compartido
+- Detalle: `docs/crud-standard.md` y `docs/conventions.md`

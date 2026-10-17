@@ -52,9 +52,9 @@ type TipoCosteoEditInput = TipoCosteoInput & {
 
 export const TipoCosteoService = {
 
-  async listar(): Promise<TipoCosteoRow[]> {
+  async listar(params?: { search?: string }): Promise<TipoCosteoRow[]> {
     const [rows, empresas] = await Promise.all([
-      TipoCosteoRepository.findAll(),
+      TipoCosteoRepository.findAll(params),
       EmpresaRepository.findAll(),
     ])
     const empresaMap = new Map(empresas.map(e => [e.id, e.nombre]))

@@ -13,10 +13,10 @@ import type { ErpCliente } from '@/lib/erp'
 
 const PATH = '/dashboard/configuracion/clientes'
 
-export async function listarClientes(): Promise<ClienteRow[]> {
+export async function listarClientes(params?: { search?: string; limit?: number }): Promise<ClienteRow[]> {
   const guard = await requireManagerOrAdmin()
   if (!guard.ok) return []
-  return ClienteService.listar()
+  return ClienteService.listar(params)
 }
 
 export async function crearCliente(data: ClienteInput): Promise<ActionResult<ClienteRow>> {

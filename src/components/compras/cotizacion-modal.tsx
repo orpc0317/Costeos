@@ -21,6 +21,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { FieldError } from '@/components/ui/field-error'
@@ -62,9 +63,9 @@ interface CotizacionModalProps {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const estadoSolicitudCfg: Record<number, string> = {
-  1: 'bg-amber-50 text-amber-700 border-amber-200',
-  2: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  3: 'bg-red-50 text-red-600 border-red-200',
+  1: UI_THEME.badge.warning,
+  2: UI_THEME.badge.active,
+  3: UI_THEME.badge.danger,
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -383,7 +384,7 @@ export function CotizacionModal({
 
           <form onSubmit={handleSave} className="flex flex-col flex-1 min-h-0">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
-              <TabsList variant="line" className="mb-4 shrink-0">
+              <TabsList variant="line" className={UI_THEME.tabs.listClass}>
                 <TabsTrigger value="general">
                   <FileText className="h-3.5 w-3.5 mr-1.5" />
                   General
@@ -429,7 +430,7 @@ export function CotizacionModal({
                         <Input
                           value={cotizacion!.empresaNombre ?? ''}
                           disabled
-                          className={`${UI_THEME.forms.inputBase} bg-muted/50`}
+                          data-view-mode={true} className={UI_THEME.forms.inputBase}
                         />
                       )}
                       <FieldError message={fieldErrors.empresaId} />
@@ -460,7 +461,7 @@ export function CotizacionModal({
                         <Input
                           value={cotizacion!.itemDescripcion ?? ''}
                           disabled
-                          className={`${UI_THEME.forms.inputBase} bg-muted/50`}
+                          data-view-mode={true} className={UI_THEME.forms.inputBase}
                         />
                       )}
                       <FieldError message={fieldErrors.itemId} />
@@ -487,7 +488,7 @@ export function CotizacionModal({
                         <Input
                           value={cotizacion!.proveedorNombre ?? ''}
                           disabled
-                          className={`${UI_THEME.forms.inputBase} bg-muted/50`}
+                          data-view-mode={true} className={UI_THEME.forms.inputBase}
                         />
                       )}
                       <FieldError message={fieldErrors.proveedorId} />
@@ -521,7 +522,7 @@ export function CotizacionModal({
                         <Input
                           value={formatDate(cotizacion?.fecha ?? '')}
                           disabled
-                          className={`${UI_THEME.forms.inputBase} bg-muted/50`}
+                          data-view-mode={true} className={UI_THEME.forms.inputBase}
                         />
                       ) : (
                         <Input
@@ -544,7 +545,8 @@ export function CotizacionModal({
                         placeholder="Ej. COT-2024-001"
                         maxLength={100}
                         disabled={mode === 'view' || loading}
-                        className={`${UI_THEME.forms.inputBase}${mode === 'view' ? ' bg-muted/50' : ''}`}
+                        data-view-mode={mode === 'view'}
+                        className={UI_THEME.forms.inputBase}
                       />
                     </div>
 
@@ -557,7 +559,7 @@ export function CotizacionModal({
                         <Input
                           value={formatNumber(Number(cotizacion?.cantidad ?? 0))}
                           disabled
-                          className={`${UI_THEME.forms.inputBase} bg-muted/50`}
+                          data-view-mode={true} className={UI_THEME.forms.inputBase}
                         />
                       ) : (
                         <NumericInput
@@ -580,7 +582,7 @@ export function CotizacionModal({
                         <Input
                           value={formatNumber(Number(cotizacion?.total ?? 0))}
                           disabled
-                          className={`${UI_THEME.forms.inputBase} bg-muted/50`}
+                          data-view-mode={true} className={UI_THEME.forms.inputBase}
                         />
                       ) : (
                         <NumericInput
@@ -606,7 +608,8 @@ export function CotizacionModal({
                             : '0.0000'
                         }
                         disabled
-                        className={`${UI_THEME.forms.inputBase} bg-muted/50 font-medium text-emerald-700`}
+                        data-view-mode={true}
+                        className={UI_THEME.forms.inputBase}
                       />
                     </div>
 
@@ -618,7 +621,7 @@ export function CotizacionModal({
                         onCheckedChange={c => setImpuestos(!!c)}
                         disabled={mode === 'view' || loading}
                       />
-                      <Label htmlFor="cot-impuestos" className="cursor-pointer font-medium text-sm">
+                      <Label htmlFor="cot-impuestos" className={`${UI_THEME.forms.labelBase} cursor-pointer`}>
                         Incluye Impuestos
                       </Label>
                     </div>
@@ -626,13 +629,13 @@ export function CotizacionModal({
                     {/* Comentario */}
                     <div className="flex flex-col gap-1.5 col-span-2">
                       <Label className={UI_THEME.forms.labelBase}>Comentario</Label>
-                      <textarea
+                      <Textarea
                         value={comentario}
                         onChange={e => setComentario(e.target.value)}
                         placeholder="Comentario..."
                         rows={3}
                         disabled={mode === 'view' || loading}
-                        className={`${UI_THEME.forms.inputBase} resize-none overflow-y-auto py-1.5 leading-snug${mode === 'view' ? ' bg-muted/50' : ''}`}
+                        data-view-mode={mode === 'view'}
                       />
                     </div>
 
@@ -683,7 +686,7 @@ export function CotizacionModal({
                             onCheckedChange={c => setMarcarVigente(!!c)}
                             disabled={loading}
                           />
-                          <Label htmlFor="cot-vigente" className="font-medium cursor-pointer">
+                          <Label htmlFor="cot-vigente" className={`${UI_THEME.forms.labelBase} cursor-pointer`}>
                             Marcar como cotización vigente para este ítem
                           </Label>
                         </div>
@@ -702,9 +705,7 @@ export function CotizacionModal({
                       <div className="flex flex-col gap-1.5">
                         <Label className={UI_THEME.forms.labelBase}>Estado Solicitud</Label>
                         <div className="flex items-center h-8">
-                          <span
-                            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium border ${estadoSolicitudCfg[solicitudEstadoLocal] ?? 'bg-slate-100 text-slate-600 border-slate-200'}`}
-                          >
+                          <span className={estadoSolicitudCfg[solicitudEstadoLocal] ?? UI_THEME.badge.inactive}>
                             {labelEstadoSolicitud(solicitudEstadoLocal)}
                           </span>
                         </div>
@@ -716,7 +717,7 @@ export function CotizacionModal({
                         <Input
                           value={cotizacion!.empresaNombre ?? ''}
                           disabled
-                          className={`${UI_THEME.forms.inputBase} bg-muted/50`}
+                          data-view-mode={true} className={UI_THEME.forms.inputBase}
                         />
                       </div>
 
@@ -726,7 +727,7 @@ export function CotizacionModal({
                         <Input
                           value={cotizacion!.itemDescripcion ?? ''}
                           disabled
-                          className={`${UI_THEME.forms.inputBase} bg-muted/50`}
+                          data-view-mode={true} className={UI_THEME.forms.inputBase}
                         />
                       </div>
 
@@ -737,7 +738,7 @@ export function CotizacionModal({
                           <Input
                             value={cotizacion!.itemUnidadMedida}
                             disabled
-                            className={`${UI_THEME.forms.inputBase} bg-muted/50`}
+                            data-view-mode={true} className={UI_THEME.forms.inputBase}
                           />
                         </div>
                       )}
@@ -749,7 +750,8 @@ export function CotizacionModal({
                           <Input
                             value={cotizacion!.solicitudId}
                             disabled
-                            className={`${UI_THEME.forms.inputBase} bg-muted/50 font-mono`}
+                            data-view-mode={true}
+                            className={`${UI_THEME.forms.inputBase} font-mono`}
                           />
                         </div>
                       )}
@@ -761,7 +763,7 @@ export function CotizacionModal({
                           <Input
                             value={cotizacion!.clienteNombre}
                             disabled
-                            className={`${UI_THEME.forms.inputBase} bg-muted/50`}
+                            data-view-mode={true} className={UI_THEME.forms.inputBase}
                           />
                         </div>
                       )}
@@ -773,7 +775,7 @@ export function CotizacionModal({
                           <Input
                             value={cotizacion!.proyectoNombre}
                             disabled
-                            className={`${UI_THEME.forms.inputBase} bg-muted/50`}
+                            data-view-mode={true} className={UI_THEME.forms.inputBase}
                           />
                         </div>
                       )}

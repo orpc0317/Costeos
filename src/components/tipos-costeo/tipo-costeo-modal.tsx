@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useTransition } from 'react'
-import { Settings2, Hash, Power, PowerOff, History, Pencil, Info, CalendarDays, CornerDownRight, Network, Building, MapPin, Briefcase, Users, Layers, Box, Component, Folder, ListTree, Tags, ChevronDown } from 'lucide-react'
+import { Hash, Power, PowerOff, History, Pencil, Info, CalendarDays, CornerDownRight, Network, Building, MapPin, Briefcase, Users, Layers, Box, Component, Folder, ListTree, Tags } from 'lucide-react'
 import { normalizeText } from '@/lib/utils/text'
 import { cn } from '@/lib/utils'
 import {
@@ -19,8 +19,7 @@ import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { SearchableSelect } from '@/components/ui/searchable-select'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { NumericInput } from '@/components/ui/numeric-input'
 import { FieldError } from '@/components/ui/field-error'
 import { getEmpresasForUser } from '@/app/actions/erp'
@@ -52,12 +51,13 @@ const ICON_COMPONENTS: Record<string, React.ElementType> = {
   Box, Component, Folder, ListTree, Tags, Network, Hash
 }
 
-interface TipoCosteoDialogProps {
+interface TipoCosteoModalProps {
   tipoCosteo?: TipoCosteoRow | null
-  trigger: React.ReactNode
+  trigger?: React.ReactNode
+  onSuccess?: () => void
 }
 
-export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps) {
+export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess }: TipoCosteoModalProps) {
   const [open, setOpen] = useState(false)
   const [historialOpen, setHistorialOpen] = useState(false)
 
@@ -71,6 +71,7 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
       const result = await toggleActivo(initialTipoCosteo.id, initialTipoCosteo.registroVersion)
       if (result.ok) {
         setOpen(false)
+        onSuccess?.()
       } else {
         setError(result.error ?? 'Error al cambiar estado')
       }
@@ -197,7 +198,7 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
             if (el) el.focus()
           }, 100)
 
-          setFieldErrors({ [result.field]: result.error })
+          setFieldErrors(prev => ({ ...prev, [result.field]: result.error }))
           setLoading(false)
           return
         }
@@ -210,6 +211,7 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
       } else {
         setOpen(false)
       }
+      onSuccess?.()
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -298,22 +300,22 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
   return (
     <>
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={trigger as React.ReactElement} />
-      <DialogContent className="sm:max-w-[600px] h-[520px] max-h-[90vh] flex flex-col">
+      {trigger && <DialogTrigger render={trigger as React.ReactElement} />}
+      <DialogContent className="sm:max-w-[600px] h-[85vh] sm:h-[520px] flex flex-col p-4 sm:p-6 overflow-hidden">
 
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Hash className="w-5 h-5 text-slate-500" />
-            {mode === 'create' ? 'Nuevo Tipo Costeo' : mode === 'edit' ? 'Editar Tipo Costeo' : 'Detalles Tipo Costeo'}
+        <DialogHeader className="mb-2 shrink-0">
+          <DialogTitle className={UI_THEME.modal.title}>
+            <Network className="w-5 h-5 text-slate-500" />
+            {mode === 'create' ? 'Nuevo Tipo Costeo' : mode === 'edit' ? 'Editar Tipo Costeo' : 'Detalle Tipo Costeo'}
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col" noValidate>
-          {error && <div className="text-red-500 text-sm font-medium mb-4 shrink-0">{error}</div>}
+        <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col pt-2" noValidate>
+          {error && <div className={UI_THEME.forms.globalError}>{error}</div>}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
-            <TabsList variant="line" className="mb-4 shrink-0">
+            <TabsList variant="line" className={UI_THEME.tabs.listClass}>
               <TabsTrigger value="general">
-                <Settings2 className="w-4 h-4 mr-2" />
+                <Network className="w-4 h-4 mr-2" />
                 General
               </TabsTrigger>
               <TabsTrigger value="niveles">
@@ -326,15 +328,16 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
               </TabsTrigger>
             </TabsList>
             
-            <div className="flex-1 overflow-y-auto pr-2 pb-4">
+            <div className={UI_THEME.modal.scrollArea}>
               <TabsContent value="general" className="outline-none mt-0">
               <div className="grid grid-cols-4 gap-x-6 gap-y-4">
                 
                 {/* Empresa */}
                 <div className="space-y-1.5 col-span-4">
-                  <Label>
+                  <Label className={UI_THEME.forms.labelBase}>
                     Empresa <span className="text-red-500">*</span>
                   </Label>
+                  {mode === 'create' ? (
                     <SearchableSelect
                       id="tc-empresaId"
                       options={empresas}
@@ -346,8 +349,16 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
                         setFieldErrors(prev => ({ ...prev, empresaId: '' }))
                       }}
                       placeholder={cargandoEmpresas ? "Cargando..." : "Seleccionar empresa"}
-                      disabled={mode === 'view' || mode === 'edit' || cargandoEmpresas}
+                      disabled={cargandoEmpresas}
                     />
+                  ) : (
+                    <Input
+                      value={empresas.find(e => e.value === empresaId)?.label ?? tipoCosteo?.empresaNombre ?? empresaId}
+                      disabled
+                      data-view-mode={true}
+                      className={UI_THEME.forms.inputBase}
+                    />
+                  )}
                     <FieldError message={fieldErrors.empresaId} />
                   </div>
 
@@ -500,7 +511,7 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
 
                 {cantidadNiveles > 0 && (
                   <div className="space-y-4">
-                    <Label className="text-base font-semibold border-b pb-2 block">Estructura Costeo</Label>
+                    <p className={UI_THEME.forms.sectionTitle}>Estructura Costeo</p>
                     <div className="h-[250px] overflow-y-auto pr-4 py-2 space-y-3 bg-slate-50/50 rounded-md border border-slate-100 p-4">
                       {Array.from({ length: cantidadNiveles }).map((_, i) => (
                         <div key={i} className="flex items-start">
@@ -513,7 +524,7 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
                             "flex flex-col gap-1.5 w-full", 
                             i > 0 && "ml-2"
                           )}>
-                            <Label htmlFor={`tc-etiqueta-nivel-${i}`} className="text-xs font-semibold text-slate-500 flex items-center justify-between">
+                            <Label htmlFor={`tc-etiqueta-nivel-${i}`} className={`${UI_THEME.forms.labelBase} w-full justify-between`}>
                               <span>Nivel {i + 1}</span>
                               {nivelConDireccion === i + 1 && <span className="text-emerald-700 text-[10px] uppercase font-bold bg-emerald-100 px-2 py-0.5 rounded-full">Con Dirección</span>}
                             </Label>
@@ -596,7 +607,7 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
             <TabsContent value="evaluacion" className="outline-none mt-0">
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label className="text-base font-semibold">Base Evaluación Financiera</Label>
+                  <p className={UI_THEME.forms.sectionTitle}>Base Evaluación Financiera</p>
                   <p className="text-sm text-slate-500">
                     Define la temporalidad sobre la cual se consolidarán y evaluarán las ventas y los costos de los contratos asociados a este Tipo de Costeo.
                   </p>
@@ -653,36 +664,30 @@ export function TipoCosteoDialog({ tipoCosteo, trigger }: TipoCosteoDialogProps)
 
                 <div className="space-y-3 pt-4 border-t mt-4">
                   <div>
-                    <Label className="text-base font-semibold">Manejo Plazo</Label>
+                    <p className={UI_THEME.forms.sectionTitle}>Manejo Plazo</p>
                     <p className="text-sm text-slate-500 mb-3">
                       Define cómo se comportará la duración en meses de estos proyectos.
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
                       <div className="flex flex-col gap-1.5 justify-start">
-                        <Select 
-                          value={manejoPlazo} 
-                          onValueChange={(val) => setManejoPlazo(val as 'LIBRE'|'FIJO'|'NO_APLICA')}
+                        <SearchableSelect
+                          id="tc-manejoPlazo"
+                          options={[
+                            { value: 'NO_APLICA', label: 'No Aplica' },
+                            { value: 'LIBRE', label: 'Libre' },
+                            { value: 'FIJO', label: 'Fijo' },
+                          ]}
+                          value={manejoPlazo}
+                          onChange={(val) => setManejoPlazo(val as 'LIBRE'|'FIJO'|'NO_APLICA')}
                           disabled={mode === 'view'}
-                        >
-                          <SelectTrigger id="tc-manejoPlazo" className="w-full bg-white">
-                            <SelectValue placeholder="Seleccione el manejo...">
-                              {manejoPlazo === 'NO_APLICA' && 'No Aplica'}
-                              {manejoPlazo === 'LIBRE' && 'Libre (Editable al crear)'}
-                              {manejoPlazo === 'FIJO' && 'Fijo (Forzado a X meses)'}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="NO_APLICA">No Aplica</SelectItem>
-                            <SelectItem value="LIBRE">Libre (Editable al crear)</SelectItem>
-                            <SelectItem value="FIJO">Fijo (Forzado a X meses)</SelectItem>
-                          </SelectContent>
-                        </Select>
+                          searchable={false}
+                        />
                       </div>
                       
                       {(manejoPlazo === 'FIJO' || manejoPlazo === 'LIBRE') && (
                         <div className="flex flex-col w-full justify-start">
                           <div className="flex flex-row items-center gap-3 animate-in fade-in slide-in-from-left-2">
-                            <Label htmlFor="tc-fijar-plazo" className="text-sm font-semibold whitespace-nowrap">
+                            <Label htmlFor="tc-fijar-plazo" className={`${UI_THEME.forms.labelBase} whitespace-nowrap`}>
                               {manejoPlazo === 'FIJO' ? 'Meses Fijos' : 'Meses Default'}
                             </Label>
                             <NumericInput

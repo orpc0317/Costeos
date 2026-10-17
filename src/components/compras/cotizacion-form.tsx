@@ -222,7 +222,8 @@ export function CotizacionForm({ solicitudId, onGuardado, onCancelar }: Cotizaci
           <Input
             value={costoUnitario > 0 ? costoUnitario.toFixed(4) : '0.0000'}
             disabled
-            className={`${UI_THEME.forms.inputBase} bg-muted/50 font-medium text-emerald-700`}
+            data-view-mode={true}
+            className={UI_THEME.forms.inputBase}
           />
         </div>
 
@@ -234,7 +235,7 @@ export function CotizacionForm({ solicitudId, onGuardado, onCancelar }: Cotizaci
             onCheckedChange={(c) => setImpuestos(!!c)}
             disabled={submitting}
           />
-          <Label htmlFor="impuestos" className="cursor-pointer font-medium">
+          <Label htmlFor="impuestos" className={`${UI_THEME.forms.labelBase} cursor-pointer`}>
             Incluye Impuestos
           </Label>
         </div>
@@ -262,7 +263,7 @@ export function CotizacionForm({ solicitudId, onGuardado, onCancelar }: Cotizaci
               onCheckedChange={(c) => setMarcarVigente(!!c)}
               disabled={submitting}
             />
-            <Label htmlFor="marcarVigente" className="font-medium cursor-pointer">
+            <Label htmlFor="marcarVigente" className={`${UI_THEME.forms.labelBase} cursor-pointer`}>
               Marcar como cotización vigente para este ítem
             </Label>
           </div>

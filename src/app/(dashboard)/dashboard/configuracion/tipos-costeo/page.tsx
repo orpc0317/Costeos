@@ -9,12 +9,10 @@ export const metadata: Metadata = {
 }
 
 export default async function TiposCosteoPage() {
-  // Obtenemos todos los tipos de costeo para que el DataTable del cliente los filtre
-  const tiposCosteo = await listarTiposCosteo()
-
+  const initialData = await listarTiposCosteo()
   return (
     <Suspense fallback={<div>Cargando tipos de costeo...</div>}>
-      <TiposCosteoClient tiposCosteo={tiposCosteo} />
+      <TiposCosteoClient initialData={initialData} />
     </Suspense>
   )
 }

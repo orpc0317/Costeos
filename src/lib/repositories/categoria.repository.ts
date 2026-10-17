@@ -11,12 +11,22 @@ type TxClient = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transa
 
 export const CategoriaRepository = {
 
-  async findAll() {
+  async findAll(params?: { search?: string }) {
+    const { search } = params ?? {}
+    const searchId = search ? parseInt(search, 10) : NaN
+    const where = search
+      ? {
+          OR: [
+            { nombre: { contains: search } },
+            ...(!isNaN(searchId) ? [{ id: searchId }] : []),
+          ],
+        }
+      : undefined
     return prisma.categoriaItem.findMany({
-      orderBy: [
-        { prioridad: 'asc' },
-        { id: 'asc' },
-      ],
+      where,
+      orderBy: search
+        ? [{ nombre: 'asc' }]
+        : [{ prioridad: 'asc' }, { id: 'asc' }],
     })
   },
 

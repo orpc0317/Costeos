@@ -88,7 +88,7 @@ function ScrollableTabsList({ className, ...props }: ScrollableTabsListProps) {
 
   // El wrapper es flex + items-center: todos los hijos se centran verticalmente.
   // border-b aquí en lugar del TabsList para que cubra el ancho completo.
-  // className (ej. "mb-4 shrink-0") va en el wrapper, no en el TabsList.
+  // className (ej. UI_THEME.tabs.listClass) va en el wrapper, no en el TabsList.
   return (
     <div className={cn("flex items-center border-b w-full", className)}>
 

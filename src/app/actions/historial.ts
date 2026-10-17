@@ -1,6 +1,6 @@
 'use server'
 
-import { auth } from '@/lib/auth'
+import { requireAuth } from '@/lib/auth-helpers'
 import { prisma } from '@/lib/prisma'
 import { ProyectoCosteo } from '@/lib/types/costeos'
 
@@ -12,10 +12,8 @@ export interface HistorialEntry {
 
 export async function getHistorialAutoGuardado(costeoIdStr: string): Promise<{ success: boolean; data?: HistorialEntry[]; error?: string }> {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return { success: false, error: 'No autorizado' }
-    }
+    const guard = await requireAuth()
+    if (!guard.ok) return { success: false, error: guard.error }
 
     const costeoId = parseInt(costeoIdStr, 10)
     if (isNaN(costeoId)) return { success: false, error: 'ID de costeo inválido' }
@@ -45,10 +43,8 @@ export async function getHistorialAutoGuardado(costeoIdStr: string): Promise<{ s
 
 export async function getSnapshotAutoGuardado(historialId: number): Promise<{ success: boolean; data?: ProyectoCosteo; error?: string }> {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return { success: false, error: 'No autorizado' }
-    }
+    const guard = await requireAuth()
+    if (!guard.ok) return { success: false, error: guard.error }
 
     const snapshot = await prisma.historialAutoGuardado.findUnique({
       where: { id: historialId },

@@ -3,6 +3,7 @@ import { useCosteo } from '@/lib/context/CosteoContext';
 import { NodoCosteo, RecursoCosteo, BonoCosteo, ComboDisponible } from '@/lib/types/costeos';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { UI_THEME } from '@/lib/theme'
 import {
   Dialog,
   DialogContent,
@@ -937,26 +938,28 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                 value={selectedBonoCosto}
                 onChange={(val: number | undefined) => setSelectedBonoCosto(val || 0)}
                 min="0"
-                className="flex h-8 w-full rounded-sm border border-indigo-300 bg-white px-2.5 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
+                className={UI_THEME.forms.inputBase}
               />
             ) : (
-              <input
-                type="text"
-                readOnly tabIndex={-1}
+              <Input
+                readOnly
+                tabIndex={-1}
+                data-view-mode={true}
                 value={(bonoSeleccionado?.costo ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
+                className={UI_THEME.forms.inputBase}
               />
             )}
           </div>
           <div className="col-span-1 flex flex-col gap-1.5">
             <Label>SubTotal Costo</Label>
-            <input
-              type="text"
-              readOnly tabIndex={-1}
+            <Input
+              readOnly
+              tabIndex={-1}
+              data-view-mode={true}
               value={new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
                 factorCosto * (bonoSolicitaCosto ? selectedBonoCosto : (bonoSeleccionado?.costo ?? 0))
               )}
-              className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 font-bold text-red-600 px-2.5 py-1 text-sm outline-none cursor-not-allowed"
+              className={UI_THEME.forms.inputBase}
             />
           </div>
           <div className="col-span-2" />
@@ -1044,7 +1047,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
         </DialogHeader>
         
         {error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm mb-2 border border-red-200 shrink-0">
+          <div className={`${UI_THEME.forms.globalError} mb-2 shrink-0`}>
             {error}
           </div>
         )}
@@ -1138,7 +1141,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                     <Input
                       value="GUATEMALA"
                       disabled
-                      className="bg-slate-100 text-slate-500 cursor-not-allowed"
+                      data-view-mode={true} className={UI_THEME.forms.inputBase}
                     />
                   </div>
                   
@@ -1287,7 +1290,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                           value={servicioSeleccionado?.unidadMedida || localItem?.unidadMedida || ''}
                           readOnly
                           tabIndex={-1}
-                          className="bg-slate-100 text-slate-500 cursor-not-allowed uppercase"
+                          data-view-mode={true} className={`${UI_THEME.forms.inputBase} uppercase`}
                         />
                       </div>
                     </>
@@ -1456,7 +1459,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                     <Input
                       value={new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factorCosto * (precioVenta || 0))}
                       readOnly tabIndex={-1}
-                      className="bg-slate-100 text-slate-500 cursor-not-allowed"
+                      data-view-mode={true} className={UI_THEME.forms.inputBase}
                     />
                   </div>
                   <div className="col-span-1 flex flex-col gap-1.5">
@@ -1464,7 +1467,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                     <Input
                       value={new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factorCosto * (precioVenta || 0))}
                       readOnly tabIndex={-1}
-                      className="bg-slate-100 font-bold text-blue-700 cursor-not-allowed"
+                      data-view-mode={true} className={UI_THEME.forms.inputBase}
                     />
                   </div>
                 </div>
@@ -1484,7 +1487,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                       <Input
                         value={(sinManejoCotos ? 0 : (costoUnitario || 0)).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                         readOnly tabIndex={-1}
-                        className="bg-slate-100 text-slate-500 cursor-not-allowed"
+                        data-view-mode={true} className={UI_THEME.forms.inputBase}
                       />
                     )}
                     {fieldErrors.costoUnitario && <FieldError message={fieldErrors.costoUnitario} />}
@@ -1494,7 +1497,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                     <Input
                       value={new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factorCosto * (costoUnitario || 0))}
                       readOnly tabIndex={-1}
-                      className="bg-slate-100 text-slate-500 cursor-not-allowed"
+                      data-view-mode={true} className={UI_THEME.forms.inputBase}
                     />
                   </div>
                   <div className="col-span-1 flex flex-col gap-1.5">
@@ -1505,7 +1508,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                         return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factorCosto * bonosTotal);
                       })()}
                       readOnly tabIndex={-1}
-                      className="bg-slate-100 text-slate-500 cursor-not-allowed"
+                      data-view-mode={true} className={UI_THEME.forms.inputBase}
                     />
                   </div>
                   <div className="col-span-1 flex flex-col gap-1.5">
@@ -1517,7 +1520,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                         return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(subtotal + bonosTotal);
                       })()}
                       readOnly tabIndex={-1}
-                      className="bg-slate-100 font-bold text-red-600 cursor-not-allowed"
+                      data-view-mode={true} className={UI_THEME.forms.inputBase}
                     />
                   </div>
                 </div>
@@ -1528,7 +1531,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
               return (
                 <div className="flex-1 flex flex-col min-h-0 animate-in fade-in slide-in-from-top-2">
                   <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
-                    <TabsList variant="line" className="mb-4 shrink-0">
+                    <TabsList variant="line" className={UI_THEME.tabs.listClass}>
                       <TabsTrigger value="general"><Settings2 className="w-4 h-4 mr-2" />General</TabsTrigger>
                       {!isEstandar && (
                         <TabsTrigger value="bonos">
@@ -1539,6 +1542,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                         <Layers className="w-4 h-4 mr-2" />Combo
                       </TabsTrigger>
                     </TabsList>
+                    <div className={UI_THEME.modal.scrollArea}>
                     <TabsContent value="general" keepMounted className="flex-1 overflow-visible outline-none">
                       {generalContent}
                     </TabsContent>
@@ -1650,6 +1654,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                         </TabsContent>
                       );
                     })()}
+                    </div>
                   </Tabs>
                 </div>
               );

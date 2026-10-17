@@ -8,10 +8,10 @@ import type { ActionResult } from '@/lib/types/common'
 
 const PATH = '/dashboard/configuracion/usuarios'
 
-export async function listarUsuarios(): Promise<UsuarioRow[]> {
+export async function listarUsuarios(params?: { search?: string }): Promise<UsuarioRow[]> {
   const guard = await requireAdmin()
   if (!guard.ok) return []
-  return UsuarioService.listar()
+  return UsuarioService.listar(params)
 }
 
 export async function crearUsuario(

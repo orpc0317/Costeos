@@ -244,7 +244,7 @@ export function EntidadModal({
 
           <form onSubmit={handleSave} noValidate className="flex-1 min-h-0 flex flex-col">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
-              <TabsList variant="line" className="mb-4 shrink-0">
+              <TabsList variant="line" className={UI_THEME.tabs.listClass}>
                 <TabsTrigger value="general">
                   <IconoEntidad className="h-3.5 w-3.5 mr-1.5" /> {/* ← ícono canónico */}
                   General
@@ -252,7 +252,7 @@ export function EntidadModal({
                 {/* TODO: agregar más TabsTrigger si la entidad los necesita */}
               </TabsList>
 
-              {/* Área scrolleable de campos */}
+              {/* Interior de la pestaña: panel blanco con borde (UI_THEME.modal.scrollArea) */}
               <div className={UI_THEME.modal.scrollArea}>
 
                 {/* Error global — siempre al tope del área de campos */}
@@ -266,16 +266,17 @@ export function EntidadModal({
 
                     {/* Empresa — tres modos obligatorios (R: AGENTS.md §Campos y Datos)
                         SIEMPRE usar UI_THEME.forms.labelBase en Label.
-                        Vista/Edición → Input disabled con data-[view-mode] ya manejado por inputBase.
+                        Vista/Edición → Input disabled con data-view-mode.
+                        inputBase conserva el subrayado inferior (igual que en nuevo/editar).
                         Creación      → SearchableSelect activo. */}
                     <div className="flex flex-col gap-1.5 col-span-2">
                       <Label className={UI_THEME.forms.labelBase}>Empresa</Label>
                       {mode === 'view' ? (
                         // Vista: Input deshabilitado — inputBase ya aplica estilos disabled
-                        <Input value={empresaNombre} disabled className={UI_THEME.forms.inputBase} />
+                        <Input value={empresaNombre} disabled data-view-mode={true} className={UI_THEME.forms.inputBase} />
                       ) : isEditing ? (
                         // Edición: empresa no se cambia — igual deshabilitado
-                        <Input value={empresaNombre} disabled className={UI_THEME.forms.inputBase} />
+                        <Input value={empresaNombre} disabled data-view-mode={true} className={UI_THEME.forms.inputBase} />
                       ) : (
                         // Creación: SearchableSelect activo
                         <SearchableSelect
@@ -300,6 +301,7 @@ export function EntidadModal({
                           if (fieldErrors.nombre) setFieldErrors(prev => { const n = { ...prev }; delete n.nombre; return n })
                         }}
                         disabled={mode === 'view' || loading}
+                        data-view-mode={mode === 'view'}
                         className={`${UI_THEME.forms.inputBase} uppercase`}
                         aria-invalid={!!fieldErrors.nombre}
                       />
@@ -330,7 +332,8 @@ export function EntidadModal({
                             <Input
                               value={formatNumber(Number(miEntidad?.miCampo ?? 0))}
                               disabled
-                              className={`${UI_THEME.forms.inputBase} bg-muted/50`}
+                              data-view-mode={true}
+                              className={UI_THEME.forms.inputBase}
                             />
                           ) : (
                             <NumericInput

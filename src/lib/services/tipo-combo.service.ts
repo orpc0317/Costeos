@@ -43,9 +43,9 @@ function toRow(r: Awaited<ReturnType<typeof TipoComboRepository.findById>>, empr
 
 export const TipoComboService = {
 
-  async listar(): Promise<TipoComboRow[]> {
+  async listar(params?: { search?: string }): Promise<TipoComboRow[]> {
     const [rows, empresas] = await Promise.all([
-      TipoComboRepository.findAll(),
+      TipoComboRepository.findAll(params),
       EmpresaRepository.findAll(),
     ])
     const empresaMap = new Map(empresas.map(e => [e.id, e.nombre]))

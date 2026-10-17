@@ -79,9 +79,9 @@ async function buildCamposAuditables(
 
 export const ClienteService = {
 
-  async listar(): Promise<ClienteRow[]> {
+  async listar(params?: { search?: string; limit?: number }): Promise<ClienteRow[]> {
     const [rows, empresas] = await Promise.all([
-      ClienteRepository.findAll(),
+      ClienteRepository.findAll(params),
       prisma.empresa.findMany({ select: { id: true, nombre: true } }),
     ])
     const empresaMap = new Map(empresas.map(e => [e.id, e.nombre]))

@@ -85,6 +85,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
   const [uniforme, setUniforme] = useState(false)
   const [activo, setActivo] = useState(true)
   const [combos, setCombos] = useState<import('@/lib/types/items').DetalleComboInput[]>([])
+  const [comboItemsMap, setComboItemsMap] = useState<Map<number, string>>(new Map())
   const [tiposComboAsocs, setTiposComboAsocs] = useState<ItemTipoComboAsoc[]>([])
 
 
@@ -227,8 +228,17 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
         renovacionIncluido: Boolean(c.renovacionIncluido),
         renovacionRequerido: Boolean(c.renovacionRequerido)
       })))
+      // Construir mapa id -> descripcion desde la relacion productoSecundario
+      const map = new Map<number, string>()
+      data.combosPrincipal.forEach(c => {
+        if (c.productoSecundario?.descripcion) {
+          map.set(c.productoSecundarioId, c.productoSecundario.descripcion)
+        }
+      })
+      setComboItemsMap(map)
     } else {
       setCombos([])
+      setComboItemsMap(new Map())
     }
 
     // Mapear tiposCombo
@@ -510,7 +520,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
           }
         >
           <DialogHeader className="mb-2 shrink-0">
-            <DialogTitle className="flex items-center gap-2 text-xl">
+            <DialogTitle className={UI_THEME.modal.title}>
               <Package className="w-5 h-5 text-slate-500" />
               {isEditing
                 ? mode === 'view' ? 'Detalle Item' : 'Editar Item'
@@ -562,7 +572,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                     if (busquedaRealizada) { setBusquedaRealizada(false); setResultadosBusqueda([]) }
                   }}
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleBuscar() } }}
-                  className="h-9 uppercase"
+                  className={`${UI_THEME.forms.inputBase} uppercase`}
                   placeholder="Ej. OFICIAL DE SEGURIDAD"
                   autoFocus
                 />
@@ -678,7 +688,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                 onValueChange={setActiveTab}
                 className="w-full flex-1 flex flex-col min-h-0"
               >
-                <TabsList variant="line" className="mb-4 shrink-0">
+                <TabsList variant="line" className={UI_THEME.tabs.listClass}>
                   <TabsTrigger value="general">
                     <Settings2 className="w-4 h-4 mr-2" />
                     General
@@ -711,33 +721,20 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                   )}
                 </TabsList>
 
-                <div className="flex-1 overflow-y-auto pr-2 pb-4">
+                <div className={UI_THEME.modal.scrollArea}>
                   {/* ── PESTAÑA GENERAL ── */}
                   <TabsContent value="general" className="mt-0">
                     <div className="grid grid-cols-4 gap-x-6 gap-y-4">
 
-                      {/* Empresa — editable solo en edición; en nuevo, read-only (se fijó en paso 1) */}
-                      {isEditing ? (
-                        <div className="flex flex-col gap-1.5 col-span-4">
-                          <Label htmlFor="empresa">
-                            Empresa <span className="text-red-500">*</span>
-                          </Label>
-                          <SearchableSelect
-                            options={empresas}
-                            value={empresa}
-                            onChange={setEmpresa}
-                            disabled={mode === 'view' || cargandoEmpresas || isEditing}
-                            placeholder={cargandoEmpresas ? 'Cargando...' : 'Seleccionar empresa'}
-                            error={!!fieldErrors.empresa}
-                          />
-                          <FieldError message={fieldErrors.empresa} />
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-1.5 col-span-4">
-                          <Label>Empresa</Label>
-                          <Input value={empresaNombre} disabled className="h-8 bg-muted/50" />
-                        </div>
-                      )}
+                      <div className="flex flex-col gap-1.5 col-span-4">
+                        <Label className={UI_THEME.forms.labelBase}>Empresa</Label>
+                        <Input
+                          value={empresaNombre}
+                          disabled
+                          data-view-mode={true}
+                          className={UI_THEME.forms.inputBase}
+                        />
+                      </div>
 
                       {/* Descripción */}
                       <div className="flex flex-col gap-1.5 col-span-4">
@@ -754,7 +751,8 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                             if (erpVinculado) setErpVinculado(null)
                           }}
                           disabled={disabledDescripcion}
-                          className="h-8 py-1 uppercase"
+                          data-view-mode={disabledDescripcion}
+                          className={`${UI_THEME.forms.inputBase} uppercase`}
                           aria-invalid={!!fieldErrors.descripcion}
                         />
                         <FieldError message={fieldErrors.descripcion} />
@@ -841,7 +839,8 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                           value={unidadMedida}
                           onChange={e => setUnidadMedida(e.target.value)}
                           disabled={disabledPorERP}
-                          className="h-8 py-1 uppercase"
+                          data-view-mode={disabledPorERP}
+                          className={`${UI_THEME.forms.inputBase} uppercase`}
                           aria-invalid={!!fieldErrors.unidadMedida}
                         />
                         <FieldError message={fieldErrors.unidadMedida} />
@@ -887,7 +886,8 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                           value={codigoErp}
                           onChange={e => setCodigoErp(e.target.value)}
                           disabled={disabledPorERP || !syncItemsHabilitado}
-                          className={`h-8 py-1 uppercase ${erpVinculado ? 'bg-blue-50 border-blue-200 text-blue-800 font-medium' : ''}`}
+                          data-view-mode={disabledPorERP || !syncItemsHabilitado}
+                          className={`${UI_THEME.forms.inputBase} uppercase font-mono`}
                           title={!syncItemsHabilitado ? 'El Código ERP es asignado automáticamente cuando la empresa tiene sync con ERP habilitado' : undefined}
                         />
                         <FieldError message={fieldErrors.codigoErp} />
@@ -902,7 +902,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                             onCheckedChange={checked => setActivo(checked as boolean)}
                             disabled={mode === 'view'}
                           />
-                          <Label htmlFor="activo" className="font-normal cursor-pointer">
+                          <Label htmlFor="activo" className={`${UI_THEME.forms.labelBase} cursor-pointer`}>
                             Activo
                           </Label>
                         </div>
@@ -1082,7 +1082,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                             onCheckedChange={checked => setPrecioVentaCero(checked as boolean)}
                             disabled={mode === 'view' || erpVinculado !== null}
                           />
-                          <Label htmlFor="precioVentaCero" className="font-normal cursor-pointer">
+                          <Label htmlFor="precioVentaCero" className={`${UI_THEME.forms.labelBase} cursor-pointer`}>
                             Permitir Precio Cero
                           </Label>
                         </div>
@@ -1093,7 +1093,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                             onCheckedChange={checked => setVenta(checked as boolean)}
                             disabled={mode === 'view'}
                           />
-                          <Label htmlFor="venta" className="font-normal cursor-pointer">
+                          <Label htmlFor="venta" className={`${UI_THEME.forms.labelBase} cursor-pointer`}>
                             Venta
                           </Label>
                         </div>
@@ -1104,7 +1104,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                             onCheckedChange={checked => setRecurrente(checked as boolean)}
                             disabled={mode === 'view' || erpVinculado !== null}
                           />
-                          <Label htmlFor="recurrente" className="font-normal cursor-pointer">
+                          <Label htmlFor="recurrente" className={`${UI_THEME.forms.labelBase} cursor-pointer`}>
                             Recurrente
                           </Label>
                         </div>
@@ -1115,7 +1115,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                             onCheckedChange={checked => setRecurrenteGasto(checked as boolean)}
                             disabled={mode === 'view'}
                           />
-                          <Label htmlFor="recurrenteGasto" className="font-normal cursor-pointer">Recurrente Gasto</Label>
+                          <Label htmlFor="recurrenteGasto" className={`${UI_THEME.forms.labelBase} cursor-pointer`}>Recurrente Gasto</Label>
                         </div>
                         <div className="flex items-center gap-2">
                           <Checkbox
@@ -1124,7 +1124,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                             onCheckedChange={checked => setTipo(checked as boolean)}
                             disabled={mode === 'view'}
                           />
-                          <Label htmlFor="tipo" className="font-normal cursor-pointer">Tipo</Label>
+                          <Label htmlFor="tipo" className={`${UI_THEME.forms.labelBase} cursor-pointer`}>Tipo</Label>
                         </div>
                         <div className="flex items-center gap-2">
                           <Checkbox
@@ -1133,7 +1133,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                             onCheckedChange={checked => setPerfil(checked as boolean)}
                             disabled={mode === 'view' || erpVinculado !== null}
                           />
-                          <Label htmlFor="perfil" className="font-normal cursor-pointer">
+                          <Label htmlFor="perfil" className={`${UI_THEME.forms.labelBase} cursor-pointer`}>
                             Perfil
                           </Label>
                         </div>
@@ -1144,7 +1144,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                             onCheckedChange={checked => setUniforme(checked as boolean)}
                             disabled={mode === 'view'}
                           />
-                          <Label htmlFor="uniforme" className="font-normal cursor-pointer">
+                          <Label htmlFor="uniforme" className={`${UI_THEME.forms.labelBase} cursor-pointer`}>
                             Uniforme
                           </Label>
                         </div>
@@ -1158,6 +1158,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                       combos={combos}
                       setCombos={setCombos}
                       todosItems={todosItems.filter(i => i.empresaId === parseInt(empresa, 10))}
+                      comboItemsMap={comboItemsMap}
                       itemId={item?.id}
                       isEditing={isEditing}
                       mode={mode}

@@ -8,6 +8,7 @@ import React, { useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/ui/data-table'
+import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { ClipboardList, Eye, Plus } from 'lucide-react'
 import { UI_THEME } from '@/lib/theme'
@@ -63,7 +64,7 @@ export function SolicitudesClient({ solicitudes }: { solicitudes: SolicitudRow[]
       accessorKey: 'itemDescripcion',
       header: 'Ítem',
       cell: ({ row }) => (
-        <span className="font-medium text-sm">{row.original.itemDescripcion}</span>
+        <span>{row.original.itemDescripcion}</span>
       ),
     },
     // 6 — Cantidad
@@ -89,11 +90,7 @@ export function SolicitudesClient({ solicitudes }: { solicitudes: SolicitudRow[]
       accessorKey: 'scope',
       header: 'Tipo',
       cell: ({ row }) => (
-        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-          row.original.scope === 'POR_PROYECTO'
-            ? 'bg-violet-50 text-violet-700 border border-violet-200'
-            : 'bg-slate-100 text-slate-600 border border-slate-200'
-        }`}>
+        <span className={row.original.scope === 'POR_PROYECTO' ? UI_THEME.badge.info : UI_THEME.badge.inactive}>
           {row.original.scope === 'POR_PROYECTO' ? 'Por Proyecto' : 'General'}
         </span>
       ),
@@ -105,12 +102,12 @@ export function SolicitudesClient({ solicitudes }: { solicitudes: SolicitudRow[]
       cell: ({ row }) => {
         const e = row.original.estado
         const cfg: Record<number, string> = {
-          1: 'bg-amber-50 text-amber-700 border-amber-200',
-          2: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-          3: 'bg-red-50 text-red-600 border-red-200',
+          1: UI_THEME.badge.warning,
+          2: UI_THEME.badge.active,
+          3: UI_THEME.badge.danger,
         }
         return (
-          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ${cfg[e] ?? 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+          <span className={cfg[e] ?? UI_THEME.badge.inactive}>
             {labelEstadoSolicitud(e)}
           </span>
         )
@@ -137,17 +134,11 @@ export function SolicitudesClient({ solicitudes }: { solicitudes: SolicitudRow[]
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-indigo-900">
-            <ClipboardList className="h-6 w-6" />
-            <h1 className="text-2xl font-bold tracking-tight">Solicitudes</h1>
-          </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {solicitudes.length === 1 ? '1 solicitud registrada' : `${solicitudes.length} solicitudes registradas`}
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        icon={ClipboardList}
+        title="Solicitudes"
+        subtitle={solicitudes.length === 1 ? '1 solicitud registrada' : `${solicitudes.length} solicitudes registradas`}
+      />
       <DataTable
         columns={columns}
         data={solicitudes}

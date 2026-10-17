@@ -296,9 +296,9 @@ export function SolicitudModal({
 
   // ── UI helpers ─────────────────────────────────────────────────────────────
   const estadoCfg: Record<number, string> = {
-    1: 'bg-amber-50 text-amber-700 border-amber-200',
-    2: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    3: 'bg-red-50 text-red-600 border-red-200',
+    1: UI_THEME.badge.warning,
+    2: UI_THEME.badge.active,
+    3: UI_THEME.badge.danger,
   }
 
   const titulo = !isEditing
@@ -322,7 +322,7 @@ export function SolicitudModal({
 
           <form onSubmit={handleSave} className="flex flex-col flex-1 min-h-0">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
-              <TabsList variant="line" className="mb-4 shrink-0">
+              <TabsList variant="line" className={UI_THEME.tabs.listClass}>
                 <TabsTrigger value="general">
                   <ClipboardList className="h-3.5 w-3.5 mr-1.5" />
                   General
@@ -366,7 +366,7 @@ export function SolicitudModal({
                       <Input
                         value={solicitud!.empresaNombre ?? ''}
                         disabled
-                        className={`${UI_THEME.forms.inputBase} bg-muted/50`}
+                        data-view-mode={true} className={UI_THEME.forms.inputBase}
                       />
                     )}
                     <FieldError message={fieldErrors.empresaId} />
@@ -393,7 +393,7 @@ export function SolicitudModal({
                       <Input
                         value={solicitud!.itemDescripcion}
                         disabled
-                        className={`${UI_THEME.forms.inputBase} bg-muted/50`}
+                        data-view-mode={true} className={UI_THEME.forms.inputBase}
                       />
                     )}
                     <FieldError message={fieldErrors.itemId} />
@@ -411,7 +411,7 @@ export function SolicitudModal({
                         <Input
                           value={formatNumber(Number(solicitud?.cantidad ?? 0))}
                           disabled
-                          className={`${UI_THEME.forms.inputBase} bg-muted/50`}
+                          data-view-mode={true} className={UI_THEME.forms.inputBase}
                         />
                       ) : (
                         <NumericInput
@@ -428,16 +428,15 @@ export function SolicitudModal({
                     {/* Medida */}
                     <div className="flex flex-col gap-1.5">
                       <Label className={UI_THEME.forms.labelBase}>Medida</Label>
-                      <div className={`flex items-center h-8 w-full rounded-md border border-input bg-muted/50 px-3 ${UI_THEME.forms.inputBase}`}>
-                        {(() => {
-                          const um = isEditing
+                      <Input
+                        value={
+                          (isEditing
                             ? (solicitud?.itemUnidadMedida ?? '')
-                            : (items.find(i => i.value === itemId)?.unidadMedida ?? '')
-                          return um ? (
-                            <span className="text-xs font-medium text-slate-600">{um}</span>
-                          ) : <span className="text-xs text-muted-foreground">—</span>
-                        })()}
-                      </div>
+                            : (items.find(i => i.value === itemId)?.unidadMedida ?? '')) || '—'
+                        }
+                        disabled
+                        data-view-mode={true} className={UI_THEME.forms.inputBase}
+                      />
                     </div>
 
                     {/* cols 3 y 4 vacías intencionalmente */}
@@ -450,7 +449,7 @@ export function SolicitudModal({
                       <Input
                         value={labelCotizacionScope(solicitud?.scope)}
                         disabled
-                        className={`${UI_THEME.forms.inputBase} bg-muted/50`}
+                        data-view-mode={true} className={UI_THEME.forms.inputBase}
                       />
                     </div>
                   )}
@@ -460,7 +459,7 @@ export function SolicitudModal({
                     <div className="flex flex-col gap-1.5">
                       <Label className={UI_THEME.forms.labelBase}>Estado</Label>
                       <div className="flex items-center h-8">
-                        <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium border ${estadoCfg[estadoLocal] ?? 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                        <span className={estadoCfg[estadoLocal] ?? UI_THEME.badge.inactive}>
                           {labelEstadoSolicitud(estadoLocal)}
                         </span>
                       </div>
@@ -474,7 +473,7 @@ export function SolicitudModal({
                       <Input
                         value={formatDate(solicitud!.fecha)}
                         disabled
-                        className={`${UI_THEME.forms.inputBase} bg-muted/50`}
+                        data-view-mode={true} className={UI_THEME.forms.inputBase}
                       />
                     </div>
                   )}
@@ -488,7 +487,7 @@ export function SolicitudModal({
                     {/* Cabecera */}
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ${estadoCfg[estadoLocal] ?? 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                        <span className={estadoCfg[estadoLocal] ?? UI_THEME.badge.inactive}>
                           {labelEstadoSolicitud(estadoLocal)}
                         </span>
                         <span className="text-xs text-muted-foreground">

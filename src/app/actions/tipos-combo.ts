@@ -14,10 +14,10 @@ const REVALIDATE_PATH = '/dashboard/configuracion/tipos-combo'
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
-export async function listarTiposCombo(): Promise<TipoComboRow[]> {
+export async function listarTiposCombo(params?: { search?: string }): Promise<TipoComboRow[]> {
   const guard = await requireManagerOrAdmin()
   if (!guard.ok) return []
-  return TipoComboService.listar()
+  return TipoComboService.listar(params)
 }
 
 /** Lista solo los TiposCombos activos de una empresa — para selects en el modal de Item. */

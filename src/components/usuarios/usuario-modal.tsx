@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Settings2, Users, Power, PowerOff, History, Pencil, Save } from 'lucide-react'
+import { Users, Power, PowerOff, History, Pencil, Save } from 'lucide-react'
 import { normalizeText } from '@/lib/utils/text'
 import {
   Dialog,
@@ -15,88 +15,66 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { FieldError } from '@/components/ui/field-error'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { SearchableSelect } from '@/components/ui/searchable-select'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { crearUsuario, editarUsuario, toggleActivo } from '@/app/actions/usuarios'
 import { UI_THEME } from '@/lib/theme'
 import { ROLES } from '@/lib/permisos'
 import type { UsuarioRow } from '@/lib/types/usuarios'
 
-// ─── Props ────────────────────────────────────────────────────────────────────
-
-interface UsuarioDialogProps {
-  /** Si viene usuario, es edición/vista; si no, es creación */
-  usuario?: UsuarioRow | null
-  trigger: React.ReactElement
+interface UsuarioModalProps {
+  usuario?: UsuarioRow
+  trigger?: React.ReactNode
+  onSuccess?: () => void
 }
 
 const ROLES_OPCIONES = [
   { value: ROLES.ADMIN,    label: 'Administrador' },
   { value: ROLES.MANAGER,  label: 'Manager' },
   { value: ROLES.ANALISTA, label: 'Analista' },
-  { value: ROLES.VIEWER,   label: 'Viewer (Solo lectura)' },
-]
+  { value: ROLES.VIEWER,   label: 'Viewer' },
+].sort((a, b) => a.label.localeCompare(b.label))
 
-// ─── Componente ───────────────────────────────────────────────────────────────
-
-export function UsuarioDialog({ usuario, trigger }: UsuarioDialogProps) {
-  const isExisting = !!usuario
-
+export function UsuarioModal({ usuario, trigger, onSuccess }: UsuarioModalProps) {
+  const isEditing = !!usuario
   const [open, setOpen] = useState(false)
   const [historialOpen, setHistorialOpen] = useState(false)
-
-  // mode: view (solo lectura), edit (edición), create (nuevo)
-  const [mode, setMode] = useState<'view' | 'edit' | 'create'>('view')
-
+  const [mode, setMode] = useState<'view' | 'edit'>('view')
   const [loading, setLoading] = useState(false)
   const [isPendingToggle, setIsPendingToggle] = useState(false)
   const [globalError, setGlobalError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [activeTab, setActiveTab] = useState('general')
-
-  // Campos del formulario
   const [nombre, setNombre] = useState('')
   const [email, setEmail] = useState('')
   const [usuarioErp, setUsuarioErp] = useState('')
   const [rol, setRol] = useState<string>(ROLES.ANALISTA)
-
-  // Versión congelada del usuario al abrir (para cancelar y para concurrencia)
   const [snapUsuario, setSnapUsuario] = useState<UsuarioRow | null>(null)
 
-  // ── Inicialización al abrir (NUNCA en useEffect con deps de datos) ──────────
+  function resetFields(data?: UsuarioRow | null) {
+    setNombre(data?.nombre ?? '')
+    setEmail(data?.email ?? '')
+    setUsuarioErp(data?.usuarioErp ?? '')
+    setRol(data?.rol ?? ROLES.ANALISTA)
+    setGlobalError(null)
+    setFieldErrors({})
+    setActiveTab('general')
+  }
+
   function handleOpenChange(newOpen: boolean) {
     if (newOpen) {
-      // Inicializar todo aquí, no en useEffect
-      setMode(isExisting ? 'view' : 'create')
-      setNombre(usuario?.nombre ?? '')
-      setEmail(usuario?.email ?? '')
-      setUsuarioErp(usuario?.usuarioErp ?? '')
-      setRol(usuario?.rol ?? ROLES.ANALISTA)
+      resetFields(usuario)
       setSnapUsuario(usuario ?? null)
-      setGlobalError(null)
-      setFieldErrors({})
-      setActiveTab('general')
+      setMode(isEditing ? 'view' : 'edit')
     }
     setOpen(newOpen)
   }
 
   function resetToView() {
-    setNombre(snapUsuario?.nombre ?? '')
-    setEmail(snapUsuario?.email ?? '')
-    setUsuarioErp(snapUsuario?.usuarioErp ?? '')
-    setRol(snapUsuario?.rol ?? ROLES.ANALISTA)
-    setGlobalError(null)
-    setFieldErrors({})
+    resetFields(snapUsuario)
     setMode('view')
   }
 
-  // ── Toggle Activo / Inactivo ───────────────────────────────────────────────
   async function handleToggle() {
     if (!usuario) return
     setIsPendingToggle(true)
@@ -104,6 +82,7 @@ export function UsuarioDialog({ usuario, trigger }: UsuarioDialogProps) {
       const result = await toggleActivo(usuario.id, snapUsuario!.registroVersion)
       if (result.ok) {
         setOpen(false)
+        onSuccess?.()
       } else {
         setGlobalError(result.error ?? 'Error al cambiar estado')
       }
@@ -112,12 +91,10 @@ export function UsuarioDialog({ usuario, trigger }: UsuarioDialogProps) {
     }
   }
 
-  // ── Guardar ────────────────────────────────────────────────────────────────
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setGlobalError(null)
 
-    // Validación frontend — NO limpiar fieldErrors existentes al inicio
     const localErrors: Record<string, string> = {}
     if (!nombre.trim()) localErrors.nombre = 'El nombre es requerido'
     if (!email.trim()) localErrors.email = 'El correo es requerido'
@@ -125,7 +102,6 @@ export function UsuarioDialog({ usuario, trigger }: UsuarioDialogProps) {
     if (!usuarioErp.trim()) localErrors.usuarioErp = 'El usuario ERP es requerido'
     if (!rol) localErrors.rol = 'El rol es requerido'
 
-    // Combinar errores locales preservando los que ya existían de validaciones externas
     if (Object.keys(localErrors).length > 0) {
       setFieldErrors(prev => ({ ...prev, ...localErrors }))
       setActiveTab('general')
@@ -133,99 +109,87 @@ export function UsuarioDialog({ usuario, trigger }: UsuarioDialogProps) {
     }
 
     setLoading(true)
-
     const formData = new FormData()
     formData.append('nombre', nombre)
     formData.append('email', email)
     formData.append('usuarioErp', usuarioErp)
     formData.append('rol', rol)
-
-    if (mode === 'edit' && snapUsuario) {
+    if (isEditing && snapUsuario) {
       formData.append('registroVersion', String(snapUsuario.registroVersion))
     }
 
     try {
-      let result
-      if (mode === 'edit' && usuario) {
-        result = await editarUsuario(usuario.id, null, formData)
-      } else {
-        result = await crearUsuario(null, formData)
-      }
+      const result = isEditing && usuario
+        ? await editarUsuario(usuario.id, null, formData)
+        : await crearUsuario(null, formData)
 
       if (result && !result.ok) {
         if (result.field) {
-          // Error de campo del servidor — preservar otros fieldErrors
           setFieldErrors(prev => ({ ...prev, [result.field!]: result.error! }))
           setActiveTab('general')
           return
         }
-        throw new Error(result.error)
+        setGlobalError(result.error)
+        return
       }
 
-            if (mode === 'edit') {
-        // Refrescar el snap para que la versión local quede actualizada
-        if (result?.data) setSnapUsuario(result.data as UsuarioRow)
+      if (isEditing) {
+        if (result?.ok && result.data) setSnapUsuario(result.data as UsuarioRow)
         setMode('view')
       } else {
         setOpen(false)
       }
-    } catch (err: any) {
-      setGlobalError(err.message)
+      onSuccess?.()
+    } catch {
+      setGlobalError('Error inesperado del servidor. Intenta de nuevo.')
     } finally {
       setLoading(false)
     }
   }
 
-  const title =
-    mode === 'create' ? 'Nuevo Usuario'
-    : mode === 'edit'  ? 'Editar Usuario'
-    : 'Detalles Usuario'
+  const title = !isEditing
+    ? 'Nuevo Usuario'
+    : mode === 'edit' ? 'Editar Usuario' : 'Detalle Usuario'
 
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogTrigger render={trigger} />
-
+        {trigger && <DialogTrigger render={trigger as React.ReactElement} />}
         <DialogContent className="sm:max-w-[480px] h-[85vh] sm:h-[450px] flex flex-col p-4 sm:p-6 overflow-hidden">
           <DialogHeader className="mb-2 shrink-0">
-            <DialogTitle className="flex items-center gap-2 text-xl">
+            <DialogTitle className={UI_THEME.modal.title}>
               <Users className="w-5 h-5 text-slate-500" />
               {title}
             </DialogTitle>
           </DialogHeader>
 
-          {/* Error global */}
           {globalError && (
-            <div className={`${UI_THEME.forms.globalError} mb-2`}>
-              {globalError}
-            </div>
+            <div className={UI_THEME.forms.globalError}>{globalError}</div>
           )}
 
-          <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col pt-2" noValidate>
+          <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col pt-2" noValidate>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
-              <TabsList variant="line" className="mb-4 shrink-0">
+              <TabsList variant="line" className={UI_THEME.tabs.listClass}>
                 <TabsTrigger value="general">
-                  <Settings2 className="w-4 h-4 mr-2" />
+                  <Users className="w-4 h-4 mr-2" />
                   General
                 </TabsTrigger>
               </TabsList>
 
-              <div className="flex-1 overflow-y-auto pr-2 pb-4">
-                <TabsContent value="general" className="outline-none mt-0">
+              <div className={UI_THEME.modal.scrollArea}>
+                <TabsContent value="general" className="mt-0">
                   <div className="grid grid-cols-4 gap-x-6 gap-y-4">
-
-                    {/* Nombre */}
                     <div className="flex flex-col gap-1.5 col-span-4">
-                      <Label htmlFor="u-nombre">
+                      <Label htmlFor="u-nombre" className={UI_THEME.forms.labelBase}>
                         Nombre <span className="text-red-500">*</span>
                       </Label>
                       <Input
                         id="u-nombre"
-                        placeholder="Ej: Ana García"
                         value={nombre}
                         autoComplete="off"
-                        className="uppercase"
+                        className={`${UI_THEME.forms.inputBase} uppercase`}
                         disabled={mode === 'view'}
+                        data-view-mode={mode === 'view'}
                         aria-invalid={!!fieldErrors.nombre}
                         onChange={(e) => {
                           setNombre(normalizeText(e.target.value))
@@ -235,19 +199,18 @@ export function UsuarioDialog({ usuario, trigger }: UsuarioDialogProps) {
                       <FieldError message={fieldErrors.nombre} />
                     </div>
 
-                    {/* Email */}
                     <div className="flex flex-col gap-1.5 col-span-3">
-                      <Label htmlFor="u-email">
+                      <Label htmlFor="u-email" className={UI_THEME.forms.labelBase}>
                         Correo <span className="text-red-500">*</span>
                       </Label>
                       <Input
                         id="u-email"
                         type="email"
-                        placeholder="ana@empresa.com"
                         value={email}
                         autoComplete="off"
-                        className="lowercase"
+                        className={`${UI_THEME.forms.inputBase} lowercase`}
                         disabled={mode === 'view'}
+                        data-view-mode={mode === 'view'}
                         aria-invalid={!!fieldErrors.email}
                         onChange={(e) => {
                           setEmail(e.target.value.toLowerCase())
@@ -257,19 +220,18 @@ export function UsuarioDialog({ usuario, trigger }: UsuarioDialogProps) {
                       <FieldError message={fieldErrors.email} />
                     </div>
 
-                    {/* Usuario ERP */}
                     <div className="flex flex-col gap-1.5 col-span-1">
-                      <Label htmlFor="u-erp">
+                      <Label htmlFor="u-erp" className={UI_THEME.forms.labelBase}>
                         Usuario ERP <span className="text-red-500">*</span>
                       </Label>
                       <Input
                         id="u-erp"
-                        placeholder="JPERE"
                         value={usuarioErp}
                         autoComplete="off"
-                        className="uppercase"
+                        className={`${UI_THEME.forms.inputBase} uppercase`}
                         maxLength={5}
                         disabled={mode === 'view'}
+                        data-view-mode={mode === 'view'}
                         aria-invalid={!!fieldErrors.usuarioErp}
                         onChange={(e) => {
                           setUsuarioErp(normalizeText(e.target.value))
@@ -279,101 +241,87 @@ export function UsuarioDialog({ usuario, trigger }: UsuarioDialogProps) {
                       <FieldError message={fieldErrors.usuarioErp} />
                     </div>
 
-                    {/* Rol */}
                     <div className="flex flex-col gap-1.5 col-span-4">
-                      <Label htmlFor="u-rol">
+                      <Label htmlFor="u-rol" className={UI_THEME.forms.labelBase}>
                         Rol <span className="text-red-500">*</span>
                       </Label>
-                      <Select
+                      <SearchableSelect
+                        id="u-rol"
+                        options={ROLES_OPCIONES}
                         value={rol}
-                        onValueChange={(val) => {
-                          setRol(val || '')
+                        onChange={(val) => {
+                          setRol(val)
                           setFieldErrors(prev => { const n = { ...prev }; delete n.rol; return n })
                         }}
                         disabled={mode === 'view'}
-                      >
-                        <SelectTrigger id="u-rol" aria-invalid={!!fieldErrors.rol}>
-                          <SelectValue placeholder="Seleccionar rol" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ROLES_OPCIONES.map((r) => (
-                            <SelectItem key={r.value} value={r.value}>
-                              {r.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        searchable={false}
+                        error={!!fieldErrors.rol}
+                        placeholder="Seleccionar rol"
+                      />
                       <FieldError message={fieldErrors.rol} />
                     </div>
-
                   </div>
                 </TabsContent>
               </div>
             </Tabs>
 
-            {/* ── Footer estándar ── */}
             <div className={UI_THEME.modal.footer}>
-              {mode === 'view' ? (
-                <>
-                  {isExisting && (
-                    <Button
-                      type="button"
-                      variant={usuario?.activo ? 'destructive' : 'default'}
-                      className="mr-auto"
-                      disabled={isPendingToggle}
-                      onClick={handleToggle}
-                    >
-                      {usuario?.activo ? (
-                        <><PowerOff className="mr-2 h-4 w-4" /> Desactivar</>
-                      ) : (
-                        <><Power className="mr-2 h-4 w-4" /> Activar</>
-                      )}
-                    </Button>
-                  )}
-                  <div className={`${UI_THEME.modal.buttons.rightGroup} ml-auto`}>
+              <div>
+                {mode === 'view' && isEditing && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={usuario?.activo ? UI_THEME.modal.buttons.eliminar : undefined}
+                    disabled={isPendingToggle}
+                    onClick={handleToggle}
+                  >
+                    {usuario?.activo
+                      ? <><PowerOff className="mr-2 h-4 w-4" />Desactivar</>
+                      : <><Power className="mr-2 h-4 w-4" />Activar</>}
+                  </Button>
+                )}
+              </div>
+              <div className={UI_THEME.modal.buttons.rightGroup}>
+                {mode === 'view' && (
+                  <>
                     <Button
                       type="button"
                       variant="outline"
-                      size="sm"
                       className={UI_THEME.modal.buttons.historial}
                       onClick={() => setHistorialOpen(true)}
                     >
-                      <History className="mr-2 h-4 w-4" /> Historial
+                      <History className="mr-2 h-4 w-4" />
+                      Historial
                     </Button>
                     <Button type="button" onClick={() => setMode('edit')}>
-                      <Pencil className="mr-2 h-4 w-4" /> Editar
+                      <Pencil className="w-4 h-4 mr-2" />
+                      Editar
                     </Button>
-                  </div>
-                </>
-              ) : (
-                <div className="flex gap-2 justify-end w-full">
-                  {/* Cancelar solo en modo Editar (no en Crear) */}
-                  {mode === 'edit' && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={resetToView}
-                      disabled={loading}
-                    >
-                      Cancelar
+                  </>
+                )}
+                {mode === 'edit' && (
+                  <>
+                    {isEditing && (
+                      <Button type="button" variant="outline" onClick={resetToView} disabled={loading}>
+                        Cancelar
+                      </Button>
+                    )}
+                    <Button type="submit" disabled={loading}>
+                      {loading ? 'Guardando...' : <><Save className="w-4 h-4 mr-2" />Guardar</>}
                     </Button>
-                  )}
-                  <Button type="submit" disabled={loading}>
-                    <Save className="w-4 h-4 mr-2" />
-                    {loading ? 'Guardando...' : 'Guardar'}
-                  </Button>
-                </div>
-              )}
+                  </>
+                )}
+              </div>
             </div>
           </form>
         </DialogContent>
       </Dialog>
 
-      {isExisting && (
+      {usuario && (
         <HistorialDrawer
           open={historialOpen}
           onOpenChange={setHistorialOpen}
-          entidadId={usuario!.id}
+          entidadId={usuario.id}
           entidadTipo="Usuario"
           tabla="t_usuario"
         />

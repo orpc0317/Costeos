@@ -58,7 +58,7 @@ export function CotizacionesClient({ cotizaciones }: CotizacionesClientProps) {
       header: 'Ítem',
       cell: ({ row }) => (
         <div className="max-w-[220px]">
-          <span className="font-medium text-sm block truncate">{row.original.itemDescripcion}</span>
+          <span className="block truncate">{row.original.itemDescripcion}</span>
           {row.original.itemUnidadMedida && (
             <span className="text-xs text-muted-foreground">{row.original.itemUnidadMedida}</span>
           )}
@@ -99,7 +99,7 @@ export function CotizacionesClient({ cotizaciones }: CotizacionesClientProps) {
       header: 'Costo Unit.',
       meta: { align: 'right' },
       cell: ({ row }) => (
-        <span className={`text-sm font-mono tabular-nums font-medium ${row.original.vigente === 1 ? 'text-emerald-700' : ''}`}>
+        <span className={`font-mono tabular-nums font-normal ${row.original.vigente === 1 ? 'text-emerald-700' : ''}`}>
           {formatCurrency(row.original.costoUnitario, 4)}
         </span>
       ),

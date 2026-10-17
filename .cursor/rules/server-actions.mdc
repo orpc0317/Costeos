@@ -1,0 +1,16 @@
+---
+description: Actions, services, repos — patrón Categorías
+globs: src/app/actions/**/*.ts,src/lib/services/**/*.ts,src/lib/repositories/**/*.ts
+alwaysApply: false
+---
+
+# Actions / services / repos
+
+Patrón: `src/app/actions/categorias.ts` → `categoria.service.ts` → `categoria.repository.ts`.
+
+- Guard al inicio: `requireAuth` / `requireManagerOrAdmin` / `requireAdmin` (`src/lib/auth-helpers.ts`)
+- Validar con Zod del tipo en `src/lib/types/`
+- Repo plano; join de nombres FK en el **service** (no `include` de Prisma para labels)
+- `findAll` con `search`: incluir búsqueda exacta por `id` si el texto es entero (R25)
+- ERP: solo `import { erp } from '@/lib/erp'`
+- Tras mutar: `revalidatePath` de la pantalla

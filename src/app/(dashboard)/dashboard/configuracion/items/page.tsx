@@ -10,14 +10,14 @@ export const metadata: Metadata = {
 }
 
 export default async function ItemsPage() {
-  const [items, categorias] = await Promise.all([
-    listarItems(),
+  const [initialData, categorias] = await Promise.all([
+    listarItems({ limit: 50 }),
     listarCategorias()
   ])
 
   return (
     <Suspense fallback={<div>Cargando ítems...</div>}>
-      <ItemsClient data={items} categorias={categorias} />
+      <ItemsClient initialData={initialData} categorias={categorias} />
     </Suspense>
   )
 }

@@ -228,7 +228,7 @@ export function TipoComboModal({ tipoCombo, trigger }: TipoComboModalProps) {
         <DialogContent className="sm:max-w-[500px] h-[85vh] sm:h-[440px] flex flex-col p-4 sm:p-6 overflow-hidden">
           {/* Header */}
           <DialogHeader className="mb-2 shrink-0">
-            <DialogTitle className="flex items-center gap-2 text-xl">
+            <DialogTitle className={UI_THEME.modal.title}>
               <Layers className="w-5 h-5 text-slate-500" />
               {mode === 'create'
                 ? 'Nuevo Tipo Combo'
@@ -248,14 +248,14 @@ export function TipoComboModal({ tipoCombo, trigger }: TipoComboModalProps) {
           {/* Formulario con pestañas */}
           <form onSubmit={handleSubmit} noValidate className="flex-1 min-h-0 flex flex-col pt-2">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
-              <TabsList variant="line" className="mb-4 shrink-0">
+              <TabsList variant="line" className={UI_THEME.tabs.listClass}>
                 <TabsTrigger value="general">
                   <Layers className="w-4 h-4 mr-2" />
                   General
                 </TabsTrigger>
               </TabsList>
 
-              <div className="flex-1 overflow-y-auto pr-2 pb-4">
+              <div className={UI_THEME.modal.scrollArea}>
                 <TabsContent value="general" className="mt-0">
                   <div className="grid grid-cols-2 gap-x-6 gap-y-4">
 
@@ -282,7 +282,8 @@ export function TipoComboModal({ tipoCombo, trigger }: TipoComboModalProps) {
                           id="tc-empresaId"
                           value={initialTipoCombo?.empresaNombre ?? ''}
                           disabled
-                          className="bg-muted/50"
+                          data-view-mode={true}
+                          className={UI_THEME.forms.inputBase}
                         />
                       )}
                     </div>

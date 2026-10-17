@@ -2,8 +2,9 @@
 
 import React, { useMemo } from 'react'
 import { ColumnDef } from '@tanstack/react-table'
-import { Badge } from '@/components/ui/badge'
 import { DataTable } from '@/components/ui/data-table'
+import { PageHeader } from '@/components/ui/page-header'
+import { UI_THEME } from '@/lib/theme'
 import { CosteosTableActions } from '@/components/costeos/CosteosTableActions'
 import { Calculator } from 'lucide-react'
 import Link from 'next/link'
@@ -37,7 +38,7 @@ export function CosteosClient({ costeos }: { costeos: CosteoListRow[] }) {
         header: 'No. Costeo',
         meta: { align: 'center' },
         cell: ({ row }) => (
-          <span className="font-medium font-mono">
+          <span className="font-mono font-normal">
             {row.original.codigoErp ? row.original.codigoErp : '-'}
           </span>
         ),
@@ -45,17 +46,17 @@ export function CosteosClient({ costeos }: { costeos: CosteoListRow[] }) {
       {
         accessorKey: 'empresaNombre',
         header: 'Empresa',
-        cell: ({ row }) => <span className="font-medium">{row.original.empresaNombre}</span>,
+        cell: ({ row }) => row.original.empresaNombre,
       },
       {
         accessorKey: 'clienteRazonSocial',
         header: 'Cliente',
-        cell: ({ row }) => <span className="font-medium">{row.original.clienteRazonSocial}</span>,
+        cell: ({ row }) => row.original.clienteRazonSocial,
       },
       {
         accessorKey: 'proyectoNombre',
         header: 'Proyecto',
-        cell: ({ row }) => <span className="font-medium">{row.original.proyectoNombre}</span>,
+        cell: ({ row }) => row.original.proyectoNombre,
       },
       {
         accessorKey: 'estado',
@@ -64,20 +65,20 @@ export function CosteosClient({ costeos }: { costeos: CosteoListRow[] }) {
         cell: ({ row }) => {
           const estado = row.original.estado
           
-          let badgeClass = "bg-muted text-muted-foreground"
-          
+          let badgeClass = UI_THEME.badge.inactive
+
           if (estado === 'BORRADOR') {
-            badgeClass = "bg-slate-500/15 text-slate-700 border-slate-500/20"
+            badgeClass = UI_THEME.badge.warning
           } else if (estado === 'APROBADO' || estado === 'VIGENTE') {
-            badgeClass = "bg-emerald-500/15 text-emerald-700 border-emerald-500/20"
+            badgeClass = UI_THEME.badge.active
           } else if (estado === 'TERMINADO') {
-            badgeClass = "bg-blue-500/15 text-blue-700 border-blue-500/20"
+            badgeClass = UI_THEME.badge.info
           }
 
           return (
-            <Badge variant="outline" className={badgeClass}>
+            <span className={badgeClass}>
               {estado}
-            </Badge>
+            </span>
           )
         },
       },
@@ -117,18 +118,11 @@ export function CosteosClient({ costeos }: { costeos: CosteoListRow[] }) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-indigo-900">
-            <Calculator className="h-6 w-6" />
-            <h1 className="text-2xl font-bold tracking-tight">Costeos</h1>
-          </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {costeos.length === 1 ? '1 registro' : `${costeos.length} registros`}
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        icon={Calculator}
+        title="Costeos"
+        subtitle={costeos.length === 1 ? '1 registro' : `${costeos.length} registros`}
+      />
 
       {/* Tabla Estandarizada */}
       <DataTable

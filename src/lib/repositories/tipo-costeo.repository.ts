@@ -30,8 +30,19 @@ const SELECT_COMPLETO = {
 
 export const TipoCosteoRepository = {
 
-  async findAll() {
+  async findAll(params?: { search?: string }) {
+    const { search } = params ?? {}
+    const searchId = search ? parseInt(search, 10) : NaN
+    const where = search
+      ? {
+          OR: [
+            { nombre: { contains: search } },
+            ...(!isNaN(searchId) ? [{ id: searchId }] : []),
+          ],
+        }
+      : undefined
     return prisma.tipoCosteo.findMany({
+      where,
       select: SELECT_COMPLETO,
       orderBy: [{ activo: 'desc' }, { nombre: 'asc' }],
     })

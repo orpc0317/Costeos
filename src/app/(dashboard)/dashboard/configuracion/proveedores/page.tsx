@@ -9,11 +9,10 @@ export const metadata: Metadata = {
 }
 
 export default async function ProveedoresPage() {
-  const proveedores = await listarProveedores()
-
+  const initialData = await listarProveedores({ limit: 50 })
   return (
     <Suspense fallback={<div>Cargando proveedores...</div>}>
-      <ProveedoresClient data={proveedores} />
+      <ProveedoresClient initialData={initialData} />
     </Suspense>
   )
 }

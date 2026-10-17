@@ -1,14 +1,12 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { requireAuth } from '@/lib/auth-helpers'
 import { redirect } from 'next/navigation'
 
 export async function createCosteo(formData: FormData) {
-  const session = await auth()
-  if (!session?.user?.id) {
-    throw new Error('No autorizado')
-  }
+  const guard = await requireAuth()
+  if (!guard.ok) throw new Error(guard.error)
 
   const erpClienteDataStr = formData.get('erpClienteData') as string
   const isNewClient = formData.get('isNewClient') === 'true'
@@ -23,7 +21,7 @@ export async function createCosteo(formData: FormData) {
 
   const erpCliente = JSON.parse(erpClienteDataStr)
 
-  const userId = parseInt(session.user.id as string, 10)
+  const userId = guard.userId
 
   const result = await prisma.$transaction(async (tx) => {
     // Parsear datos del cliente (puede incluir fuente/clienteLocalId del nuevo wizard)

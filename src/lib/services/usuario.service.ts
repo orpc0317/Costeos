@@ -42,8 +42,8 @@ type EditarUsuarioData = {
 
 export const UsuarioService = {
 
-  async listar(): Promise<UsuarioRow[]> {
-    return UsuarioRepository.findAll()
+  async listar(params?: { search?: string }): Promise<UsuarioRow[]> {
+    return UsuarioRepository.findAll(params)
   },
 
   async crear(data: CrearUsuarioData, userId: number): Promise<ActionResult<{ id: number }>> {

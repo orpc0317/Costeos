@@ -32,8 +32,11 @@ export const UI_THEME = {
      * • border-slate-300 → borde más visible que el border-input (gris muy claro)
      * • text-slate-900  → el VALOR ingresado es el protagonista visual
      * • ring-2 en foco  → retroalimentación clara al navegar con Tab
+     * • modo vista (`data-view-mode="true"`) conserva el mismo subrayado
+     *   inferior (`border-b-2 border-slate-200`) que nuevo y editar.
+     *   Solo se anula la interacción: sin puntero, opacidad completa, sin sombra.
      * ──────────────────────────────────────────────────────────────────────────
-     * Usado en: Input, SearchableSelect (trigger), NumericInput (hereda de Input).
+     * Usado en: Input, Textarea, SearchableSelect (trigger), NumericInput (hereda de Input).
      */
     inputBase:
       "h-8 w-full min-w-0 border-0 border-b-2 border-slate-200 bg-transparent px-1 py-1 text-sm text-slate-900 " +
@@ -41,7 +44,7 @@ export const UI_THEME = {
       "focus-visible:outline-none focus-visible:border-primary focus-visible:ring-0 " +
       "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 " +
       "placeholder:text-slate-400 " +
-      "data-[view-mode=true]:border-transparent data-[view-mode=true]:bg-transparent " +
+      "data-[view-mode=true]:border-b-2 data-[view-mode=true]:border-slate-200 data-[view-mode=true]:bg-transparent " +
       "data-[view-mode=true]:text-slate-900 " +
       "data-[view-mode=true]:shadow-none data-[view-mode=true]:pointer-events-none data-[view-mode=true]:opacity-100",
 
@@ -57,6 +60,11 @@ export const UI_THEME = {
      * Error de validación de campo individual.
      */
     fieldError: "text-xs text-red-500 !mt-0.5 leading-none",
+
+    /**
+     * Título de sección dentro de un formulario (no es label de campo).
+     */
+    sectionTitle: "block text-sm font-semibold text-slate-800",
 
     /**
      * Error global (del servidor / catch) — se muestra al tope del formulario.
@@ -90,14 +98,15 @@ export const UI_THEME = {
 
     /**
      * Estilo del texto en encabezados de columna.
-     * uppercase + tracking-wide → apariencia moderna de tabla de datos.
+     * Peso medio, no semibold: el encabezado se distingue por tamaño y mayúsculas.
      */
-    headerText: "text-slate-600 font-semibold text-xs uppercase tracking-wide",
+    headerText: "text-slate-500 font-medium text-[11px] uppercase tracking-wide",
 
     /**
      * Texto en celdas de datos (td).
+     * font-normal a propósito: las celdas no deben verse en negrita.
      */
-    cellText: "text-slate-700 text-sm",
+    cellText: "text-slate-600 text-[13px] font-normal",
 
     /**
      * Hover sobre filas de datos.
@@ -138,9 +147,13 @@ export const UI_THEME = {
       "border-t border-slate-200 bg-white sm:rounded-b-xl shrink-0",
 
     /**
-     * Área de scroll de campos del formulario dentro del modal.
+     * Interior de la pestaña, donde van los campos.
+     * Panel blanco con borde sobre el fondo del modal (bg-slate-50).
+     * El borde superior lo aporta la línea de las pestañas: listClass no lleva margen.
+     * El footer queda fuera de este panel.
      */
-    scrollArea: "flex-1 overflow-y-auto pr-2 pb-4",
+    scrollArea:
+      "flex-1 min-h-0 overflow-y-auto rounded-b-md border border-t-0 border-slate-200 bg-white px-4 py-4",
 
     /**
      * ── Botones de acción en el footer del modal ──────────────────────────────
@@ -195,10 +208,11 @@ export const UI_THEME = {
   // ─── PESTAÑAS (variant="line") ───────────────────────────────────────────
   tabs: {
     /**
-     * Clases extra del TabsList en modales.
-     * El variant="line" ya está definido en tabs.tsx; aquí solo agregamos shrink-0.
+     * TabsList de los modales. Sin margen inferior: el panel de campos
+     * (modal.scrollArea) arranca pegado a la línea de las pestañas.
+     * Las pestañas quedan sobre el fondo del modal.
      */
-    listClass: "mb-4 shrink-0",
+    listClass: "shrink-0",
   },
 
   // ─── BADGES DE ESTADO ─────────────────────────────────────────────────────
@@ -212,6 +226,11 @@ export const UI_THEME = {
      * Registro inactivo / deshabilitado.
      */
     inactive: "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-500 border border-slate-200",
+
+    /**
+     * Estado anulado / rechazado.
+     */
+    danger: "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-red-50 text-red-700 border border-red-200",
 
     /**
      * Estado de advertencia (pendiente, en revisión, etc.).

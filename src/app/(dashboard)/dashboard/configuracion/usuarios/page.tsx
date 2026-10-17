@@ -9,12 +9,10 @@ export const metadata: Metadata = {
 }
 
 export default async function UsuariosPage() {
-  // Obtenemos todos los usuarios para que el DataTable del cliente los filtre
-  const usuarios = await listarUsuarios()
-
+  const initialData = await listarUsuarios()
   return (
     <Suspense fallback={<div>Cargando usuarios...</div>}>
-      <UsuariosClient usuarios={usuarios} />
+      <UsuariosClient initialData={initialData} />
     </Suspense>
   )
 }

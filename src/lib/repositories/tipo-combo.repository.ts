@@ -21,8 +21,19 @@ const SELECT_COMPLETO = {
 
 export const TipoComboRepository = {
 
-  async findAll() {
+  async findAll(params?: { search?: string }) {
+    const { search } = params ?? {}
+    const searchId = search ? parseInt(search, 10) : NaN
+    const where = search
+      ? {
+          OR: [
+            { nombre: { contains: search } },
+            ...(!isNaN(searchId) ? [{ id: searchId }] : []),
+          ],
+        }
+      : undefined
     return prisma.tipoCombo.findMany({
+      where,
       select: SELECT_COMPLETO,
       orderBy: [{ empresaId: 'asc' }, { nombre: 'asc' }],
     })

@@ -1,6 +1,6 @@
 'use server'
 
-import { auth } from '@/lib/auth'
+import { requireAuth } from '@/lib/auth-helpers'
 import { prisma } from '@/lib/prisma'
 import { ProyectoCosteo, NodoCosteo, RecursoCosteo } from '@/lib/types/costeos'
 
@@ -9,8 +9,8 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
     nodos: Record<string, string>;
     recursos: Record<string, string>;
   } = { nodos: {}, recursos: {} };
-  const session = await auth()
-  if (!session?.user?.id) throw new Error('No autorizado')
+  const guard = await requireAuth()
+  if (!guard.ok) throw new Error(guard.error)
 
   const costeoId = parseInt(proyecto.id, 10)
   if (isNaN(costeoId)) throw new Error('ID de costeo inválido')
@@ -301,7 +301,7 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
       await tx.historialAutoGuardado.create({
         data: {
           costeoId,
-          usuarioId: parseInt(session.user!.id as string, 10),
+          usuarioId: guard.userId,
           datos: JSON.stringify(proyecto),
           creadoEn: ahora
         }

@@ -1,0 +1,18 @@
+---
+description: Modales CRUD (tabs, footer UI_THEME, errores)
+globs: src/components/**/*-modal.tsx,src/templates/entidad-modal.template.tsx
+alwaysApply: false
+---
+
+# CRUD modal
+
+Antes de editar: leer `src/components/categorias/categoria-modal.tsx` y copiar `src/templates/entidad-modal.template.tsx`. Checklist de `AGENTS.md` al terminar.
+
+- Tabs siempre (`variant="line"` + `UI_THEME.tabs.listClass`), incluso con una sola pestaña. Campos en `UI_THEME.modal.scrollArea` (panel blanco con borde; las pestañas quedan sobre el fondo del modal)
+- Footer: `UI_THEME.modal.footer` y `UI_THEME.modal.buttons.*`
+- Labels/inputs: `UI_THEME.forms.*`; errores con `<FieldError>`
+- Modo vista: `data-view-mode` conserva el subrayado de `inputBase` (igual que nuevo/editar)
+- Empresa: create = `SearchableSelect`; view/edit = `Input disabled`
+- Números: `<NumericInput>`, nunca `type="number"`
+- `HistorialDrawer` fuera del `Dialog`
+- Init de campos en `handleOpenChange(true)`; `useEffect([open])` no toca `mode`

@@ -32,9 +32,9 @@ const CAMPOS_PRIORIDAD = [
 
 export const CategoriaService = {
 
-  async listar(): Promise<CategoriaRow[]> {
+  async listar(params?: { search?: string }): Promise<CategoriaRow[]> {
     const [rows, empresas] = await Promise.all([
-      CategoriaRepository.findAll(),
+      CategoriaRepository.findAll(params),
       prisma.empresa.findMany({ select: { id: true, nombre: true } }),
     ])
     const empresaMap = new Map(empresas.map(e => [e.id, e.nombre]))

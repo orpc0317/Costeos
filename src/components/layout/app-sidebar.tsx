@@ -44,11 +44,6 @@ const navItems = [
     ],
   },
   {
-    label: 'CONTRATOS',
-    href: '/dashboard/contratos',
-    icon: FileText,
-  },
-  {
     label: 'CONFIGURACION',
     href: '/dashboard/configuracion',
     icon: Settings,

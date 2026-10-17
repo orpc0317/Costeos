@@ -173,7 +173,7 @@ export function CategoriaModal({
         {trigger && <DialogTrigger render={trigger as React.ReactElement} />}
         <DialogContent className="sm:max-w-[500px] h-[85vh] sm:h-[420px] flex flex-col p-4 sm:p-6 overflow-hidden">
           <DialogHeader className="mb-2 shrink-0">
-            <DialogTitle className="flex items-center gap-2 text-xl">
+            <DialogTitle className={UI_THEME.modal.title}>
               <Tags className="w-5 h-5 text-slate-500" />
               {isEditing
                 ? (mode === 'view' ? 'Detalle Categoria' : 'Editar Categoria')
@@ -189,31 +189,41 @@ export function CategoriaModal({
 
           <form onSubmit={handleSave} noValidate className="flex-1 min-h-0 flex flex-col pt-2">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
-              <TabsList variant="line" className="mb-4 shrink-0">
+              <TabsList variant="line" className={UI_THEME.tabs.listClass}>
                 <TabsTrigger value="general">
                   <Tags className="w-4 h-4 mr-2" />
                   General
                 </TabsTrigger>
               </TabsList>
 
-              <div className="flex-1 overflow-y-auto pr-2 pb-4">
+              <div className={UI_THEME.modal.scrollArea}>
                 <TabsContent value="general" className="mt-0">
                   <div className="grid grid-cols-2 gap-x-6 gap-y-4">
 
                     {/* Empresa */}
                     <div className="flex flex-col gap-1.5 col-span-2">
-                      <Label htmlFor="cat-empresa">
-                        Empresa <span className="text-red-500">*</span>
+                      <Label htmlFor="cat-empresa" className={UI_THEME.forms.labelBase}>
+                        Empresa {!isEditing && <span className="text-red-500">*</span>}
                       </Label>
-                      <SearchableSelect
-                        id="cat-empresa"
-                        options={empresas}
-                        value={empresa}
-                        onChange={setEmpresa}
-                        disabled={mode === 'view' || cargandoEmpresas}
-                        placeholder={cargandoEmpresas ? 'Cargando...' : 'Seleccionar empresa'}
-                        error={!!fieldErrors.empresa}
-                      />
+                      {!isEditing ? (
+                        <SearchableSelect
+                          id="cat-empresa"
+                          options={empresas}
+                          value={empresa}
+                          onChange={setEmpresa}
+                          disabled={cargandoEmpresas}
+                          placeholder={cargandoEmpresas ? 'Cargando...' : 'Seleccionar empresa'}
+                          error={!!fieldErrors.empresa}
+                        />
+                      ) : (
+                        <Input
+                          id="cat-empresa"
+                          value={empresaNombreActual}
+                          disabled
+                          data-view-mode={true}
+                          className={UI_THEME.forms.inputBase}
+                        />
+                      )}
                       <FieldError message={fieldErrors.empresa} />
                     </div>
 
@@ -230,7 +240,8 @@ export function CategoriaModal({
                           if (similares.length > 0) setSimilares([])
                         }}
                         disabled={mode === 'view'}
-                        className="h-8 py-1 uppercase"
+                        data-view-mode={mode === 'view'}
+                        className={`${UI_THEME.forms.inputBase} uppercase`}
                         aria-invalid={!!fieldErrors.nombre}
                       />
                       <FieldError message={fieldErrors.nombre} />

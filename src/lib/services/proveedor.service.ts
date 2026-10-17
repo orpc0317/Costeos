@@ -47,9 +47,9 @@ async function buildCamposAuditables() {
 
 export const ProveedorService = {
 
-  async listar(): Promise<ProveedorRow[]> {
+  async listar(params?: { search?: string; limit?: number }): Promise<ProveedorRow[]> {
     const [rows, empresas] = await Promise.all([
-      ProveedorRepository.findAll(),
+      ProveedorRepository.findAll(params),
       prisma.empresa.findMany({ select: { id: true, nombre: true } }),
     ])
     const empresaMap = new Map(empresas.map(e => [e.id, e.nombre]))

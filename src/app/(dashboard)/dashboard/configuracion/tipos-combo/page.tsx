@@ -9,11 +9,10 @@ export const metadata: Metadata = {
 }
 
 export default async function TiposComboPage() {
-  const tiposCombo = await listarTiposCombo()
-
+  const initialData = await listarTiposCombo()
   return (
     <Suspense fallback={<div>Cargando tipos combo...</div>}>
-      <TiposComboClient tiposCombo={tiposCombo} />
+      <TiposComboClient initialData={initialData} />
     </Suspense>
   )
 }

@@ -13,10 +13,10 @@ import type { ErpProveedor } from '@/lib/erp'
 
 const PATH = '/dashboard/configuracion/proveedores'
 
-export async function listarProveedores(): Promise<ProveedorRow[]> {
+export async function listarProveedores(params?: { search?: string; limit?: number }): Promise<ProveedorRow[]> {
   const guard = await requireManagerOrAdmin()
   if (!guard.ok) return []
-  return ProveedorService.listar()
+  return ProveedorService.listar(params)
 }
 
 export async function crearProveedor(data: ProveedorInput): Promise<ActionResult<ProveedorRow>> {

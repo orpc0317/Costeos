@@ -15,10 +15,10 @@ import type { ActionResult } from '@/lib/types/common'
 
 const PATH = '/dashboard/configuracion/items'
 
-export async function listarItems(): Promise<ItemRow[]> {
+export async function listarItems(params?: { search?: string; limit?: number }): Promise<ItemRow[]> {
   const guard = await requireManagerOrAdmin()
   if (!guard.ok) return []
-  return ItemService.listar()
+  return ItemService.listar(params)
 }
 
 export async function crearItem(data: ItemInput): Promise<ActionResult<ItemRow>> {

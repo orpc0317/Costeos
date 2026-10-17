@@ -9,10 +9,10 @@ import type { ActionResult } from '@/lib/types/common'
 
 const PATH = '/dashboard/configuracion/categorias'
 
-export async function listarCategorias(): Promise<CategoriaRow[]> {
+export async function listarCategorias(params?: { search?: string }): Promise<CategoriaRow[]> {
   const guard = await requireManagerOrAdmin()
   if (!guard.ok) return []
-  return CategoriaService.listar()
+  return CategoriaService.listar(params)
 }
 
 export async function listarCategoriasPorEmpresa(empresaId: number): Promise<CategoriaRow[]> {

@@ -13,11 +13,28 @@ type TxClient = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transa
 
 export const ItemRepository = {
 
-  async findAll() {
+  async findAll(params?: { search?: string; limit?: number }) {
+    const { search, limit } = params ?? {}
+    const searchId = search ? parseInt(search, 10) : NaN
+    const where = search
+      ? {
+          OR: [
+            { descripcion: { contains: search } },
+            { codigoErp:   { contains: search } },
+            ...(!isNaN(searchId) ? [{ id: searchId }] : []),
+          ],
+        }
+      : undefined
     return prisma.item.findMany({
-      orderBy: { descripcion: 'asc' },
+      where,
+      orderBy: search ? { descripcion: 'asc' } : { id: 'desc' },
+      take: limit,
       include: {
-        combosPrincipal: true,
+        combosPrincipal: {
+          include: {
+            productoSecundario: { select: { id: true, descripcion: true, codigoErp: true } }
+          }
+        },
         tiposComboRH:  { select: { tipoComboRHId: true, rol: true } },
         tiposCombo:    { select: { tipoComboId: true, obligatorio: true } },
       }
@@ -84,7 +101,11 @@ export const ItemRepository = {
         } : undefined,
       },
       include: {
-        combosPrincipal: true,
+        combosPrincipal: {
+          include: {
+            productoSecundario: { select: { id: true, descripcion: true, codigoErp: true } }
+          }
+        },
         tiposComboRH:  { select: { tipoComboRHId: true, rol: true } },
         tiposCombo:    { select: { tipoComboId: true, obligatorio: true } },
       }
@@ -201,7 +222,11 @@ export const ItemRepository = {
     return (tx as any).item.findUnique({
       where: { id },
       include: {
-        combosPrincipal: true,
+        combosPrincipal: {
+          include: {
+            productoSecundario: { select: { id: true, descripcion: true, codigoErp: true } }
+          }
+        },
         tiposComboRH:  { select: { tipoComboRHId: true, rol: true } },
         tiposCombo:    { select: { tipoComboId: true, obligatorio: true } },
       }

@@ -1,0 +1,13 @@
+---
+description: Dónde viven los tests y cómo correrlos
+globs: src/**/*.test.ts,e2e/**/*.ts,vitest.config.ts,playwright.config.ts
+alwaysApply: false
+---
+
+# Tests
+
+- Unitario: Vitest, `src/**/*.test.ts`, comando `npm test`
+- UI: Playwright, `e2e/*.spec.ts`, comando `npm run test:e2e`
+- Selectores por rol/label (`getByRole`, `getByLabel`), no clases Tailwind
+- E2E de catálogos: abrir pantallas y modales está bien; no Guardar/Eliminar contra la BD real
+- Autenticados necesitan `E2E_EMAIL` y `E2E_PASSWORD` en `.env` / `.env.local`

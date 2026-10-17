@@ -400,7 +400,7 @@ export function TiposComboRHPanel({ trigger }: TiposComboRHPanelProps) {
                     checked={form.requerido}
                     onCheckedChange={checked => setForm(p => ({ ...p, requerido: !!checked }))}
                   />
-                  <Label htmlFor="tcr-requerido" className="font-normal cursor-pointer">
+                  <Label htmlFor="tcr-requerido" className="cursor-pointer">
                     Requerido al agregar RH al costeo
                   </Label>
                 </div>

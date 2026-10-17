@@ -11,9 +11,16 @@ type TxClient = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transa
 
 export const ClienteRepository = {
 
-  async findAll() {
+  async findAll(params?: { search?: string; limit?: number }) {
+    const { search, limit } = params ?? {}
+    const searchId = search ? parseInt(search, 10) : NaN
+    const where = search
+      ? { OR: [{ razonSocial: { contains: search } }, { nit: { contains: search } }, ...(!isNaN(searchId) ? [{ id: searchId }] : [])] }
+      : undefined
     return prisma.cliente.findMany({
-      orderBy: { razonSocial: 'asc' },
+      where,
+      orderBy: search ? { razonSocial: 'asc' } : { id: 'desc' },
+      take: limit,
     })
   },
 

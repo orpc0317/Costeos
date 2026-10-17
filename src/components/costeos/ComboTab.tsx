@@ -4,7 +4,11 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useCosteo } from '@/lib/context/CosteoContext';
 import { ComboDisponible, RecursoCosteo } from '@/lib/types/costeos';
 import { NumericInput } from '@/components/ui/numeric-input';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { FieldError } from '@/components/ui/field-error';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { UI_THEME } from '@/lib/theme';
 import {
   Minus, Plus, PlusCircle, Pencil, Trash2, AlertTriangle,
   ChevronRight, ChevronDown, ChevronsDownUp, ChevronsUpDown, Loader2,
@@ -713,17 +717,17 @@ export function ComboTab({
             <div className="px-3 pb-3 pt-2 border-t bg-white space-y-3">
               {/* Error de auto-creación ERP */}
               {autoCrearError && (
-                <div className="text-red-500 text-xs bg-red-50 border border-red-200 rounded px-2 py-1.5">
+                <div className={UI_THEME.forms.globalError}>
                   {autoCrearError}
                 </div>
               )}
 
               <div className="grid grid-cols-12 gap-2 items-start">
                 <div className="col-span-7 flex flex-col gap-1">
-                  <label className="text-xs font-medium text-slate-600 flex items-center gap-1.5">
+                  <Label className={UI_THEME.forms.labelBase}>
                     Item
                     {isSearching && <Loader2 className="w-3 h-3 animate-spin text-slate-400" />}
-                  </label>
+                  </Label>
                   <SearchableSelect
                     options={opcionesCombo
                       .filter(o => {
@@ -755,25 +759,31 @@ export function ComboTab({
                     const showError = subItemSubmitTried && subItemSolicitaCosto && subItemCosto === 0;
                     return (
                       <>
-                        <label className={`text-xs font-medium ${showError ? 'text-red-500' : 'text-slate-600'}`}>
+                        <Label className={UI_THEME.forms.labelBase}>
                           Costo{isLoadingSubCosto && <span className="text-slate-400"> (cargando...)</span>}
-                        </label>
+                        </Label>
                         {subItemSolicitaCosto
-                          ? <NumericInput value={subItemCosto} onChange={(val) => setSubItemCosto(val ?? 0)} min="0"
-                              className={`flex h-8 w-full rounded-sm border px-2 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 bg-white ${showError ? 'border-red-400 focus-visible:ring-red-400' : 'border-indigo-300 focus-visible:ring-indigo-500'}`} />
-                          : <input type="text" readOnly tabIndex={-1}
+                          ? <NumericInput
+                              value={subItemCosto}
+                              onChange={(val) => setSubItemCosto(val ?? 0)}
+                              min="0"
+                              aria-invalid={showError}
+                            />
+                          : <Input
+                              readOnly
+                              tabIndex={-1}
+                              data-view-mode={true}
                               value={subItemCosto.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              className="flex h-8 w-full rounded-sm border border-slate-200 bg-slate-100 text-slate-500 px-2 py-1 text-sm outline-none cursor-not-allowed" />
+                              className={UI_THEME.forms.inputBase}
+                            />
                         }
-                        <p className={`text-[10px] leading-none !mt-0.5 ${showError ? 'text-red-500' : 'invisible select-none'}`}>
-                          {showError ? 'Debe ser mayor que 0' : '_'}
-                        </p>
+                        <FieldError message={showError ? 'Debe ser mayor que 0' : undefined} />
                       </>
                     );
                   })()}
                 </div>
                 <div className="col-span-2 flex flex-col gap-1">
-                  <label className="text-xs font-medium invisible select-none">_</label>
+                  <span className="invisible select-none text-[11px]" aria-hidden>_</span>
                   <button type="button"
                     onClick={handleAgregarManual}
                     disabled={isAutoCreando || !selectedSubItemId}
