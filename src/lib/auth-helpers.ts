@@ -16,7 +16,7 @@ import type { ActionResult } from '@/lib/types/common'
 
 type AuthSuccess = { ok: true; userId: number; rol: string }
 type AuthFailure = { ok: false; error: string }
-type AuthGuard = AuthSuccess | AuthFailure
+export type AuthGuard = AuthSuccess | AuthFailure
 
 // ─── Requiere sesión activa (cualquier rol) ───────────────────────────────────
 

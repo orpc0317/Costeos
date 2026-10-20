@@ -1,18 +1,19 @@
 ---
-description: Modales CRUD (tabs, footer UI_THEME, errores)
-globs: src/components/**/*-modal.tsx,src/templates/entidad-modal.template.tsx
+description: Modal CRUD. Cabecera, pestañas, dos columnas, errores, version.
+globs: src/components/**/*modal*.tsx
 alwaysApply: false
 ---
 
 # CRUD modal
 
-Antes de editar: leer `src/components/categorias/categoria-modal.tsx` y copiar `src/templates/entidad-modal.template.tsx`. Checklist de `AGENTS.md` al terminar.
+Antes de editar: leer `src/components/categorias/categoria-modal.tsx` y `src/components/usuarios/usuario-modal.tsx` (dos columnas y grilla de permisos). Copiar `src/templates/entidad-modal.template.tsx`.
 
-- Tabs siempre (`variant="line"` + `UI_THEME.tabs.listClass`), incluso con una sola pestaña. Campos en `UI_THEME.modal.scrollArea` (panel blanco con borde; las pestañas quedan sobre el fondo del modal)
-- Footer: `UI_THEME.modal.footer` y `UI_THEME.modal.buttons.*`
-- Labels/inputs: `UI_THEME.forms.*`; errores con `<FieldError>`
-- Modo vista: `data-view-mode` conserva el subrayado de `inputBase` (igual que nuevo/editar)
-- Empresa: create = `SearchableSelect`; view/edit = `Input disabled`
-- Números: `<NumericInput>`, nunca `type="number"`
-- `HistorialDrawer` fuera del `Dialog`
-- Init de campos en `handleOpenChange(true)`; `useEffect([open])` no toca `mode`
+- `ModalHeading` + `MODULE_ACCENT`. Tabs siempre (`variant="line"`).
+- Campos en `UI_THEME.modal.scrollArea`. Grupos en `SegmentCard`. Dos lados con `TwoColumns` si el tab lo pide; catalogo chico con `SingleColumn`.
+- Vista: `ViewField`. Edicion: `inputBase`. Errores con `FieldError` y error global. Sin toast.
+- Empresa en alta: `SearchableSelect`. En vista: `ViewField` con el nombre.
+- Numeros: `NumericInput`.
+- `HistorialDrawer` fuera del `Dialog`.
+- Init de campos en `handleOpenChange(true)`. El `useEffect([open])` no toca `mode`.
+- Update con `registroVersion`. Si el error incluye `modificado`, al cerrar refrescar.
+- Footer como Cartera. Vista: ghost `size="sm"` en `buttons.viewRow` (Historial, extra, Eliminar, Editar) y `accent.hover`. Edicion: Cancelar y Guardar ghost `size="sm"` en `buttons.editRow`, con icono X y Check y el mismo hover. Alta: Guardar ghost con Check. Editar solo si `permisos.modificar !== false`.

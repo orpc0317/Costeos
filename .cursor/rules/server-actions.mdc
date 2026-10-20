@@ -1,16 +1,18 @@
 ---
-description: Actions, services, repos — patrón Categorías
+description: Actions, permisos y bloqueo por registroVersion.
 globs: src/app/actions/**/*.ts,src/lib/services/**/*.ts,src/lib/repositories/**/*.ts
 alwaysApply: false
 ---
 
 # Actions / services / repos
 
-Patrón: `src/app/actions/categorias.ts` → `categoria.service.ts` → `categoria.repository.ts`.
+Patron: `src/app/actions/categorias.ts` → service → repository.
 
-- Guard al inicio: `requireAuth` / `requireManagerOrAdmin` / `requireAdmin` (`src/lib/auth-helpers.ts`)
-- Validar con Zod del tipo en `src/lib/types/`
-- Repo plano; join de nombres FK en el **service** (no `include` de Prisma para labels)
-- `findAll` con `search`: incluir búsqueda exacta por `id` si el texto es entero (R25)
-- ERP: solo `import { erp } from '@/lib/erp'`
-- Tras mutar: `revalidatePath` de la pantalla
+- Escritura: `requirePermiso` primero. Lectura de lista: `puedeConsultar`.
+- Validar con Zod del tipo en `src/lib/types/`.
+- Repo plano. Nombres de FK en el service, no `include` de Prisma para labels.
+- `findAll` con `search`: si el texto es entero, incluir `id` exacto.
+- ERP: solo `import { erp } from '@/lib/erp'`.
+- Tras mutar: `revalidatePath`.
+- Concurrencia: `where: { id, registroVersion }` y `registroVersion: { increment: 1 }`. Si `count === 0`, error `Este registro fue modificado por otro usuario. Cierra el formulario, recarga los datos y vuelve a intentarlo.`
+- `modificoFecha` es auditoria. No es el candado.

@@ -1,11 +1,12 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { requireAuth } from '@/lib/auth-helpers'
+import { requirePermiso, puedeConsultar } from '@/app/actions/permisos'
+import { PERMISOS } from '@/lib/permisos'
 import { redirect } from 'next/navigation'
 
 export async function createCosteo(formData: FormData) {
-  const guard = await requireAuth()
+  const guard = await requirePermiso(PERMISOS.COS_NEW, 'agregar')
   if (!guard.ok) throw new Error(guard.error)
 
   const erpClienteDataStr = formData.get('erpClienteData') as string

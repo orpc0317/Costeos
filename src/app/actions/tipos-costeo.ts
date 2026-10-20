@@ -1,7 +1,8 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAdmin } from '@/lib/auth-helpers'
+import { requirePermiso, puedeConsultar } from '@/app/actions/permisos'
+import { PERMISOS } from '@/lib/permisos'
 import {
   crearTipoCosteoSchema,
   editarTipoCosteoSchema,
@@ -15,8 +16,7 @@ import { TipoCosteoRepository } from '@/lib/repositories/tipo-costeo.repository'
 const PATH = '/dashboard/configuracion/tipos-costeo'
 
 export async function listarTiposCosteo(params?: { search?: string }): Promise<TipoCosteoRow[]> {
-  const guard = await requireAdmin()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.TCO_CAT))) return []
   return TipoCosteoService.listar(params)
 }
 
@@ -24,7 +24,7 @@ export async function crearTipoCosteo(
   _prev: unknown,
   formData: FormData,
 ): Promise<ActionResult<{ id: number }>> {
-  const guard = await requireAdmin()
+  const guard = await requirePermiso(PERMISOS.TCO_CAT, 'agregar')
   if (!guard.ok) return guard
 
   const raw = {
@@ -62,7 +62,7 @@ export async function editarTipoCosteo(
   _prev: unknown,
   formData: FormData,
 ): Promise<ActionResult<TipoCosteoRow>> {
-  const guard = await requireAdmin()
+  const guard = await requirePermiso(PERMISOS.TCO_CAT, 'modificar')
   if (!guard.ok) return guard
 
   const raw = {
@@ -97,7 +97,7 @@ export async function editarTipoCosteo(
 }
 
 export async function toggleActivo(id: number, registroVersion: number): Promise<ActionResult> {
-  const guard = await requireAdmin()
+  const guard = await requirePermiso(PERMISOS.TCO_CAT, 'eliminar')
   if (!guard.ok) return guard
 
   const result = await TipoCosteoService.toggleActivo(id, registroVersion, guard.userId)
@@ -106,6 +106,7 @@ export async function toggleActivo(id: number, registroVersion: number): Promise
 }
 
 export async function getTiposCosteoActivosAction() {
+  if (!(await puedeConsultar(PERMISOS.TCO_CAT))) return []
   return TipoCosteoRepository.findActivos()
 }
 
@@ -115,8 +116,7 @@ export async function buscarTipoCosteoSimilares(
   empresaId: number,
   excluirId?: number,
 ): Promise<SimilarItem[]> {
-  const guard = await requireAdmin()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.TCO_CAT))) return []
   const todos = await TipoCosteoRepository.findAll()
   const deEmpresa = todos
     .filter(t => t.empresaId === empresaId)

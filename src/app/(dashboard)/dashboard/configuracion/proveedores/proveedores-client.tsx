@@ -8,16 +8,19 @@ import { Truck, Plus, Eye } from 'lucide-react'
 import { ProveedorModal } from '@/components/proveedores/proveedor-modal'
 import { PageHeader } from '@/components/ui/page-header'
 import { UI_THEME } from '@/lib/theme'
+import { MODULE_ACCENT } from '@/lib/ui-accent'
+import type { PermisosPantalla } from '@/lib/permisos'
 import type { ProveedorRow } from '@/lib/types/proveedores'
 import { listarProveedores } from '@/app/actions/proveedores'
 import { useDebounce } from '@/hooks/use-debounce'
 
-interface Props { initialData: ProveedorRow[] }
+interface Props { initialData: ProveedorRow[]; permisos?: PermisosPantalla }
 
 const LIMIT_INICIAL  = 50
 const LIMIT_BUSQUEDA = 150
 
-export function ProveedoresClient({ initialData }: Props) {
+export function ProveedoresClient({ initialData, permisos }: Props) {
+  const puedeAgregar = permisos?.agregar !== false
   const [data, setData]               = useState<ProveedorRow[]>(initialData)
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading]         = useState(false)
@@ -91,7 +94,7 @@ export function ProveedoresClient({ initialData }: Props) {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={Truck} title="Proveedores" subtitle={subtitulo} />
+      <PageHeader icon={Truck} title="Proveedores" subtitle={subtitulo} accent={MODULE_ACCENT.proveedores} actions={puedeAgregar ? <ProveedorModal trigger={<Button className="gap-2"><Plus className="w-4 h-4" /> Nuevo Proveedor</Button>} /> : null} />
       <DataTable
         columns={columns}
         data={data}
@@ -101,11 +104,7 @@ export function ProveedoresClient({ initialData }: Props) {
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
         loading={loading}
-        customToolbarActions={
-          <ProveedorModal
-            trigger={<Button className="gap-2"><Plus className="w-4 h-4" /> Nuevo Proveedor</Button>}
-          />
-        }
+        rowAccent={MODULE_ACCENT.proveedores.row}
       />
     </div>
   )

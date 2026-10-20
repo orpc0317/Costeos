@@ -8,16 +8,19 @@ import { UserRound, Plus, Eye } from 'lucide-react'
 import { ClienteModal } from '@/components/clientes/cliente-modal'
 import { PageHeader } from '@/components/ui/page-header'
 import { UI_THEME } from '@/lib/theme'
+import { MODULE_ACCENT } from '@/lib/ui-accent'
+import type { PermisosPantalla } from '@/lib/permisos'
 import type { ClienteRow } from '@/lib/types/clientes'
 import { listarClientes } from '@/app/actions/clientes'
 import { useDebounce } from '@/hooks/use-debounce'
 
-interface Props { initialData: ClienteRow[] }
+interface Props { initialData: ClienteRow[]; permisos?: PermisosPantalla }
 
 const LIMIT_INICIAL  = 50
 const LIMIT_BUSQUEDA = 150
 
-export function ClientesClient({ initialData }: Props) {
+export function ClientesClient({ initialData, permisos }: Props) {
+  const puedeAgregar = permisos?.agregar !== false
   const [data, setData]               = useState<ClienteRow[]>(initialData)
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading]         = useState(false)
@@ -82,7 +85,7 @@ export function ClientesClient({ initialData }: Props) {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={UserRound} title="Clientes" subtitle={subtitulo} />
+      <PageHeader icon={UserRound} title="Clientes" subtitle={subtitulo} accent={MODULE_ACCENT.clientes} actions={puedeAgregar ? <ClienteModal trigger={<Button className="gap-2"><Plus className="w-4 h-4" /> Nuevo Cliente</Button>} /> : null} />
       <DataTable
         columns={columns}
         data={data}
@@ -92,11 +95,7 @@ export function ClientesClient({ initialData }: Props) {
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
         loading={loading}
-        customToolbarActions={
-          <ClienteModal
-            trigger={<Button className="gap-2"><Plus className="w-4 h-4" /> Nuevo Cliente</Button>}
-          />
-        }
+        rowAccent={MODULE_ACCENT.clientes.row}
       />
     </div>
   )

@@ -26,8 +26,33 @@ model Usuario {
   costeosAprobados  Costeo[]                @relation("CosteoAprobador")
   costeosCreados    Costeo[]                @relation("CosteoCreador")
   historiales       HistorialAutoGuardado[]
+  menus             MenuUsuario[]
 
   @@map("t_usuario")
+}
+
+model Menu {
+  indice   String        @id @db.VarChar(8)
+  nombre   String        @db.VarChar(80)
+  ruta     String        @db.VarChar(200)
+  usuarios MenuUsuario[]
+
+  @@map("t_menu")
+}
+
+model MenuUsuario {
+  id        Int     @id @default(autoincrement())
+  usuarioId Int     @map("usuario_id")
+  indice    String  @db.VarChar(8)
+  consultar Boolean @default(false)
+  agregar   Boolean @default(false)
+  modificar Boolean @default(false)
+  eliminar  Boolean @default(false)
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  menu      Menu    @relation(fields: [indice], references: [indice])
+
+  @@unique([usuarioId, indice])
+  @@map("t_menu_usuario")
 }
 
 model Cliente {

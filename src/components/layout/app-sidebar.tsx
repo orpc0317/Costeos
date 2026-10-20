@@ -21,6 +21,7 @@ import {
   ClipboardList,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { PERMISOS } from '@/lib/permisos'
 
 const navItems = [
   {
@@ -28,19 +29,21 @@ const navItems = [
     href: '/dashboard',
     icon: LayoutDashboard,
     exact: true,
+    permiso: PERMISOS.DAS_HOM,
   },
   {
     label: 'COSTEOS',
     href: '/costeos',
     icon: Calculator,
+    permiso: PERMISOS.COS_CAT,
   },
   {
     label: 'COMPRAS',
     href: '/dashboard/compras',
     icon: ShoppingCart,
     children: [
-      { label: 'Solicitudes',  href: '/dashboard/compras/solicitudes',  icon: ClipboardList },
-      { label: 'Cotizaciones', href: '/dashboard/compras/cotizaciones', icon: FileText },
+      { label: 'Solicitudes',  href: '/dashboard/compras/solicitudes',  icon: ClipboardList, permiso: PERMISOS.SOL_COM },
+      { label: 'Cotizaciones', href: '/dashboard/compras/cotizaciones', icon: FileText, permiso: PERMISOS.COT_COM },
     ],
   },
   {
@@ -48,15 +51,14 @@ const navItems = [
     href: '/dashboard/configuracion',
     icon: Settings,
     children: [
-      { label: 'Empresas',     href: '/dashboard/configuracion/empresas',     icon: Building2 },
-      { label: 'Clientes',     href: '/dashboard/configuracion/clientes',     icon: UserRound },
-      { label: 'Proveedores',  href: '/dashboard/configuracion/proveedores',  icon: Truck },
-
-      { label: 'Tipos Costeo', href: '/dashboard/configuracion/tipos-costeo', icon: Network },
-      { label: 'Categorias',   href: '/dashboard/configuracion/categorias',   icon: Tags },
-      { label: 'Tipos Combo',  href: '/dashboard/configuracion/tipos-combo',  icon: Layers },
-      { label: 'Items',        href: '/dashboard/configuracion/items',        icon: Package },
-      { label: 'Usuarios',     href: '/dashboard/configuracion/usuarios',     icon: Users },
+      { label: 'Empresas',     href: '/dashboard/configuracion/empresas',     icon: Building2, permiso: PERMISOS.EMP_CAT },
+      { label: 'Clientes',     href: '/dashboard/configuracion/clientes',     icon: UserRound, permiso: PERMISOS.CLI_CAT },
+      { label: 'Proveedores',  href: '/dashboard/configuracion/proveedores',  icon: Truck, permiso: PERMISOS.PRV_CAT },
+      { label: 'Tipos Costeo', href: '/dashboard/configuracion/tipos-costeo', icon: Network, permiso: PERMISOS.TCO_CAT },
+      { label: 'Categorias',   href: '/dashboard/configuracion/categorias',   icon: Tags, permiso: PERMISOS.CAT_CAT },
+      { label: 'Tipos Combo',  href: '/dashboard/configuracion/tipos-combo',  icon: Layers, permiso: PERMISOS.TCB_CAT },
+      { label: 'Items',        href: '/dashboard/configuracion/items',        icon: Package, permiso: PERMISOS.ITE_CAT },
+      { label: 'Usuarios',     href: '/dashboard/configuracion/usuarios',     icon: Users, permiso: PERMISOS.USU_CAT },
     ],
   },
 ]
@@ -67,8 +69,17 @@ interface NavUser {
   rol?: string
 }
 
-export function AppSidebar({ user }: { user: NavUser }) {
+export function AppSidebar({ user, permisos }: { user: NavUser; permisos: string[] }) {
   const pathname = usePathname()
+  const visible = navItems
+    .map((item) => {
+      if (!item.children) {
+        return !item.permiso || permisos.includes(item.permiso) ? item : null
+      }
+      const children = item.children.filter((c) => !c.permiso || permisos.includes(c.permiso))
+      return children.length ? { ...item, children } : null
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null)
 
   return (
     <aside className="w-60 shrink-0 flex flex-col h-full bg-sidebar border-r border-sidebar-border">
@@ -86,7 +97,7 @@ export function AppSidebar({ user }: { user: NavUser }) {
 
       {/* Navegación */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
-        {navItems.map((item) => (
+        {visible.map((item) => (
           <NavItem key={item.href} item={item} pathname={pathname} />
         ))}
       </nav>
@@ -120,7 +131,8 @@ interface NavItemDef {
   href: string
   icon?: React.ElementType
   exact?: boolean
-  children?: { label: string; href: string; icon?: React.ElementType }[]
+  permiso?: string
+  children?: { label: string; href: string; icon?: React.ElementType; permiso?: string }[]
 }
 
 function NavItem({ item, pathname }: { item: NavItemDef; pathname: string }) {

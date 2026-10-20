@@ -8,13 +8,16 @@ import { Layers, Plus, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/ui/page-header'
 import { UI_THEME } from '@/lib/theme'
+import { MODULE_ACCENT } from '@/lib/ui-accent'
+import type { PermisosPantalla } from '@/lib/permisos'
 import type { TipoComboRow } from '@/lib/types/tipos-combo'
 import { listarTiposCombo } from '@/app/actions/tipos-combo'
 import { useDebounce } from '@/hooks/use-debounce'
 
-interface Props { initialData: TipoComboRow[] }
+interface Props { initialData: TipoComboRow[]; permisos?: PermisosPantalla }
 
-export function TiposComboClient({ initialData }: Props) {
+export function TiposComboClient({ initialData, permisos }: Props) {
+  const puedeAgregar = permisos?.agregar !== false
   const [data, setData]               = useState<TipoComboRow[]>(initialData)
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading]         = useState(false)
@@ -75,7 +78,7 @@ export function TiposComboClient({ initialData }: Props) {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={Layers} title="Tipos Combo" subtitle={subtitulo} />
+      <PageHeader icon={Layers} title="Tipos Combo" subtitle={subtitulo} accent={MODULE_ACCENT.tiposCombo} actions={puedeAgregar ? <TipoComboModal trigger={<Button size="sm" className="gap-2"><Plus className="h-4 w-4" /> Nuevo Tipo</Button>} /> : null} />
       <DataTable
         columns={columns}
         data={data}
@@ -85,11 +88,7 @@ export function TiposComboClient({ initialData }: Props) {
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
         loading={loading}
-        customToolbarActions={
-          <TipoComboModal
-            trigger={<Button size="sm" className="gap-2"><Plus className="h-4 w-4" /> Nuevo Tipo</Button>}
-          />
-        }
+        rowAccent={MODULE_ACCENT.tiposCombo.row}
       />
     </div>
   )

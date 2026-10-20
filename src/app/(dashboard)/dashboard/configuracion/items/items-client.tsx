@@ -11,18 +11,22 @@ import type { ItemRow } from '@/lib/types/items'
 import type { CategoriaRow } from '@/lib/types/categorias'
 import { PageHeader } from '@/components/ui/page-header'
 import { UI_THEME } from '@/lib/theme'
+import { MODULE_ACCENT } from '@/lib/ui-accent'
+import type { PermisosPantalla } from '@/lib/permisos'
 import { listarItems } from '@/app/actions/items'
 import { useDebounce } from '@/hooks/use-debounce'
 
 interface Props {
   initialData: ItemRow[]
   categorias: CategoriaRow[]
+  permisos?: PermisosPantalla
 }
 
 const LIMIT_INICIAL = 50
 const LIMIT_BUSQUEDA = 150
 
-export function ItemsClient({ initialData, categorias }: Props) {
+export function ItemsClient({ initialData, categorias, permisos }: Props) {
+  const puedeAgregar = permisos?.agregar !== false
   const [data, setData]         = useState<ItemRow[]>(initialData)
   const [allItems, setAllItems] = useState<ItemRow[]>(initialData) // sin paginación, para el modal
   const [searchQuery, setSearchQuery] = useState('')
@@ -149,6 +153,8 @@ export function ItemsClient({ initialData, categorias }: Props) {
         icon={Package}
         title="Items"
         subtitle={subtitulo}
+        accent={MODULE_ACCENT.items}
+        actions={puedeAgregar ? toolbarActions : null}
       />
 
       <DataTable
@@ -160,7 +166,7 @@ export function ItemsClient({ initialData, categorias }: Props) {
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
         loading={loading}
-        customToolbarActions={toolbarActions}
+        rowAccent={MODULE_ACCENT.items.row}
       />
     </div>
   )

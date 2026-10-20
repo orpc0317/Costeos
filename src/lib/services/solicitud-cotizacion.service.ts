@@ -417,7 +417,7 @@ export const SolicitudCotizacionService = {
       data:  { cantidad: data.cantidad, registroVersion: registroVersion + 1 },
     })
     if (result.count === 0) {
-      throw new Error('OCC: El registro fue modificado por otro usuario. Recarga e intenta de nuevo.')
+      throw new Error('Este registro fue modificado por otro usuario. Cierra el formulario, recarga los datos y vuelve a intentarlo.')
     }
     await AuditRepository.logUpdate(
       'costeos_solicitud_compra',

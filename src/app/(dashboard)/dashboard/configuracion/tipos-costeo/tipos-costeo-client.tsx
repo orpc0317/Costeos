@@ -9,14 +9,17 @@ import { TipoCosteoModal } from '@/components/tipos-costeo/tipo-costeo-modal'
 import { Network, Plus, Eye } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
 import { UI_THEME } from '@/lib/theme'
+import { MODULE_ACCENT } from '@/lib/ui-accent'
+import type { PermisosPantalla } from '@/lib/permisos'
 import type { TipoCosteoRow } from '@/lib/types/tipos-costeo'
 import { listarTiposCosteo } from '@/app/actions/tipos-costeo'
 import { useDebounce } from '@/hooks/use-debounce'
 import { useRouter } from 'next/navigation'
 
-interface Props { initialData: TipoCosteoRow[] }
+interface Props { initialData: TipoCosteoRow[]; permisos?: PermisosPantalla }
 
-export function TiposCosteoClient({ initialData }: Props) {
+export function TiposCosteoClient({ initialData, permisos }: Props) {
+  const puedeAgregar = permisos?.agregar !== false
   const router = useRouter()
   const [data, setData]               = useState<TipoCosteoRow[]>(initialData)
   const [searchQuery, setSearchQuery] = useState('')
@@ -88,7 +91,7 @@ export function TiposCosteoClient({ initialData }: Props) {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={Network} title="Tipos Costeos" subtitle={subtitulo} />
+      <PageHeader icon={Network} title="Tipos Costeos" subtitle={subtitulo} accent={MODULE_ACCENT.tiposCosteo} actions={puedeAgregar ? <TipoCosteoModal onSuccess={() => router.refresh()} trigger={<Button className="gap-2"><Plus className="w-4 h-4" />Nuevo Tipo</Button>} /> : null} />
       <DataTable
         columns={columns}
         data={data}
@@ -98,12 +101,7 @@ export function TiposCosteoClient({ initialData }: Props) {
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
         loading={loading}
-        customToolbarActions={
-          <TipoCosteoModal
-            onSuccess={() => router.refresh()}
-            trigger={<Button className="gap-2"><Plus className="w-4 h-4" />Nuevo Tipo</Button>}
-          />
-        }
+        rowAccent={MODULE_ACCENT.tiposCosteo.row}
       />
     </div>
   )

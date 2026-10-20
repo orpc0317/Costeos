@@ -1,7 +1,9 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAdmin } from '@/lib/auth-helpers'
+import { requirePermiso, puedeConsultar, reemplazarPermisosUsuario } from '@/app/actions/permisos'
+import type { PermisoFlags } from '@/lib/permisos'
+import { PERMISOS } from '@/lib/permisos'
 import { crearUsuarioSchema, editarUsuarioSchema, type UsuarioRow } from '@/lib/types/usuarios'
 import { UsuarioService } from '@/lib/services/usuario.service'
 import type { ActionResult } from '@/lib/types/common'
@@ -9,8 +11,7 @@ import type { ActionResult } from '@/lib/types/common'
 const PATH = '/dashboard/configuracion/usuarios'
 
 export async function listarUsuarios(params?: { search?: string }): Promise<UsuarioRow[]> {
-  const guard = await requireAdmin()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.USU_CAT))) return []
   return UsuarioService.listar(params)
 }
 
@@ -18,7 +19,7 @@ export async function crearUsuario(
   _prev: unknown,
   formData: FormData,
 ): Promise<ActionResult<{ id: number }>> {
-  const guard = await requireAdmin()
+  const guard = await requirePermiso(PERMISOS.USU_CAT, 'agregar')
   if (!guard.ok) return guard
 
   const raw = {
@@ -38,7 +39,10 @@ export async function crearUsuario(
     ...parsed.data,
     usuarioErp: parsed.data.usuarioErp ?? '',
   }, guard.userId)
-  if (result.ok) revalidatePath(PATH)
+  if (result.ok && result.data) {
+    await reemplazarPermisosUsuario(result.data.id, parseFlags(formData.get('permisos')))
+    revalidatePath(PATH)
+  }
   return result
 }
 
@@ -47,7 +51,7 @@ export async function editarUsuario(
   _prev: unknown,
   formData: FormData,
 ): Promise<ActionResult<UsuarioRow>> {
-  const guard = await requireAdmin()
+  const guard = await requirePermiso(PERMISOS.USU_CAT, 'modificar')
   if (!guard.ok) return guard
 
   const raw = {
@@ -69,12 +73,26 @@ export async function editarUsuario(
     password: parsed.data.password || undefined,
     usuarioErp: parsed.data.usuarioErp ?? '',
   }, guard.userId)
-  if (result.ok) revalidatePath(PATH)
+  if (result.ok) {
+    await reemplazarPermisosUsuario(id, parseFlags(formData.get('permisos')))
+    revalidatePath(PATH)
+  }
   return result
 }
 
+function parseFlags(raw: FormDataEntryValue | null): PermisoFlags[] {
+  if (typeof raw !== 'string' || !raw) return []
+  try {
+    const parsed = JSON.parse(raw) as PermisoFlags[]
+    if (!Array.isArray(parsed)) return []
+    return parsed
+  } catch {
+    return []
+  }
+}
+
 export async function toggleActivo(id: number, registroVersion: number): Promise<ActionResult> {
-  const guard = await requireAdmin()
+  const guard = await requirePermiso(PERMISOS.USU_CAT, 'eliminar')
   if (!guard.ok) return guard
 
   const result = await UsuarioService.toggleActivo(id, registroVersion, guard.userId)

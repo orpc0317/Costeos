@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useTransition } from 'react'
+import { useEditClick } from '@/lib/use-edit-click'
 import {
   Dialog,
   DialogContent,
@@ -13,9 +14,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { FieldError } from '@/components/ui/field-error'
+import { SegmentCard, SingleColumn } from '@/components/ui/form-layout'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { HistorialDrawer } from '@/components/shared/historial-drawer'
-import { Layers, Pencil, History, Trash2, Save, Loader2 } from 'lucide-react'
+import { Layers, Pencil, History, Trash2, Check, Loader2, X } from 'lucide-react'
 import { getEmpresasForUser } from '@/app/actions/erp'
 import {
   crearTipoCombo,
@@ -26,6 +28,8 @@ import {
 import { normalizeText } from '@/lib/utils/text'
 import { cn } from '@/lib/utils'
 import { UI_THEME } from '@/lib/theme'
+import { MODULE_ACCENT } from '@/lib/ui-accent'
+import { ModalHeading } from '@/components/ui/modal-heading'
 import type { TipoComboRow } from '@/lib/types/tipos-combo'
 import type { SimilarItem } from '@/lib/utils/similarity'
 
@@ -44,6 +48,7 @@ export function TipoComboModal({ tipoCombo, trigger }: TipoComboModalProps) {
   const [open, setOpen]               = useState(false)
   const [historialOpen, setHistorialOpen] = useState(false)
   const [mode, setMode]               = useState<'view' | 'edit' | 'create'>('create')
+  const { onEditMouseDown, onEditClick, blockAccidentalSubmit } = useEditClick(setMode)
   const [activeTab, setActiveTab]     = useState('general')
 
   // Estado del registro actual (snapshot al abrir)
@@ -164,6 +169,7 @@ export function TipoComboModal({ tipoCombo, trigger }: TipoComboModalProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (blockAccidentalSubmit(e)) return
     setSimilares([])
 
     // Validación local
@@ -225,18 +231,13 @@ export function TipoComboModal({ tipoCombo, trigger }: TipoComboModalProps) {
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogTrigger render={trigger as React.ReactElement} />
 
-        <DialogContent className="sm:max-w-[500px] h-[85vh] sm:h-[440px] flex flex-col p-4 sm:p-6 overflow-hidden">
-          {/* Header */}
-          <DialogHeader className="mb-2 shrink-0">
-            <DialogTitle className={UI_THEME.modal.title}>
-              <Layers className="w-5 h-5 text-slate-500" />
-              {mode === 'create'
-                ? 'Nuevo Tipo Combo'
-                : mode === 'edit'
-                ? 'Editar Tipo Combo'
-                : 'Detalle Tipo Combo'}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className={UI_THEME.modal.contentStandard}>
+          <ModalHeading
+            accent={MODULE_ACCENT.tiposCombo}
+            icon={Layers}
+            mode={mode === 'create' ? 'create' : mode === 'edit' ? 'edit' : 'view'}
+            title={mode === 'create' ? 'Nuevo Tipo Combo' : mode === 'edit' ? 'Editar Tipo Combo' : 'Detalle Tipo Combo'}
+          />
 
           {/* Error global */}
           {globalError && (
@@ -257,7 +258,9 @@ export function TipoComboModal({ tipoCombo, trigger }: TipoComboModalProps) {
 
               <div className={UI_THEME.modal.scrollArea}>
                 <TabsContent value="general" className="mt-0">
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                  <SingleColumn>
+                  <SegmentCard label="General">
+                  <div className="col-span-2 grid grid-cols-2 gap-x-6 gap-y-4">
 
                     {/* Empresa — select en crear, deshabilitado en ver/editar */}
                     <div className="flex flex-col gap-1.5 col-span-2">
@@ -360,71 +363,48 @@ export function TipoComboModal({ tipoCombo, trigger }: TipoComboModalProps) {
                     </div>
 
                   </div>
+                  </SegmentCard>
+                  </SingleColumn>
                 </TabsContent>
               </div>
             </Tabs>
 
             {/* Footer fijo */}
             <div className={UI_THEME.modal.footer}>
-              {/* Izquierda — eliminar (solo en vista) */}
-              <div>
-                {mode === 'view' && initialTipoCombo && (
-                  <button
-                    type="button"
-                    onClick={handleEliminar}
-                    disabled={isPendingEliminar}
-                    className="flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 disabled:opacity-50"
-                    title="Eliminar tipo combo"
-                  >
-                    {isPendingEliminar
-                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      : <Trash2 className="h-3.5 w-3.5" />
-                    }
-                    Eliminar
-                  </button>
-                )}
-              </div>
-
-              {/* Derecha — acciones */}
-              <div className={UI_THEME.modal.buttons.rightGroup}>
-                {mode === 'view' && (
-                  <>
-                    {initialTipoCombo && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className={UI_THEME.modal.buttons.historial}
-                        onClick={() => setHistorialOpen(true)}
-                      >
-                        <History className="mr-2 h-4 w-4" /> Historial
-                      </Button>
-                    )}
-                    <Button type="button" onClick={() => setMode('edit')}>
-                      <Pencil className="w-4 h-4 mr-2" /> Editar
+              {mode === 'view' ? (
+                <div className={UI_THEME.modal.buttons.viewRow}>
+                  {initialTipoCombo && (
+                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.tiposCombo.hover} onClick={() => setHistorialOpen(true)}>
+                      <History className={UI_THEME.modal.buttons.icon} /> Historial
                     </Button>
-                  </>
-                )}
-                {(mode === 'edit' || mode === 'create') && (
-                  <>
-                    {isEditing && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleCancelar}
-                        disabled={loading}
-                      >
-                        Cancelar
-                      </Button>
-                    )}
-                    <Button type="submit" disabled={loading}>
-                      {loading
-                        ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Guardando...</>
-                        : <><Save className="w-4 h-4 mr-2" />Guardar</>
-                      }
+                  )}
+                  {initialTipoCombo && (
+                    <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.eliminar} onClick={handleEliminar} disabled={isPendingEliminar}>
+                      {isPendingEliminar ? <Loader2 className={`${UI_THEME.modal.buttons.icon} animate-spin`} /> : <Trash2 className={UI_THEME.modal.buttons.icon} />}
+                      Eliminar
                     </Button>
-                  </>
-                )}
-              </div>
+                  )}
+                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.tiposCombo.hover} onMouseDown={onEditMouseDown} onClick={onEditClick}>
+                    <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
+                  </Button>
+                </div>
+              ) : isEditing ? (
+                <div className={UI_THEME.modal.buttons.editRow}>
+                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.tiposCombo.hover} onClick={handleCancelar} disabled={loading}>
+                    <X className={UI_THEME.modal.buttons.icon} /> Cancelar
+                  </Button>
+                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.tiposCombo.hover} disabled={loading}>
+                    <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
+                  </Button>
+                </div>
+              ) : (
+                <div className={UI_THEME.modal.buttons.editRow}>
+                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.tiposCombo.hover} disabled={loading}>
+                    {loading ? <Loader2 className={`${UI_THEME.modal.buttons.icon} animate-spin`} /> : <Check className={UI_THEME.modal.buttons.icon} />}
+                    {loading ? 'Guardando…' : 'Guardar'}
+                  </Button>
+                </div>
+              )}
             </div>
           </form>
         </DialogContent>

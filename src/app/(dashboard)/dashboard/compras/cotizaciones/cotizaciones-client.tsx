@@ -17,14 +17,18 @@ import { PageHeader } from '@/components/ui/page-header'
 import { FileText, Plus, Eye, CheckCircle2 } from 'lucide-react'
 import { CotizacionModal } from '@/components/compras/cotizacion-modal'
 import { UI_THEME } from '@/lib/theme'
+import { MODULE_ACCENT } from '@/lib/ui-accent'
+import type { PermisosPantalla } from '@/lib/permisos'
 import type { CotizacionRow } from '@/lib/types/cotizaciones'
 import { formatCurrency, formatDate } from '@/lib/utils/format'
 
 interface CotizacionesClientProps {
   cotizaciones: CotizacionRow[]
+  permisos?: PermisosPantalla
 }
 
-export function CotizacionesClient({ cotizaciones }: CotizacionesClientProps) {
+export function CotizacionesClient({ cotizaciones, permisos }: CotizacionesClientProps) {
+  const puedeAgregar = permisos?.agregar !== false
   const router = useRouter()
 
   const columns: ColumnDef<CotizacionRow>[] = useMemo(() => [
@@ -145,26 +149,23 @@ export function CotizacionesClient({ cotizaciones }: CotizacionesClientProps) {
         title="Cotizaciones"
         subtitle={
           cotizaciones.length === 1
-            ? '1 cotización registrada'
+            ? '1 cotizacion registrada'
             : `${cotizaciones.length} cotizaciones registradas`
         }
+        accent={MODULE_ACCENT.cotizaciones}
+        actions={puedeAgregar ? (
+          <CotizacionModal
+            onSuccess={() => router.refresh()}
+            trigger={<Button className="gap-2"><Plus className="w-4 h-4" />Nueva Cotizacion</Button>}
+          />
+        ) : null}
       />
       <DataTable
         columns={columns}
         data={cotizaciones}
         tableId="cotizaciones-v2"
-        searchPlaceholder="Buscar por empresa, ítem, proveedor..."
-        customToolbarActions={
-          <CotizacionModal
-            onSuccess={() => router.refresh()}
-            trigger={
-              <Button className="gap-2">
-                <Plus className="w-4 h-4" />
-                Nueva Cotización
-              </Button>
-            }
-          />
-        }
+        searchPlaceholder="Buscar por empresa, item, proveedor..."
+        rowAccent={MODULE_ACCENT.cotizaciones.row}
       />
     </div>
   )

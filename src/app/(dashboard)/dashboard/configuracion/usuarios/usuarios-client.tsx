@@ -9,6 +9,8 @@ import { UsuarioModal } from '@/components/usuarios/usuario-modal'
 import { Users, Plus, Eye } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
 import { UI_THEME } from '@/lib/theme'
+import { MODULE_ACCENT } from '@/lib/ui-accent'
+import type { PermisosPantalla } from '@/lib/permisos'
 import { listarUsuarios } from '@/app/actions/usuarios'
 import { useDebounce } from '@/hooks/use-debounce'
 import { useRouter } from 'next/navigation'
@@ -23,9 +25,10 @@ const ROL_LABELS: Record<string, { label: string; variant: 'default' | 'secondar
   VIEWER:   { label: 'Viewer',   variant: 'outline' },
 }
 
-interface Props { initialData: Usuario[] }
+interface Props { initialData: Usuario[]; permisos?: PermisosPantalla }
 
-export function UsuariosClient({ initialData }: Props) {
+export function UsuariosClient({ initialData, permisos }: Props) {
+  const puedeAgregar = permisos?.agregar !== false
   const router = useRouter()
   const [data, setData]               = useState<Usuario[]>(initialData)
   const [searchQuery, setSearchQuery] = useState('')
@@ -100,7 +103,7 @@ export function UsuariosClient({ initialData }: Props) {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={Users} title="Usuarios" subtitle={subtitulo} />
+      <PageHeader icon={Users} title="Usuarios" subtitle={subtitulo} accent={MODULE_ACCENT.usuarios} actions={puedeAgregar ? <UsuarioModal permisos={permisos} onSuccess={() => router.refresh()} trigger={<Button className="gap-2"><Plus className="w-4 h-4" />Nuevo Usuario</Button>} /> : null} />
       <DataTable
         columns={columns}
         data={data}
@@ -110,12 +113,7 @@ export function UsuariosClient({ initialData }: Props) {
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
         loading={loading}
-        customToolbarActions={
-          <UsuarioModal
-            onSuccess={() => router.refresh()}
-            trigger={<Button className="gap-2"><Plus className="w-4 h-4" />Nuevo Usuario</Button>}
-          />
-        }
+        rowAccent={MODULE_ACCENT.usuarios.row}
       />
     </div>
   )

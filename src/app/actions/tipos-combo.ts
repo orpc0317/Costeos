@@ -1,6 +1,7 @@
 'use server'
 
-import { requireManagerOrAdmin } from '@/lib/auth-helpers'
+import { requirePermiso, puedeConsultar } from '@/app/actions/permisos'
+import { PERMISOS } from '@/lib/permisos'
 import { revalidatePath } from 'next/cache'
 import { normalizeText } from '@/lib/utils/text'
 import { TipoComboService } from '@/lib/services/tipo-combo.service'
@@ -15,8 +16,7 @@ const REVALIDATE_PATH = '/dashboard/configuracion/tipos-combo'
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
 export async function listarTiposCombo(params?: { search?: string }): Promise<TipoComboRow[]> {
-  const guard = await requireManagerOrAdmin()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.TCB_CAT))) return []
   return TipoComboService.listar(params)
 }
 
@@ -24,8 +24,7 @@ export async function listarTiposCombo(params?: { search?: string }): Promise<Ti
 export async function listarTiposCombosPorEmpresa(
   empresaId: number,
 ): Promise<{ id: number; nombre: string }[]> {
-  const guard = await requireManagerOrAdmin()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.TCB_CAT))) return []
   const tipos = await prisma.tipoCombo.findMany({
     where: { empresaId },
     select: { id: true, nombre: true },
@@ -41,8 +40,7 @@ export async function buscarTipoComboSimilares(
   empresaId: number,
   excludeId?: number,
 ): Promise<SimilarItem[]> {
-  const guard = await requireManagerOrAdmin()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.TCB_CAT))) return []
 
   const todos = await prisma.tipoCombo.findMany({
     where: { empresaId },
@@ -63,7 +61,7 @@ export async function crearTipoCombo(data: {
   nombre: string
   icono?: string | null
 }): Promise<ActionResult<TipoComboRow>> {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.TCB_CAT, 'agregar')
   if (!guard.ok) return { ok: false, error: 'No autorizado' }
 
   const nombre = normalizeText(data.nombre)
@@ -93,7 +91,7 @@ export async function editarTipoCombo(
     registroVersion: number
   },
 ): Promise<ActionResult<TipoComboRow>> {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.TCB_CAT, 'modificar')
   if (!guard.ok) return { ok: false, error: 'No autorizado' }
 
   const nombre = normalizeText(data.nombre)
@@ -122,7 +120,7 @@ export async function eliminarTipoCombo(
   id: number,
   registroVersion: number,
 ): Promise<ActionResult<void>> {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.TCB_CAT, 'eliminar')
   if (!guard.ok) return { ok: false, error: 'No autorizado' }
 
   const result = await TipoComboService.eliminar(id, registroVersion, guard.userId)

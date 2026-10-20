@@ -18,7 +18,8 @@
  * Los ítems tipo "Compras" sin cotización vigente quedan en 0.
  */
 
-import { requireManagerOrAdmin } from '@/lib/auth-helpers'
+import { requirePermiso, puedeConsultar } from '@/app/actions/permisos'
+import { PERMISOS } from '@/lib/permisos'
 import { prisma } from '@/lib/prisma'
 import type { ActionResult } from '@/lib/types/common'
 
@@ -56,7 +57,7 @@ export async function resolverCostosProyecto(
   items: ItemParaCostear[],
   costosSolicitar: Record<number, number> = {},
 ): Promise<ActionResult<CosteoResuelto>> {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.COS_CAT, 'modificar')
   if (!guard.ok) return guard
 
   const costosResueltos: Record<number, number> = {}

@@ -1,0 +1,42 @@
+---
+description: Aspecto de pantallas y modales. Acentos, labels, dos columnas, tabla.
+globs: src/**/*.tsx
+alwaysApply: false
+---
+
+# UI
+
+Fuente visual: `src/lib/theme.ts`, `src/lib/ui-accent.ts`, `src/app/globals.css` (`--ui-form-label`, `--ui-input`, `--ui-field-height`, densidad de tabla).
+
+## Acentos
+
+Un par por pantalla, definido en `MODULE_ACCENT`. No reutilizar un par. Al crear una pantalla, agregar la clave ahi y una fila en esta lista: Empresas esmeralda, Clientes indigo, Proveedores teal, Items ambar, Categorias violeta, Tipos Costeo cielo, Tipos Combo rosa, Usuarios purpura, Solicitudes naranja, Cotizaciones cian, Costeos zinc, Dashboard azul.
+
+El badge de editar es ambar en todos los modulos (`EDIT_BADGE`).
+
+## Pagina
+
+`PageHeader` con `accent`. El titulo no va en color de acento. El boton Nuevo vive en `actions` del encabezado, no en la barra de la tabla. `DataTable` recibe `rowAccent` del modulo.
+
+## Modal
+
+- `DialogContent` usa `UI_THEME.modal.contentWide` si el tab tiene dos grupos, o `contentStandard` si es un catalogo chico (Categorias, Tipos Costeo, Tipos Combo).
+- Cabecera: `ModalHeading`. Plus al crear, Pencil al editar, icono de la entidad al ver.
+- Pestañas `variant="line"` y `UI_THEME.tabs.listClass`.
+- Tab con dos grupos: `TwoColumns` (linea `UI_THEME.modal.divider`). Un grupo: `SingleColumn`.
+- Cada grupo: `SegmentCard`. Campos full ocupan `col-span-2`; half, una celda.
+- Vista: `ViewField`. Edicion: `Label` con `UI_THEME.forms.labelBase` e `Input` / `SearchableSelect` / `NumericInput` con `inputBase`.
+- Footer: vista en una fila ghost `size="sm"` (Historial, extra, Eliminar, Editar) con `accent.hover`. Editar un registro: Cancelar y Guardar ghost `size="sm"` a la derecha, con icono (X y Check) y el mismo hover. Alta: solo Guardar ghost con icono Check.
+- `HistorialDrawer` fuera del `Dialog`.
+
+## Labels
+
+Sin tildes. Title Case. Preposiciones cortas en minuscula: `Codigo`, `Razon Social`, `Dias de Credito`. El texto libre que se persiste pasa por `normalizeText` (mayusculas sin tildes).
+
+## Tabla
+
+Densidad por las variables CSS. Columna `id` sticky a la izquierda, `actions` sticky a la derecha. Clic marca la fila; doble clic abre el ojo. Flechas mueven el cursor.
+
+## No cambiar
+
+`SearchableSelect` (portal), `NumericInput`, `FieldError`, error global sin toast, modal de fila por `trigger`.

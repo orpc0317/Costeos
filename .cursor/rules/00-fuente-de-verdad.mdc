@@ -8,9 +8,11 @@ alwaysApply: true
 Usar **Casa A**. Mapa: `docs/ai-index.md`.
 
 - `AGENTS.md`, `docs/conventions.md`, `docs/crud-standard.md`
-- Gold: `categorias-client.tsx` y `categoria-modal.tsx`
+- Aspecto: `.cursor/rules/ui-conventions.mdc`, `src/lib/theme.ts`, `src/lib/ui-accent.ts`
+- Permisos: `.cursor/rules/permisos.mdc`. Candado: `registroVersion`
+- Gold: `categorias-client.tsx`, `categoria-modal.tsx`, `usuario-modal.tsx` (dos columnas)
 - Templates: `src/templates/entidad-*.template.tsx`
-- Tokens: `src/lib/theme.ts`
+- Skill: `.cursor/skills/crud-screen/SKILL.md`
 
 CRUD: copiar template; no escribir desde cero. Formularios: `useState`, no React Hook Form. Errores: `FieldError` + error global, no toast. ERP: `import { erp } from '@/lib/erp'`.
 

@@ -4,6 +4,21 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+# Look and feel (gana sobre cualquier bullet visual mas abajo)
+
+El aspecto es el de Cartera, sobre el stack de Costeos.
+
+- Tokens: `src/lib/theme.ts` y variables `--ui-*` en `src/app/globals.css`. Acentos: `src/lib/ui-accent.ts`.
+- Campos: label semibold tracking-wider, control `l-border` (`UI_THEME.forms.inputBase`). Vista con `ViewField`, no un input deshabilitado cuando el campo es solo lectura.
+- Modal ancho: `ModalHeading` (degradado + badge). Pesta?as. Dentro de la pesta?a, `TwoColumns` + `SegmentCard` si hay dos grupos. Catalogo chico: `SingleColumn`. Componentes en `src/components/ui/form-layout.tsx` y `modal-heading.tsx`.
+- Lista: `PageHeader` con `accent`. Boton Nuevo solo en el encabezado. `DataTable` con `rowAccent`. Columna `id` sticky izquierda, `actions` sticky derecha.
+- Permisos: codigo de pantalla y flags consultar/agregar/modificar/eliminar. `requirePermiso` es la primera instruccion de cada escritura. Cero filas del usuario = acceso total. Ver `.cursor/rules/permisos.mdc`.
+- Bloqueo optimista: entero `registroVersion` (`WHERE id AND registroVersion`, luego increment). No usar `modifico_fecha` como candado. Mensaje: `Este registro fue modificado por otro usuario. Cierra el formulario, recarga los datos y vuelve a intentarlo.`
+- Se conservan Prisma/MySQL, NextAuth, ERP, `SearchableSelect`, `NumericInput`, `FieldError`, `HistorialDrawer`, anti-similares y un modal por fila via `trigger`.
+- El Costeador no se convierte en modal de catalogo. Solo cromado (tipografia, campos, badges).
+
+Reglas cortas: `.cursor/rules/ui-conventions.mdc`, `crud-modal.mdc`, `crud-lista.mdc`, `permisos.mdc`, `server-actions.mdc`. Skill: `.cursor/skills/crud-screen/SKILL.md`.
+
 # CONVENCIONES DEL PROYECTO (Costeos)
 
 > **REFERENCIA OBLIGATORIA:** Antes de desarrollar cualquier pantalla CRUD, leer `docs/conventions.md` completo.

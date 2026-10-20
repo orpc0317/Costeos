@@ -7,7 +7,7 @@
  * 1. Busca y reemplaza TODO "Entidad" / "entidad" / "ENTIDAD" por el nombre real.
  * 2. Reemplaza "IconoEntidad" por el ícono canónico del sidebar.
  * 3. Agrega / elimina columnas según los campos de la entidad.
- * 4. El botón "Nueva Entidad" va SIEMPRE en customToolbarActions del DataTable.
+ * 4. El boton Nuevo va en PageHeader actions, no en la barra de la tabla.
  * 5. Al terminar, ejecuta la PRE-FLIGHT CHECKLIST de AGENTS.md punto a punto.
  *
  * GOLD STANDARD DE REFERENCIA (leer antes de modificar):
@@ -23,6 +23,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { IconoEntidad, Plus, Eye } from 'lucide-react' // ← cambiar IconoEntidad
 import { EntidadModal } from '@/components/entidades/entidad-modal' // ← ajustar ruta
 import { UI_THEME } from '@/lib/theme'
+import { MODULE_ACCENT } from '@/lib/ui-accent'
 import type { EntidadRow } from '@/lib/types/entidades' // ← ajustar import
 
 export function EntidadesClient({ data }: { data: EntidadRow[] }) {
@@ -91,34 +92,28 @@ export function EntidadesClient({ data }: { data: EntidadRow[] }) {
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
-      {/* PageHeader — título e ícono, SIN el botón Nuevo (eso va en el DataTable) */}
       <PageHeader
         icon={IconoEntidad}
         title="Entidades"
+        accent={MODULE_ACCENT.categorias}
         subtitle={
           data.length === 1
             ? '1 entidad registrada'
             : `${data.length} entidades registradas`
         }
+        actions={
+          <EntidadModal
+            trigger={<Button className="gap-2"><Plus className="w-4 h-4" />Nueva Entidad</Button>}
+          />
+        }
       />
 
-      {/* DataTable — el botón Nuevo va SIEMPRE en customToolbarActions */}
       <DataTable
         columns={columns}
         data={data}
         tableId="entidades-v1"
         searchPlaceholder="Buscar en todos los campos..."
-        customToolbarActions={
-          <EntidadModal
-            onSuccess={() => router.refresh()}
-            trigger={
-              <Button className="gap-2">
-                <Plus className="w-4 h-4" />
-                Nueva Entidad
-              </Button>
-            }
-          />
-        }
+        rowAccent={MODULE_ACCENT.categorias.row}
       />
     </div>
   )

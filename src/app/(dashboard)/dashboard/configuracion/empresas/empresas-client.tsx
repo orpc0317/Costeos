@@ -8,11 +8,14 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Building2, Plus, Eye } from 'lucide-react'
 import { EmpresaModal } from '@/components/empresas/empresa-modal'
 import { UI_THEME } from '@/lib/theme'
+import { MODULE_ACCENT } from '@/lib/ui-accent'
+import type { PermisosPantalla } from '@/lib/permisos'
 import type { EmpresaRow } from '@/lib/types/empresas'
 
-interface Props { initialData: EmpresaRow[] }
+interface Props { initialData: EmpresaRow[]; permisos?: PermisosPantalla }
 
-export function EmpresasClient({ initialData }: Props) {
+export function EmpresasClient({ initialData, permisos }: Props) {
+  const puedeAgregar = permisos?.agregar !== false
   const router = useRouter()
 
   const columns: ColumnDef<EmpresaRow>[] = useMemo(() => [
@@ -65,18 +68,13 @@ export function EmpresasClient({ initialData }: Props) {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={Building2} title="Empresas" subtitle={subtitulo} />
+      <PageHeader icon={Building2} title="Empresas" subtitle={subtitulo} accent={MODULE_ACCENT.empresas} actions={puedeAgregar ? <EmpresaModal onSuccess={() => router.refresh()} trigger={<Button className="gap-2"><Plus className="w-4 h-4" />Nueva Empresa</Button>} /> : null} />
       <DataTable
         columns={columns}
         data={initialData}
         tableId="empresas-table"
         searchPlaceholder="Buscar empresa..."
-        customToolbarActions={
-          <EmpresaModal
-            onSuccess={() => router.refresh()}
-            trigger={<Button className="gap-2"><Plus className="w-4 h-4" />Nueva Empresa</Button>}
-          />
-        }
+        rowAccent={MODULE_ACCENT.empresas.row}
       />
     </div>
   )

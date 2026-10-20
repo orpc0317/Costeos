@@ -10,6 +10,7 @@
  * Ícono canónico: ClipboardList (el mismo del sidebar)
  */
 import React, { useState, useEffect, useCallback } from 'react'
+import { useEditClick } from '@/lib/use-edit-click'
 import {
   Dialog,
   DialogContent,
@@ -27,16 +28,20 @@ import { NumericInput } from '@/components/ui/numeric-input'
 import {
   ClipboardList,
   FileText,
-  Save,
+  Check,
   Pencil,
   History,
   Trash2,
   Plus,
   CheckCircle2,
   ExternalLink,
+  X,
 } from 'lucide-react'
 import { HistorialDrawer } from '@/components/shared/historial-drawer'
 import { UI_THEME } from '@/lib/theme'
+import { MODULE_ACCENT } from '@/lib/ui-accent'
+import { ModalHeading } from '@/components/ui/modal-heading'
+import { SegmentCard, TwoColumns } from '@/components/ui/form-layout'
 import type { SolicitudRow, CotizacionItemRow } from '@/lib/types/cotizaciones'
 import {
   labelEstadoSolicitud,
@@ -77,6 +82,7 @@ export function SolicitudModal({
 
   const isEditing = !!solicitud
   const [mode, setMode] = useState<'view' | 'edit'>('view')
+  const { onEditMouseDown, onEditClick, blockAccidentalSubmit } = useEditClick(setMode)
   const [historialOpen, setHistorialOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('general')
 
@@ -199,6 +205,7 @@ export function SolicitudModal({
   // ── Guardar ────────────────────────────────────────────────────────────────
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (blockAccidentalSubmit(e)) return
     setGlobalError(null)
 
     const errors: Record<string, string> = {}
@@ -312,13 +319,8 @@ export function SolicitudModal({
       <Dialog open={open} onOpenChange={handleOpenChange}>
         {trigger && <DialogTrigger render={trigger as React.ReactElement} />}
 
-        <DialogContent className="h-[85vh] sm:h-[600px] flex flex-col p-4 sm:p-6 overflow-hidden sm:max-w-2xl">
-          <DialogHeader className="shrink-0">
-            <DialogTitle className={UI_THEME.modal.title}>
-              <ClipboardList className="h-5 w-5 text-indigo-600" />
-              {titulo}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className={UI_THEME.modal.contentWide}>
+          <ModalHeading accent={MODULE_ACCENT.solicitudes} icon={ClipboardList} mode={!isEditing ? 'create' : mode === 'edit' ? 'edit' : 'view'} title={titulo} />
 
           <form onSubmit={handleSave} className="flex flex-col flex-1 min-h-0">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
@@ -343,7 +345,9 @@ export function SolicitudModal({
                 )}
 
                 {/* ─── Tab General ─── */}
-                <TabsContent value="general" className="mt-0 space-y-4">
+                <TabsContent value="general" className="mt-0">
+                  <TwoColumns
+                    left={<SegmentCard label="Pedido"><div className="col-span-2 flex flex-col gap-3">
 
                   {/* Empresa */}
                   <div className="flex flex-col gap-1.5">
@@ -442,6 +446,8 @@ export function SolicitudModal({
                     {/* cols 3 y 4 vacías intencionalmente */}
                   </div>
 
+                    </div></SegmentCard>}
+                    right={<SegmentCard label="Seguimiento"><div className="col-span-2 flex flex-col gap-3">
                   {/* Tipo (scope) — no editable; solo visible en view/edit */}
                   {isEditing && (
                     <div className="flex flex-col gap-1.5">
@@ -478,6 +484,8 @@ export function SolicitudModal({
                     </div>
                   )}
 
+                    </div></SegmentCard>}
+                  />
                 </TabsContent>
 
                 {/* ─── Tab Cotizaciones ─── */}
@@ -655,61 +663,34 @@ export function SolicitudModal({
 
             {/* ─── Footer fijo ─── */}
             <div className={UI_THEME.modal.footer}>
-              <div>
-                {/* Modo Vista: Eliminar a la izquierda */}
-                {isEditing && mode === 'view' && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className={UI_THEME.modal.buttons.eliminar}
-                    onClick={handleEliminar}
-                  >
-                    <Trash2 className="h-4 w-4 mr-1.5" />
-                    Eliminar
+              {mode === 'view' && isEditing ? (
+                <div className={UI_THEME.modal.buttons.viewRow}>
+                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.solicitudes.hover} onClick={() => setHistorialOpen(true)}>
+                    <History className={UI_THEME.modal.buttons.icon} /> Historial
                   </Button>
-                )}
-              </div>
-
-              <div className={UI_THEME.modal.buttons.rightGroup}>
-                {/* Modo Vista: Historial + Editar */}
-                {mode === 'view' && isEditing && (
-                  <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className={UI_THEME.modal.buttons.historial}
-                      onClick={() => setHistorialOpen(true)}
-                    >
-                      <History className="mr-2 h-4 w-4" />
-                      Historial
-                    </Button>
-                    <Button type="button" onClick={() => setMode('edit')}>
-                      <Pencil className="w-4 h-4 mr-2" />
-                      Editar
-                    </Button>
-                  </>
-                )}
-
-                {/* Modo Edit/Create: Cancelar + Guardar */}
-                {mode === 'edit' && (
-                  <>
-                    {isEditing && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => { resetForm(solicitud); setMode('view') }}
-                        disabled={loading}
-                      >
-                        Cancelar
-                      </Button>
-                    )}
-                    <Button type="submit" disabled={loading}>
-                      <Save className="w-4 h-4 mr-2" />
-                      {loading ? 'Guardando...' : 'Guardar'}
-                    </Button>
-                  </>
-                )}
-              </div>
+                  <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.eliminar} onClick={handleEliminar}>
+                    <Trash2 className={UI_THEME.modal.buttons.icon} /> Eliminar
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.solicitudes.hover} onMouseDown={onEditMouseDown} onClick={onEditClick}>
+                    <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
+                  </Button>
+                </div>
+              ) : isEditing ? (
+                <div className={UI_THEME.modal.buttons.editRow}>
+                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.solicitudes.hover} onClick={() => { resetForm(solicitud); setMode('view') }} disabled={loading}>
+                    <X className={UI_THEME.modal.buttons.icon} /> Cancelar
+                  </Button>
+                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.solicitudes.hover} disabled={loading}>
+                    <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
+                  </Button>
+                </div>
+              ) : (
+                <div className={UI_THEME.modal.buttons.editRow}>
+                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.solicitudes.hover} disabled={loading}>
+                    <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
+                  </Button>
+                </div>
+              )}
             </div>
           </form>
         </DialogContent>

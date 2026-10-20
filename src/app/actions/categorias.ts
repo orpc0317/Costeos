@@ -1,6 +1,7 @@
 'use server'
 import { revalidatePath } from 'next/cache'
-import { requireManagerOrAdmin } from '@/lib/auth-helpers'
+import { requirePermiso, puedeConsultar } from '@/app/actions/permisos'
+import { PERMISOS } from '@/lib/permisos'
 import { categoriaSchema, type CategoriaInput, type CategoriaRow } from '@/lib/types/categorias'
 import { CategoriaService } from '@/lib/services/categoria.service'
 import { CategoriaRepository } from '@/lib/repositories/categoria.repository'
@@ -10,19 +11,17 @@ import type { ActionResult } from '@/lib/types/common'
 const PATH = '/dashboard/configuracion/categorias'
 
 export async function listarCategorias(params?: { search?: string }): Promise<CategoriaRow[]> {
-  const guard = await requireManagerOrAdmin()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.CAT_CAT))) return []
   return CategoriaService.listar(params)
 }
 
 export async function listarCategoriasPorEmpresa(empresaId: number): Promise<CategoriaRow[]> {
-  const guard = await requireManagerOrAdmin()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.CAT_CAT))) return []
   return CategoriaService.listarPorEmpresa(empresaId)
 }
 
 export async function crearCategoria(data: CategoriaInput): Promise<ActionResult<CategoriaRow>> {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.CAT_CAT, 'agregar')
   if (!guard.ok) return guard
   const parsed = categoriaSchema.safeParse(data)
   if (!parsed.success) {
@@ -38,7 +37,7 @@ export async function crearCategoria(data: CategoriaInput): Promise<ActionResult
 }
 
 export async function actualizarCategoria(id: number, data: CategoriaInput): Promise<ActionResult<CategoriaRow>> {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.CAT_CAT, 'modificar')
   if (!guard.ok) return guard
   const parsed = categoriaSchema.safeParse(data)
   if (!parsed.success) {
@@ -57,7 +56,7 @@ export async function reordenarPrioridades(
   empresaId: number,
   orden: { id: number; registroVersion: number }[],
 ): Promise<ActionResult<void>> {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.CAT_CAT, 'modificar')
   if (!guard.ok) return guard
   try {
     const result = await CategoriaService.reordenar(empresaId, orden, guard.userId)
@@ -78,8 +77,7 @@ export async function buscarCategoriasSimilares(
   empresaId: number,
   excluirId?: number,
 ): Promise<SimilarItem[]> {
-  const guard = await requireManagerOrAdmin()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.CAT_CAT))) return []
 
   const todas = await CategoriaRepository.findAll()
   const deEmpresa = todas

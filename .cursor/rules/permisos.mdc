@@ -1,0 +1,20 @@
+---
+description: Permisos por pantalla. requirePermiso, flags y semilla.
+globs: src/app/actions/**/*.ts,src/lib/permisos.ts
+alwaysApply: false
+---
+
+# Permisos
+
+Modelo de Cartera, persistido en MySQL con Prisma. No hay cuenta ni Supabase.
+
+- Catalogo: `PERMISOS` y `MENUS` en `src/lib/permisos.ts`. Codigo de hasta 8 caracteres (`EMP.CAT`).
+- Tablas: `t_menu`, `t_menu_usuario` (consultar, agregar, modificar, eliminar).
+- Cero filas del usuario = acceso total. Con filas, solo el flag en 1. Un indice ausente no autoriza.
+- El usuario tiene que existir y estar activo.
+- Escritura: `requirePermiso(PERMISOS.X, 'agregar' | 'modificar' | 'eliminar')` es la primera instruccion. Si `!guard.ok`, regresar `guard`.
+- Lectura de pantalla: `puedeConsultar`. La pagina pasa `getPermisosDetalle` al client (`puedeAgregar`, `puedeModificar`, `puedeEliminar`, `puedeConsultar`).
+- El sidebar oculta lo que no tiene consultar.
+- `rol` no autoriza. Elegir rol en Usuarios rellena la grilla (`presetDeRol`). ADMIN sin restricciones se guarda sin filas. Guardar persiste la grilla.
+
+No volver a `requireAdmin` / `requireManagerOrAdmin` para mutar una pantalla. Esas funciones quedan solo si el caso no es una pantalla del menu (sesion ERP, historial).

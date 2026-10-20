@@ -1,3 +1,17 @@
+# Look and feel
+
+El aspecto vigente esta en `.cursor/rules/ui-conventions.mdc` y en `src/lib/theme.ts`. Resumen:
+
+- Encabezado con badge de color del modulo (`MODULE_ACCENT`). Titulo `text-xl` en color de texto. Nuevo solo ahi.
+- Tabla densa, fila activa con el acento, `id` fijo a la izquierda y acciones fijas a la derecha.
+- Modal con cabecera en degradado. Pestañas. Dos lados (`TwoColumns`) separados por una linea cuando el tab tiene dos grupos; si no, `SingleColumn`. Cada grupo es un `SegmentCard`.
+- Vista: `ViewField`. Edicion: subrayado `border-primary/50`.
+- Labels de UI sin tildes, Title Case, preposiciones cortas en minuscula. Lo que se guarda sigue con `normalizeText`.
+- Permisos por pantalla (consultar, agregar, modificar, eliminar), no por el mapa fijo de roles. El rol solo rellena la grilla.
+- Concurrencia con `registroVersion`, no con `modifico_fecha`.
+
+Lo que sigue en este archivo vale para arquitectura, ERP, auditoria y anti-similares. Si un parrafo visual (indigo, `customToolbarActions` como lugar del Nuevo, input deshabilitado en vista) contradice el resumen, gana el resumen.
+
 # Convenciones de Desarrollo — Costeos
 
 > **Documento de Referencia Obligatoria.**

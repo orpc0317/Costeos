@@ -39,14 +39,14 @@ export const UI_THEME = {
      * Usado en: Input, Textarea, SearchableSelect (trigger), NumericInput (hereda de Input).
      */
     inputBase:
-      "h-8 w-full min-w-0 border-0 border-b-2 border-slate-200 bg-transparent px-1 py-1 text-sm text-slate-900 " +
-      "rounded-none transition-colors outline-none ring-0 " +
-      "focus-visible:outline-none focus-visible:border-primary focus-visible:ring-0 " +
+      "h-[var(--ui-field-height)] w-full min-w-0 rounded-none border-0 border-b border-primary/50 bg-transparent px-2 text-foreground " +
+      "transition-colors outline-none ring-0 shadow-none " +
+      "focus-visible:outline-none focus-visible:border-b-2 focus-visible:border-primary focus-visible:ring-0 " +
       "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 " +
-      "placeholder:text-slate-400 " +
-      "data-[view-mode=true]:border-b-2 data-[view-mode=true]:border-slate-200 data-[view-mode=true]:bg-transparent " +
-      "data-[view-mode=true]:text-slate-900 " +
-      "data-[view-mode=true]:shadow-none data-[view-mode=true]:pointer-events-none data-[view-mode=true]:opacity-100",
+      "placeholder:text-muted-foreground " +
+      "data-[view-mode=true]:border-b data-[view-mode=true]:border-primary/50 data-[view-mode=true]:bg-transparent " +
+      "data-[view-mode=true]:text-foreground data-[view-mode=true]:shadow-none " +
+      "data-[view-mode=true]:pointer-events-none data-[view-mode=true]:opacity-100",
 
     /**
      * Label de campo en formularios y modales.
@@ -54,7 +54,7 @@ export const UI_THEME = {
      * El label es guía; el VALOR del input es el protagonista.
      */
     labelBase:
-      "flex items-center gap-2 text-[11px] font-medium text-slate-500 leading-none select-none",
+      "flex items-center gap-2 font-semibold tracking-wider text-muted-foreground leading-none select-none text-[length:var(--ui-form-label)]",
 
     /**
      * Error de validación de campo individual.
@@ -94,29 +94,29 @@ export const UI_THEME = {
     /**
      * Fondo del encabezado (thead).
      */
-    headerBg: "bg-slate-100",
+    headerBg: "bg-muted/40",
 
     /**
      * Estilo del texto en encabezados de columna.
      * Peso medio, no semibold: el encabezado se distingue por tamaño y mayúsculas.
      */
-    headerText: "text-slate-500 font-medium text-[11px] uppercase tracking-wide",
+    headerText: "font-semibold uppercase tracking-wider text-muted-foreground text-[length:var(--ui-table-font)]",
 
     /**
      * Texto en celdas de datos (td).
      * font-normal a propósito: las celdas no deben verse en negrita.
      */
-    cellText: "text-slate-600 text-[13px] font-normal",
+    cellText: "text-foreground font-normal",
 
     /**
      * Hover sobre filas de datos.
      */
-    rowHover: "hover:bg-slate-50/80",
+    rowHover: "group hover:bg-muted/40",
 
     /**
      * Color del borde entre filas y del contenedor.
      */
-    border: "border-slate-200",
+    border: "border-border/60",
 
     /**
      * Estado vacío cuando no hay registros.
@@ -127,7 +127,9 @@ export const UI_THEME = {
      * Contenedor de la tabla completa.
      * rounded-lg + shadow-sm → aspecto de "card" moderno.
      */
-    container: "rounded-lg border border-slate-200 bg-white overflow-hidden shadow-sm",
+    container: "rounded-lg border border-border/60 bg-card overflow-hidden",
+    stickyLeft: "sticky left-0 z-10",
+    stickyRight: "sticky right-0 z-10",
   },
 
   // ─── MODAL ────────────────────────────────────────────────────────────────
@@ -135,7 +137,17 @@ export const UI_THEME = {
     /**
      * Título del modal (DialogTitle).
      */
-    title: "flex items-center gap-2 text-base font-semibold text-slate-800",
+    title: "text-base font-semibold leading-tight truncate",
+    contentWide:
+      "flex flex-col w-[90vw] sm:max-w-[64rem] h-[700px] max-h-[90vh] overflow-hidden gap-3",
+    contentStandard:
+      "flex flex-col w-full sm:max-w-[36rem] h-[85vh] sm:h-[520px] max-h-[90vh] overflow-hidden gap-3",
+    header:
+      "-mx-4 -mt-4 px-5 pt-4 pb-2 sm:-mx-6 sm:-mt-6 bg-gradient-to-br to-transparent border-b border-border/50 shrink-0",
+    iconBadge: "shrink-0 rounded-xl p-2",
+    columns: "flex gap-6 items-start",
+    column: "flex-1 min-w-0 grid grid-cols-2 gap-2 content-start",
+    divider: "w-px self-stretch bg-primary/30",
 
     /**
      * Footer fijo al fondo del modal.
@@ -143,8 +155,8 @@ export const UI_THEME = {
      * el footer blanco crea separación visual clara de los botones de acción.
      */
     footer:
-      "flex flex-row items-center justify-between mt-6 -mx-4 -mb-4 px-4 py-3 " +
-      "border-t border-slate-200 bg-white sm:rounded-b-xl shrink-0",
+      "flex flex-row items-center justify-between mt-auto -mx-4 -mb-4 px-4 py-3 sm:-mx-6 sm:-mb-6 " +
+      "border-t border-border/60 bg-card sm:rounded-b-xl shrink-0",
 
     /**
      * Interior de la pestaña, donde van los campos.
@@ -153,7 +165,7 @@ export const UI_THEME = {
      * El footer queda fuera de este panel.
      */
     scrollArea:
-      "flex-1 min-h-0 overflow-y-auto rounded-b-md border border-t-0 border-slate-200 bg-white px-4 py-4",
+      "flex-1 min-h-0 overflow-y-auto overflow-x-auto pr-1",
 
     /**
      * ── Botones de acción en el footer del modal ──────────────────────────────
@@ -161,47 +173,17 @@ export const UI_THEME = {
      * REGLA: Siempre usar estos tokens en lugar de hardcodear las clases.
      *        Esto garantiza uniformidad visual en todos los modales.
      *
-     * Paleta estándar del footer (modo Vista):
-     *   izquierda → botón rojo de Eliminar (si aplica), o botón de acción especial
-     *   derecha   → botón Historial (sky) + botón Editar (primary default)
-     *
-     * Paleta estándar del footer (modo Edición/Crear):
-     *   derecha   → botón Cancelar (outline default) + botón Guardar (primary default)
-     *
-     * El botón Editar y Guardar usan el <Button> primario sin clases extra.
-     * El botón Cancelar usa variant="outline" sin clases extra.
+     * Vista: una sola fila a la izquierda, ghost size sm.
+     *   Historial, accion extra, Eliminar, Editar. Hover del acento del modulo.
+     * Edicion de un registro: Cancelar y Guardar ghost size sm, a la derecha,
+     *   con icono (X y Check) y el mismo hover del modulo.
+     * Alta: solo Guardar ghost size sm, con icono Check, hover del acento.
      */
     buttons: {
-      /**
-       * Botón "Historial" — siempre a la derecha en modo Vista.
-       * Paleta sky-blue: suave y distinguible del botón primario de Editar.
-       * Uso: <Button variant="outline" className={UI_THEME.modal.buttons.historial}>
-       */
-      historial:
-        "bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 hover:text-sky-800",
-
-      /**
-       * Botón "Eliminar" — siempre a la izquierda en modo Vista (con mr-auto).
-       * Paleta rojo destructivo: señal clara de acción irreversible.
-       * Uso: <Button variant="outline" size="sm" className={UI_THEME.modal.buttons.eliminar}>
-       */
-      eliminar:
-        "bg-red-50 text-red-700 border-red-200 hover:bg-red-100 hover:text-red-800",
-
-      /**
-       * Botón de "acción especial" opcional en el lado izquierdo del footer.
-       * Ejemplos: "Prioridad" (Categorías), "Reordenar", "Vista previa".
-       * Paleta violet: neutra, no compite con los botones derecha.
-       * Uso: <Button variant="outline" className={UI_THEME.modal.buttons.accionEspecial}>
-       */
-      accionEspecial:
-        "bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100 hover:text-violet-800",
-
-      /**
-       * Contenedor agrupador de botones del lado derecho del footer.
-       * Uso: <div className={UI_THEME.modal.buttons.rightGroup}>
-       */
-      rightGroup: "flex items-center gap-2",
+      viewRow: "flex w-full items-center gap-1",
+      editRow: "flex w-full justify-end gap-2",
+      icon: "mr-1.5 h-3.5 w-3.5",
+      eliminar: "text-destructive hover:text-destructive",
     },
   },
 
@@ -286,17 +268,18 @@ export const UI_THEME = {
     /**
      * Fila de encabezado (contiene ícono + título).
      */
-    headingRow: "flex items-center gap-2 text-indigo-900",
+    headingRow: "flex items-center gap-3",
 
     /**
      * Ícono en el encabezado de página.
      */
-    headingIcon: "h-6 w-6",
+    headingIcon: "h-5 w-5",
+    headingBadge: "shrink-0 rounded-xl p-2",
 
     /**
      * Título principal de la página.
      */
-    headingText: "text-2xl font-bold tracking-tight",
+    headingText: "text-xl font-bold tracking-tight text-foreground",
 
     /**
      * Subtítulo / conteo de registros.
@@ -309,6 +292,6 @@ export const UI_THEME = {
     /**
      * Botón de "ver detalle" en la columna de acciones.
      */
-    viewButton: "p-1.5 hover:bg-slate-100 rounded-md transition-colors",
+    viewButton: "inline-flex h-8 w-8 items-center justify-center rounded-md text-sm transition-opacity opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-accent",
   },
 }

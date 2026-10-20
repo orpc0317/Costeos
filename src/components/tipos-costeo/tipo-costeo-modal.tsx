@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useEffect, useState, useTransition } from 'react'
-import { Hash, Power, PowerOff, History, Pencil, Info, CalendarDays, CornerDownRight, Network, Building, MapPin, Briefcase, Users, Layers, Box, Component, Folder, ListTree, Tags } from 'lucide-react'
+import { useEditClick } from '@/lib/use-edit-click'
+import { Hash, Power, PowerOff, History, Pencil, Check, Info, CalendarDays, CornerDownRight, Network, Building, MapPin, Briefcase, Users, Layers, Box, Component, Folder, ListTree, Tags, X } from 'lucide-react'
 import { normalizeText } from '@/lib/utils/text'
 import { cn } from '@/lib/utils'
 import {
@@ -22,11 +23,14 @@ import { SearchableSelect } from '@/components/ui/searchable-select'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { NumericInput } from '@/components/ui/numeric-input'
 import { FieldError } from '@/components/ui/field-error'
+import { SegmentCard, SingleColumn } from '@/components/ui/form-layout'
 import { getEmpresasForUser } from '@/app/actions/erp'
 import { crearTipoCosteo, editarTipoCosteo, toggleActivo, buscarTipoCosteoSimilares } from '@/app/actions/tipos-costeo'
 import type { TipoCosteoRow } from '@/lib/types/tipos-costeo'
 import type { SimilarItem } from '@/lib/utils/similarity'
 import { UI_THEME } from '@/lib/theme'
+import { MODULE_ACCENT } from '@/lib/ui-accent'
+import { ModalHeading } from '@/components/ui/modal-heading'
 
 const PREDEFINED_COLORS = [
   'bg-white text-slate-900 border-slate-200',
@@ -63,6 +67,7 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess }: TipoCosteoMo
 
   const [initialTipoCosteo, setInitialTipoCosteo] = useState<TipoCosteoRow | null>(null)
   const [mode, setMode] = useState<'view' | 'edit' | 'create'>('create')
+  const { onEditMouseDown, onEditClick, blockAccidentalSubmit } = useEditClick(setMode)
   const [isPendingToggle, startTransitionToggle] = useTransition()
 
   function handleToggle() {
@@ -198,7 +203,7 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess }: TipoCosteoMo
             if (el) el.focus()
           }, 100)
 
-          setFieldErrors(prev => ({ ...prev, [result.field]: result.error }))
+          if (result.field) setFieldErrors(prev => ({ ...prev, [result.field as string]: result.error }))
           setLoading(false)
           return
         }
@@ -238,6 +243,7 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess }: TipoCosteoMo
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (blockAccidentalSubmit(e)) return
     setError(null)
     setSimilares([])
 
@@ -301,14 +307,13 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess }: TipoCosteoMo
     <>
     <Dialog open={open} onOpenChange={handleOpenChange}>
       {trigger && <DialogTrigger render={trigger as React.ReactElement} />}
-      <DialogContent className="sm:max-w-[600px] h-[85vh] sm:h-[520px] flex flex-col p-4 sm:p-6 overflow-hidden">
-
-        <DialogHeader className="mb-2 shrink-0">
-          <DialogTitle className={UI_THEME.modal.title}>
-            <Network className="w-5 h-5 text-slate-500" />
-            {mode === 'create' ? 'Nuevo Tipo Costeo' : mode === 'edit' ? 'Editar Tipo Costeo' : 'Detalle Tipo Costeo'}
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className={UI_THEME.modal.contentStandard}>
+        <ModalHeading
+          accent={MODULE_ACCENT.tiposCosteo}
+          icon={Network}
+          mode={mode === 'create' ? 'create' : mode === 'edit' ? 'edit' : 'view'}
+          title={mode === 'create' ? 'Nuevo Tipo Costeo' : mode === 'edit' ? 'Editar Tipo Costeo' : 'Detalle Tipo Costeo'}
+        />
 
         <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col pt-2" noValidate>
           {error && <div className={UI_THEME.forms.globalError}>{error}</div>}
@@ -330,7 +335,9 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess }: TipoCosteoMo
             
             <div className={UI_THEME.modal.scrollArea}>
               <TabsContent value="general" className="outline-none mt-0">
-              <div className="grid grid-cols-4 gap-x-6 gap-y-4">
+              <SingleColumn>
+              <SegmentCard label="General">
+              <div className="col-span-2 grid grid-cols-2 gap-x-6 gap-y-4">
                 
                 {/* Empresa */}
                 <div className="space-y-1.5 col-span-4">
@@ -462,6 +469,8 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess }: TipoCosteoMo
                   <FieldError message={fieldErrors.lineaEtiqueta} />
                 </div>
               </div>
+              </SegmentCard>
+              </SingleColumn>
             </TabsContent>
 
             <TabsContent value="niveles" className="outline-none mt-0">
@@ -717,78 +726,59 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess }: TipoCosteoMo
 
           <div className={UI_THEME.modal.footer}>
             {mode === 'view' ? (
-              <>
+              <div className={UI_THEME.modal.buttons.viewRow}>
+                <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.tiposCosteo.hover} onClick={() => setHistorialOpen(true)}>
+                  <History className={UI_THEME.modal.buttons.icon} /> Historial
+                </Button>
                 {tipoCosteo && (
-                  <Button 
-                    type="button" 
-                    variant={tipoCosteo.activo ? "destructive" : "default"} 
-                    className="mr-auto"
-                    disabled={isPendingToggle}
-                    onClick={handleToggle}
-                  >
-                    {tipoCosteo.activo ? (
-                      <><PowerOff className="mr-2 h-4 w-4" /> Desactivar</>
-                    ) : (
-                      <><Power className="mr-2 h-4 w-4" /> Activar</>
-                    )}
+                  <Button type="button" variant="ghost" size="sm" className={tipoCosteo.activo ? UI_THEME.modal.buttons.eliminar : MODULE_ACCENT.tiposCosteo.hover} disabled={isPendingToggle} onClick={handleToggle}>
+                    {tipoCosteo.activo
+                      ? <><PowerOff className={UI_THEME.modal.buttons.icon} /> Desactivar</>
+                      : <><Power className={UI_THEME.modal.buttons.icon} /> Activar</>}
                   </Button>
                 )}
-                <div className={UI_THEME.modal.buttons.rightGroup}>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    className={UI_THEME.modal.buttons.historial}
-                    onClick={() => setHistorialOpen(true)}
-                  >
-                    <History className="mr-2 h-4 w-4" /> Historial
-                  </Button>
-                  <Button type="button" onClick={() => setMode('edit')}>
-                    <Pencil className="mr-2 h-4 w-4" /> Editar
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <div className="flex items-center justify-between w-full">
-                <div className="flex-1">
-                  {mode === 'edit' && tipoCosteo?.enUso && (
+                <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.tiposCosteo.hover} onMouseDown={onEditMouseDown} onClick={onEditClick}>
+                  <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
+                </Button>
+              </div>
+            ) : mode === 'edit' ? (
+              <div className="flex w-full items-center justify-between gap-2">
+                <div className="min-w-0">
+                  {tipoCosteo?.enUso && (
                     <p className="text-[11px] text-amber-700 font-medium flex items-center gap-1.5">
                       <Info className="w-3.5 h-3.5" />
-                      Estructura y Evaluación bloqueadas (en uso).
+                      Estructura y Evaluacion bloqueadas (en uso).
                     </p>
                   )}
                 </div>
-                <div className="flex gap-2 justify-end shrink-0">
-                  <Button 
-                    type="button" 
-                    variant="outline"
-                    onClick={() => {
-                      if (mode === 'edit') {
-                        setEmpresaId(initialTipoCosteo?.empresaId?.toString() ?? '')
-
-                        setNombre(initialTipoCosteo?.nombre ?? '')
-                        setCantidadNiveles(initialTipoCosteo?.cantidadNiveles ?? 2)
-                        setEtiquetasNiveles(initialTipoCosteo?.etiquetasNiveles ? initialTipoCosteo.etiquetasNiveles.split(',') : ['NIVEL 1', 'NIVEL 2'])
-                        setColoresNiveles(initialTipoCosteo?.coloresNiveles ? initialTipoCosteo.coloresNiveles.split(',') : [PREDEFINED_COLORS[0], PREDEFINED_COLORS[0]])
-                        setIconosNiveles(initialTipoCosteo?.iconosNiveles ? initialTipoCosteo.iconosNiveles.split(',') : [PREDEFINED_ICONS[0], PREDEFINED_ICONS[0]])
-                        setNivelConDireccion(initialTipoCosteo?.nivelConDireccion ?? 1)
-                        setLineaEtiqueta(initialTipoCosteo?.lineaEtiqueta ?? '')
-                        setBaseEvaluacion(initialTipoCosteo?.baseEvaluacion ?? 'GLOBAL')
-                        setManejoPlazo(initialTipoCosteo?.manejoPlazo ?? 'NO_APLICA')
-                        setFijarPlazo(initialTipoCosteo?.fijarPlazo ?? 0)
-                        setError(null)
-                        setMode('view')
-                      } else {
-                        setOpen(false)
-                      }
-                    }} 
-                    disabled={loading}
-                  >
-                    Cancelar
+                <div className="flex gap-2 shrink-0">
+                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.tiposCosteo.hover} disabled={loading} onClick={() => {
+                    setEmpresaId(initialTipoCosteo?.empresaId?.toString() ?? '')
+                    setNombre(initialTipoCosteo?.nombre ?? '')
+                    setCantidadNiveles(initialTipoCosteo?.cantidadNiveles ?? 2)
+                    setEtiquetasNiveles(initialTipoCosteo?.etiquetasNiveles ? initialTipoCosteo.etiquetasNiveles.split(',') : ['NIVEL 1', 'NIVEL 2'])
+                    setColoresNiveles(initialTipoCosteo?.coloresNiveles ? initialTipoCosteo.coloresNiveles.split(',') : [PREDEFINED_COLORS[0], PREDEFINED_COLORS[0]])
+                    setIconosNiveles(initialTipoCosteo?.iconosNiveles ? initialTipoCosteo.iconosNiveles.split(',') : [PREDEFINED_ICONS[0], PREDEFINED_ICONS[0]])
+                    setNivelConDireccion(initialTipoCosteo?.nivelConDireccion ?? 1)
+                    setLineaEtiqueta(initialTipoCosteo?.lineaEtiqueta ?? '')
+                    setBaseEvaluacion(initialTipoCosteo?.baseEvaluacion ?? 'GLOBAL')
+                    setManejoPlazo(initialTipoCosteo?.manejoPlazo ?? 'NO_APLICA')
+                    setFijarPlazo(initialTipoCosteo?.fijarPlazo ?? 0)
+                    setError(null)
+                    setMode('view')
+                  }}>
+                    <X className={UI_THEME.modal.buttons.icon} /> Cancelar
                   </Button>
-                  <Button type="submit" disabled={loading}>
-                    {loading ? 'Guardando...' : 'Guardar'}
+                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.tiposCosteo.hover} disabled={loading}>
+                    <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
                   </Button>
                 </div>
+              </div>
+            ) : (
+              <div className={UI_THEME.modal.buttons.editRow}>
+                <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.tiposCosteo.hover} disabled={loading}>
+                  <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
+                </Button>
               </div>
             )}
           </div>

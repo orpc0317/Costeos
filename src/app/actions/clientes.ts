@@ -1,7 +1,8 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireManagerOrAdmin } from '@/lib/auth-helpers'
+import { requirePermiso, puedeConsultar } from '@/app/actions/permisos'
+import { PERMISOS } from '@/lib/permisos'
 import { clienteSchema, type ClienteInput, type ClienteRow } from '@/lib/types/clientes'
 import { ClienteService } from '@/lib/services/cliente.service'
 import { ClienteRepository } from '@/lib/repositories/cliente.repository'
@@ -14,13 +15,12 @@ import type { ErpCliente } from '@/lib/erp'
 const PATH = '/dashboard/configuracion/clientes'
 
 export async function listarClientes(params?: { search?: string; limit?: number }): Promise<ClienteRow[]> {
-  const guard = await requireManagerOrAdmin()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.CLI_CAT))) return []
   return ClienteService.listar(params)
 }
 
 export async function crearCliente(data: ClienteInput): Promise<ActionResult<ClienteRow>> {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.CLI_CAT, 'agregar')
   if (!guard.ok) return guard
 
   const parsed = clienteSchema.safeParse(data)
@@ -37,7 +37,7 @@ export async function actualizarCliente(
   id: number,
   data: ClienteInput & { registroVersion: number },
 ): Promise<ActionResult<ClienteRow>> {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.CLI_CAT, 'modificar')
   if (!guard.ok) return guard
 
   const parsed = clienteSchema.safeParse(data)
@@ -83,8 +83,7 @@ export async function buscarClientesSimilares(
   empresaId: number,
   excluirId?: number,
 ): Promise<ClienteSimilarConOrigen[]> {
-  const guard = await requireManagerOrAdmin()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.CLI_CAT))) return []
 
   const todos = await ClienteRepository.findAll()
   const resultado: ClienteSimilarConOrigen[] = []

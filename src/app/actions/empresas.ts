@@ -1,7 +1,8 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireManagerOrAdmin } from '@/lib/auth-helpers'
+import { requirePermiso, puedeConsultar } from '@/app/actions/permisos'
+import { PERMISOS } from '@/lib/permisos'
 import { empresaSchema, type EmpresaInput, type EmpresaRow, type CatalogoSyncRow } from '@/lib/types/empresas'
 import { EmpresaService } from '@/lib/services/empresa.service'
 import type { ActionResult } from '@/lib/types/common'
@@ -10,13 +11,12 @@ import { detectarSimilares, type SimilarItem } from '@/lib/utils/similarity'
 const PATH = '/dashboard/configuracion/empresas'
 
 export async function getEmpresas(): Promise<EmpresaRow[]> {
-  const guard = await requireManagerOrAdmin()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.EMP_CAT))) return []
   return EmpresaService.listar()
 }
 
 export async function crearEmpresa(data: EmpresaInput): Promise<ActionResult<EmpresaRow>> {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.EMP_CAT, 'agregar')
   if (!guard.ok) return guard
 
   const parsed = empresaSchema.safeParse(data)
@@ -47,7 +47,7 @@ export async function actualizarEmpresaCompleto(
   data: EmpresaInput & { registroVersion: number },
   catalogosSync: CatalogoSyncRow[],
 ): Promise<ActionResult<EmpresaRow>> {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.EMP_CAT, 'modificar')
   if (!guard.ok) return guard
 
   const parsed = empresaSchema.safeParse(data)
@@ -79,8 +79,7 @@ export async function buscarEmpresasSimilares(
   nombre: string,
   excluirId?: number,
 ): Promise<SimilarItem[]> {
-  const guard = await requireManagerOrAdmin()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.EMP_CAT))) return []
   const todas = await EmpresaService.listar()
   const paraComparar = todas.map(e => ({ id: e.id, descripcion: e.nombre }))
   return detectarSimilares(nombre, paraComparar, 0.85, excluirId)
