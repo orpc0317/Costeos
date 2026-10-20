@@ -908,11 +908,11 @@ export default function EditorPanel() {
             <div className="grid grid-cols-12 gap-3">
               <div className="col-span-4 flex flex-col gap-1.5">
                 <Label>Código</Label>
-                <Input type="text" data-view-mode={true} className={`${UI_THEME.forms.inputBase} font-mono`} value={nodeData.itemServicio?.codigo || nodeData.itemId || 'N/A'} readOnly title="Código ERP" />
+                <Input type="text" className={`${UI_THEME.forms.inputBase} font-mono`} value={nodeData.itemServicio?.codigo || nodeData.itemId || 'N/A'} readOnly title="Código ERP" />
               </div>
               <div className="col-span-8 flex flex-col gap-1.5">
                 <Label>Descripción</Label>
-                <Input type="text" data-view-mode={true} className={`${UI_THEME.forms.inputBase} uppercase`} value={nodeData.nombre} readOnly title="No editable directamente" />
+                <Input type="text" className={`${UI_THEME.forms.inputBase} uppercase`} value={nodeData.nombre} readOnly title="No editable directamente" />
               </div>
             </div>
 
@@ -957,7 +957,7 @@ export default function EditorPanel() {
                         placeholder="Seleccione..."
                       />
                     ) : (
-                      <Input value={turnos.find(t => t.codigo === nodeData.turnoCodigo)?.descripcion || `Cód: ${nodeData.turnoCodigo}`} readOnly data-view-mode={true} className={`${UI_THEME.forms.inputBase} uppercase`} />
+                      <Input value={turnos.find(t => t.codigo === nodeData.turnoCodigo)?.descripcion || `Cód: ${nodeData.turnoCodigo}`} readOnly className={`${UI_THEME.forms.inputBase} uppercase`} />
                     )}
                   </div>
                 </div>
@@ -982,7 +982,7 @@ export default function EditorPanel() {
                         nodeData.cubreDescanso === 1 ? '1 - Descansero' :
                         nodeData.cubreDescanso === 2 ? '2 - Extrero' :
                         nodeData.cubreDescanso === 3 ? '3 - Bono Descanso' : '0 - No Aplica'
-                      } readOnly data-view-mode={true} className={UI_THEME.forms.inputBase} />
+                      } readOnly className={UI_THEME.forms.inputBase} />
                     )}
                   </div>
                 </div>
@@ -1002,7 +1002,7 @@ export default function EditorPanel() {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label>Unidad Medida</Label>
-                  <Input value={nodeData.itemServicio?.unidad_medida || 'UNIDAD'} readOnly data-view-mode={true} className={`${UI_THEME.forms.inputBase} uppercase`} />
+                  <Input value={nodeData.itemServicio?.unidad_medida || 'UNIDAD'} readOnly className={`${UI_THEME.forms.inputBase} uppercase`} />
                 </div>
               </div>
             )}
@@ -1147,7 +1147,7 @@ export default function EditorPanel() {
                                  <Input
                                    value={opcionesCombo.find(o => o.value === currentVal)?.label || currentVal || '—'}
                                    readOnly
-                                   data-view-mode={true} className={`${UI_THEME.forms.inputBase} uppercase`}
+                                   className={`${UI_THEME.forms.inputBase} uppercase`}
                                  />
                                )}
                              </td>
@@ -1207,7 +1207,7 @@ export default function EditorPanel() {
                       return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factor * (nodeData.precioVentaUnitario || 0));
                     })()} 
                     readOnly tabIndex={-1} 
-                    data-view-mode={true} className={UI_THEME.forms.inputBase} 
+                    className={UI_THEME.forms.inputBase} 
                   />
                 </div>
                 <div className="col-span-1 flex flex-col gap-1.5">
@@ -1218,7 +1218,7 @@ export default function EditorPanel() {
                       return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factor * (nodeData.precioVentaUnitario || 0));
                     })()} 
                     readOnly tabIndex={-1} 
-                    data-view-mode={true} className={UI_THEME.forms.inputBase} 
+                    className={UI_THEME.forms.inputBase} 
                   />
                 </div>
                 </>
@@ -1232,7 +1232,7 @@ export default function EditorPanel() {
                   <Input 
                     value={(nodeData.costoUnitario || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} 
                     readOnly tabIndex={-1} 
-                    data-view-mode={true} className={UI_THEME.forms.inputBase} 
+                    className={UI_THEME.forms.inputBase} 
                   />
                 </div>
                 <div className="col-span-1 flex flex-col gap-1.5">
@@ -1243,7 +1243,7 @@ export default function EditorPanel() {
                       return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factor * (nodeData.costoUnitario || 0));
                     })()} 
                     readOnly tabIndex={-1} 
-                    data-view-mode={true} className={UI_THEME.forms.inputBase} 
+                    className={UI_THEME.forms.inputBase} 
                   />
                 </div>
                 <div className="col-span-1 flex flex-col gap-1.5">
@@ -1255,7 +1255,7 @@ export default function EditorPanel() {
                       return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factor * bonosTotal);
                     })()} 
                     readOnly tabIndex={-1} 
-                    data-view-mode={true} className={UI_THEME.forms.inputBase} 
+                    className={UI_THEME.forms.inputBase} 
                   />
                 </div>
                 <div className="col-span-1 flex flex-col gap-1.5">
@@ -1730,7 +1730,7 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas, proye
                       <Input
                         value="GUATEMALA"
                         disabled
-                        data-view-mode={true} className={UI_THEME.forms.inputBase}
+                        className={UI_THEME.forms.inputBase}
                       />
                     </div>
                 <div className="space-y-1.5 col-span-1">

@@ -267,11 +267,13 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
   // Un 100% en cualquier fuente bloquea Crear — el usuario debe Vincular o confirmar que es diferente
   const bloqueaCrear    = has100EnCosteos || has100EnERP
 
-  // NIT y Razón Social son read-only si:
-  // - modo vista
-  // - se vinculó un cliente del ERP en el wizard de nuevo
-  // - se está editando un registro que ya tiene código ERP
-  const disabledPorERP = (mode === 'view') || (erpVinculado !== null) || (isEditing && !!codigoErp)
+  // NIT y Razón Social no se editan si el cliente viene del ERP o ya tiene código.
+  // En Ver, el color sigue esta misma regla: atenuado si en Editar queda bloqueado.
+  const bloqueadoPorERP = (erpVinculado !== null) || (isEditing && !!codigoErp)
+  const disabledPorERP = mode === 'view' || bloqueadoPorERP
+  const direccionBloqueada = erpVinculado !== null && !!erpVinculado.direccion
+  const departamentoBloqueado = erpVinculado !== null && !!erpVinculado.departamentoId
+  const municipioBloqueado = erpVinculado !== null && !!erpVinculado.municipioId
 
   const doSave = async () => {
     setLoading(true)
@@ -651,14 +653,13 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                 <div className={UI_THEME.modal.scrollArea}>
                   <TabsContent value="general" className="mt-0">
                     <TwoColumns
-                      left={<SegmentCard label="Identificacion"><div className="contents">
+                      left={<><SegmentCard label="Identificacion"><div className="contents">
 
                       <div className="flex flex-col gap-1.5 col-span-4">
                         <Label className={UI_THEME.forms.labelBase}>Empresa</Label>
                         <Input
                           value={empresaNombre}
                           disabled
-                          data-view-mode={true}
                           className={UI_THEME.forms.inputBase}
                         />
                       </div>
@@ -676,7 +677,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                             if (fieldErrors.nit) setFieldErrors(prev => { const n = { ...prev }; delete n.nit; return n })
                           }}
                           disabled={disabledPorERP}
-                          data-view-mode={disabledPorERP}
+                          data-view-mode={mode === 'view' && !bloqueadoPorERP}
                           className={UI_THEME.forms.inputBase}
                           aria-invalid={!!fieldErrors.nit}
                         />
@@ -697,14 +698,38 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                             if (fieldErrors.razonSocial) setFieldErrors(prev => { const n = { ...prev }; delete n.razonSocial; return n })
                           }}
                           disabled={disabledPorERP}
-                          data-view-mode={disabledPorERP}
+                          data-view-mode={mode === 'view' && !bloqueadoPorERP}
                           className={`${UI_THEME.forms.inputBase} uppercase`}
                           aria-invalid={!!fieldErrors.razonSocial}
                         />
                         <FieldError message={fieldErrors.razonSocial} />
                       </div>
 
-                      </div></SegmentCard>}
+                      </div></SegmentCard>
+                      <SegmentCard label="Otros">
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="diasCredito">Dias Credito</Label>
+                          <NumericInput
+                            id="diasCredito"
+                            value={diasCredito}
+                            isInteger
+                            disabled={mode === 'view'}
+                            data-view-mode={mode === 'view'}
+                            onChange={val => setDiasCredito(val)}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="codigoErp">Codigo ERP</Label>
+                          <Input
+                            id="codigoErp"
+                            value={codigoErp && codigoErp !== 'NULL' ? codigoErp : ''}
+                            disabled
+                            className={`${UI_THEME.forms.inputBase} font-mono`}
+                            title="Asignado automáticamente al vincular con el ERP"
+                          />
+                        </div>
+                      </SegmentCard>
+                      </>}
                       right={<SegmentCard label="Direccion Fiscal"><div className="contents">
                         <div className="col-span-2 grid grid-cols-2 gap-2">
 
@@ -720,8 +745,8 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                                 setDireccionFiscal(e.target.value)
                                 if (fieldErrors.direccionFiscal) setFieldErrors(prev => { const n = { ...prev }; delete n.direccionFiscal; return n })
                               }}
-                              disabled={mode === 'view' || (erpVinculado !== null && !!erpVinculado?.direccion)}
-                              data-view-mode={mode === 'view' || (erpVinculado !== null && !!erpVinculado?.direccion)}
+                              disabled={mode === 'view' || direccionBloqueada}
+                              data-view-mode={mode === 'view' && !direccionBloqueada}
                               className={`${UI_THEME.forms.inputBase} uppercase`}
                               aria-invalid={!!fieldErrors.direccionFiscal}
                               placeholder="Ej. ZONA 10, CIUDAD CAPITAL"
@@ -730,7 +755,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                           </div>
 
                           {/* País (fijo) */}
-                          <div className="flex flex-col gap-1.5 col-span-2">
+                          <div className="flex flex-col gap-1.5 col-span-4">
                             <Label>Pais</Label>
                             <SearchableSelect
                               options={[{ value: '1', label: 'Guatemala' }]}
@@ -742,7 +767,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                           </div>
 
                           {/* Departamento */}
-                          <div className="flex flex-col gap-1.5 col-span-2">
+                          <div className="flex flex-col gap-1.5 col-span-4">
                             <Label>
                               Departamento{' '}
                               {loadingDeptos && <span className="text-xs text-slate-400 font-normal">(cargando...)</span>}
@@ -756,14 +781,15 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                                 setMunicipio('')
                                 if (fieldErrors.departamento) setFieldErrors(prev => { const n = { ...prev }; delete n.departamento; return n })
                               }}
-                              disabled={mode === 'view' || loadingDeptos || (erpVinculado !== null && !!erpVinculado?.departamentoId)}
+                              disabled={mode === 'view' || loadingDeptos || departamentoBloqueado}
+                              viewMode={mode === 'view' && !departamentoBloqueado}
                               placeholder={loadingDeptos ? 'Cargando...' : 'Seleccione...'}
                             />
                             <FieldError message={fieldErrors.departamento} />
                           </div>
 
                           {/* Municipio */}
-                          <div className="flex flex-col gap-1.5 col-span-2">
+                          <div className="flex flex-col gap-1.5 col-span-4">
                             <Label>
                               Municipio{' '}
                               {loadingMunis && <span className="text-xs text-slate-400 font-normal">(cargando...)</span>}
@@ -776,7 +802,8 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                                 setMunicipio(val)
                                 if (fieldErrors.municipio) setFieldErrors(prev => { const n = { ...prev }; delete n.municipio; return n })
                               }}
-                              disabled={mode === 'view' || loadingMunis || !departamento || (erpVinculado !== null && !!erpVinculado?.municipioId)}
+                              disabled={mode === 'view' || loadingMunis || !departamento || municipioBloqueado}
+                              viewMode={mode === 'view' && !municipioBloqueado && !!departamento}
                               placeholder={loadingMunis ? 'Cargando...' : !departamento ? 'Seleccione departamento' : 'Seleccione...'}
                             />
                             <FieldError message={fieldErrors.municipio} />
@@ -784,32 +811,6 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
 
                         </div>
                       </div>
-
-                      {/* Código ERP (solo lectura, se puebla desde ERP) */}
-                      <div className="flex flex-col gap-1.5 col-span-2">
-                        <Label htmlFor="codigoErp">Codigo ERP</Label>
-                        <Input
-                          id="codigoErp"
-                          value={codigoErp && codigoErp !== 'NULL' ? codigoErp : ''}
-                          disabled
-                          data-view-mode={true}
-                          className={`${UI_THEME.forms.inputBase} font-mono`}
-                          title="Asignado automáticamente al vincular con el ERP"
-                        />
-                      </div>
-
-                      {/* Días Crédito */}
-                      <div className="flex flex-col gap-1.5 col-span-2">
-                        <Label htmlFor="diasCredito">Dias de Credito</Label>
-                        <NumericInput
-                          id="diasCredito"
-                          value={diasCredito}
-                          isInteger
-                          disabled={mode === 'view'}
-                          onChange={val => setDiasCredito(val)}
-                        />
-                      </div>
-
                     </SegmentCard>}
                     />
                   </TabsContent>

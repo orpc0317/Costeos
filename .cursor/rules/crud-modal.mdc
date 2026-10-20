@@ -11,7 +11,8 @@ Antes de editar: leer `src/components/categorias/categoria-modal.tsx` y `src/com
 - `ModalHeading` + `MODULE_ACCENT`. Tabs siempre (`variant="line"`).
 - Campos en `UI_THEME.modal.scrollArea`. Grupos en `SegmentCard`. Dos lados con `TwoColumns` si el tab lo pide; catalogo chico con `SingleColumn`.
 - Vista: `ViewField`. Edicion: `inputBase`. Errores con `FieldError` y error global. Sin toast.
-- Empresa en alta: `SearchableSelect`. En vista: `ViewField` con el nombre.
+- Color del valor: casi negro si el campo se edita en Editar; gris claro `#b4bec9` si no. Sin opacidad. `data-view-mode` / `viewMode` solo en Ver cuando el campo se habilita al editar. Empresa y codigos fijos van `disabled` sin esa marca. `ViewField` no editable lleva `locked`.
+- Empresa en alta: `SearchableSelect`. En vista y en edicion: nombre deshabilitado, sin `data-view-mode`.
 - Numeros: `NumericInput`.
 - `HistorialDrawer` fuera del `Dialog`.
 - Init de campos en `handleOpenChange(true)`. El `useEffect([open])` no toca `mode`.

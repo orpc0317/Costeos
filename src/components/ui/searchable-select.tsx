@@ -40,6 +40,11 @@ interface SearchableSelectProps {
   /** Callback extra invocado con cada cambio del texto de búsqueda.
    *  Útil para disparar búsquedas asíncronas desde el componente padre. */
   onSearchChange?: (query: string) => void
+  /**
+   * Vista de un campo que en Editar sí se puede cambiar.
+   * El control sigue bloqueado, pero el texto conserva el color de un campo editable.
+   */
+  viewMode?: boolean
 }
 
 export function SearchableSelect({
@@ -55,6 +60,7 @@ export function SearchableSelect({
   searchable = true,
   maxRenderOptions = 50,
   onSearchChange,
+  viewMode = false,
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -203,6 +209,7 @@ export function SearchableSelect({
         ref={buttonRef}
         type="button"
         aria-disabled={disabled}
+        data-view-mode={viewMode || undefined}
         autoFocus={autoFocus}
         onClick={(e) => {
           if (disabled) { e.preventDefault(); return }
@@ -211,7 +218,8 @@ export function SearchableSelect({
         }}
         className={cn(
           UI_THEME.forms.inputBase,
-          "flex w-full min-w-0 items-center justify-between text-left aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
+          "flex w-full min-w-0 items-center justify-between text-left",
+          disabled && !viewMode && "cursor-not-allowed !text-slate-400",
           !selectedOption && "text-muted-foreground",
           error && "border-red-400 focus:ring-red-400 focus-visible:ring-red-400"
         )}

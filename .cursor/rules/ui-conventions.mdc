@@ -25,7 +25,18 @@ El badge de editar es ambar en todos los modulos (`EDIT_BADGE`).
 - Pestañas `variant="line"` y `UI_THEME.tabs.listClass`.
 - Tab con dos grupos: `TwoColumns` (linea `UI_THEME.modal.divider`). Un grupo: `SingleColumn`.
 - Cada grupo: `SegmentCard`. Campos full ocupan `col-span-2`; half, una celda.
-- Vista: `ViewField`. Edicion: `Label` con `UI_THEME.forms.labelBase` e `Input` / `SearchableSelect` / `NumericInput` con `inputBase`.
+- Vista: `ViewField` o el mismo control deshabilitado. Edicion: `Label` con `UI_THEME.forms.labelBase` e `Input` / `SearchableSelect` / `NumericInput` con `inputBase`.
+
+## Color del dato
+
+El color del valor dice si el campo se puede editar. El subrayado no cambia. No usar opacidad.
+
+- Editable, tambien en Ver si al pasar a Editar se habilita: casi negro (`--foreground`).
+- No editable (nunca, o bloqueado en Editar): gris claro `#b4bec9`.
+
+`data-view-mode="true"` (y `viewMode` en `SearchableSelect`) solo cuando el control esta deshabilitado porque la pantalla esta en Ver y el campo si se edita en Editar. Un campo siempre bloqueado (Empresa ya asignada, Codigo ERP, calculado) va `disabled` o `readOnly` sin esa marca. `ViewField` de un dato que no se edita lleva `locked`.
+
+La regla de color vive en `src/app/globals.css`.
 - Footer: vista en una fila ghost `size="sm"` (Historial, extra, Eliminar, Editar) con `accent.hover`. Editar un registro: Cancelar y Guardar ghost `size="sm"` a la derecha, con icono (X y Check) y el mismo hover. Alta: solo Guardar ghost con icono Check.
 - `HistorialDrawer` fuera del `Dialog`.
 

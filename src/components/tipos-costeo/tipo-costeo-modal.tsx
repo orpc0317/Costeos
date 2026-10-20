@@ -362,7 +362,6 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess }: TipoCosteoMo
                     <Input
                       value={empresas.find(e => e.value === empresaId)?.label ?? tipoCosteo?.empresaNombre ?? empresaId}
                       disabled
-                      data-view-mode={true}
                       className={UI_THEME.forms.inputBase}
                     />
                   )}
@@ -492,6 +491,7 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess }: TipoCosteoMo
                       min="0"
                       max="10"
                       disabled={mode === 'view' || !!tipoCosteo?.enUso}
+                      data-view-mode={mode === 'view' && !tipoCosteo?.enUso}
                       aria-invalid={!!fieldErrors.cantidadNiveles}
                     />
                     <FieldError message={fieldErrors.cantidadNiveles} />
@@ -511,6 +511,7 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess }: TipoCosteoMo
                       min="0"
                       max={cantidadNiveles.toString()}
                       disabled={mode === 'view' || !!tipoCosteo?.enUso}
+                      data-view-mode={mode === 'view' && !tipoCosteo?.enUso}
                       aria-invalid={!!fieldErrors.nivelConDireccion}
                     />
                     <p className="text-[11px] text-muted-foreground !mt-0.5 leading-none">0 = Ningún nivel maneja dirección</p>
@@ -600,6 +601,7 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess }: TipoCosteoMo
                                 value={etiquetasNiveles[i] || ''}
                                 onChange={(e) => handleUpdateEtiqueta(i, normalizeText(e.target.value))}
                                 disabled={mode === 'view'}
+                                data-view-mode={mode === 'view'}
                                 autoComplete="off"
                                 className={cn("uppercase h-8 text-sm flex-1 font-bold", coloresNiveles[i])}
                               />
@@ -689,6 +691,7 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess }: TipoCosteoMo
                           value={manejoPlazo}
                           onChange={(val) => setManejoPlazo(val as 'LIBRE'|'FIJO'|'NO_APLICA')}
                           disabled={mode === 'view'}
+                          viewMode={mode === 'view'}
                           searchable={false}
                         />
                       </div>
@@ -708,6 +711,7 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess }: TipoCosteoMo
                               }}
                               isInteger={true}
                               disabled={mode === 'view'}
+                              data-view-mode={mode === 'view'}
                               aria-invalid={!!fieldErrors.fijarPlazo}
                               className="w-full"
                               placeholder="Cantidad de meses..."

@@ -772,7 +772,6 @@ export function ComboTab({
                           : <Input
                               readOnly
                               tabIndex={-1}
-                              data-view-mode={true}
                               value={subItemCosto.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               className={UI_THEME.forms.inputBase}
                             />

@@ -269,17 +269,17 @@ export function EntidadModal({
 
                     {/* Empresa — tres modos obligatorios (R: AGENTS.md §Campos y Datos)
                         SIEMPRE usar UI_THEME.forms.labelBase en Label.
-                        Vista/Edición → Input disabled con data-view-mode.
+                        Vista/Edicion → Input disabled, sin data-view-mode (Empresa no se edita: gris claro).
                         inputBase conserva el subrayado inferior (igual que en nuevo/editar).
                         Creación      → SearchableSelect activo. */}
                     <div className="flex flex-col gap-1.5 col-span-2">
                       <Label className={UI_THEME.forms.labelBase}>Empresa</Label>
                       {mode === 'view' ? (
                         // Vista: Input deshabilitado — inputBase ya aplica estilos disabled
-                        <Input value={empresaNombre} disabled data-view-mode={true} className={UI_THEME.forms.inputBase} />
+                        <Input value={empresaNombre} disabled className={UI_THEME.forms.inputBase} />
                       ) : isEditing ? (
-                        // Edición: empresa no se cambia — igual deshabilitado
-                        <Input value={empresaNombre} disabled data-view-mode={true} className={UI_THEME.forms.inputBase} />
+                        // Edición: empresa no se cambia — igual deshabilitado, sin data-view-mode
+                        <Input value={empresaNombre} disabled className={UI_THEME.forms.inputBase} />
                       ) : (
                         // Creación: SearchableSelect activo
                         <SearchableSelect

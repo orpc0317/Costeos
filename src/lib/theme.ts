@@ -30,11 +30,13 @@ export const UI_THEME = {
      * ── Opción A (ERP micro-ajustes) ──────────────────────────────────────────
      * • bg-white        → el campo se distingue claramente del fondo del form
      * • border-slate-300 → borde más visible que el border-input (gris muy claro)
-     * • text-slate-900  → el VALOR ingresado es el protagonista visual
-     * • ring-2 en foco  → retroalimentación clara al navegar con Tab
-     * • modo vista (`data-view-mode="true"`) conserva el mismo subrayado
-     *   inferior (`border-b-2 border-slate-200`) que nuevo y editar.
-     *   Solo se anula la interacción: sin puntero, opacidad completa, sin sombra.
+     * • text-foreground → valor de un campo que sí se edita (casi negro)
+     * • disabled:text-slate-400 → valor de un campo que no se edita (gris claro)
+     * • modo vista (`data-view-mode="true"`) se usa solo si ese campo
+     *   sí se puede cambiar en Editar: el texto vuelve a text-foreground.
+     *   El subrayado no cambia. No se baja la opacidad del control.
+     *   -webkit-text-fill-color evita que el navegador pinte igual
+     *   todos los inputs deshabilitados.
      * ──────────────────────────────────────────────────────────────────────────
      * Usado en: Input, Textarea, SearchableSelect (trigger), NumericInput (hereda de Input).
      */
@@ -42,11 +44,14 @@ export const UI_THEME = {
       "h-[var(--ui-field-height)] w-full min-w-0 rounded-none border-0 border-b border-primary/50 bg-transparent px-2 text-foreground " +
       "transition-colors outline-none ring-0 shadow-none " +
       "focus-visible:outline-none focus-visible:border-b-2 focus-visible:border-primary focus-visible:ring-0 " +
-      "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 " +
+      "disabled:pointer-events-none disabled:cursor-not-allowed " +
       "placeholder:text-muted-foreground " +
       "data-[view-mode=true]:border-b data-[view-mode=true]:border-primary/50 data-[view-mode=true]:bg-transparent " +
-      "data-[view-mode=true]:text-foreground data-[view-mode=true]:shadow-none " +
-      "data-[view-mode=true]:pointer-events-none data-[view-mode=true]:opacity-100",
+      "data-[view-mode=true]:!text-foreground data-[view-mode=true]:shadow-none " +
+      "data-[view-mode=true]:pointer-events-none data-[view-mode=true]:opacity-100 " +
+      "data-[view-mode=true]:[-webkit-text-fill-color:var(--foreground)] " +
+      "disabled:data-[view-mode=true]:!text-foreground " +
+      "disabled:data-[view-mode=true]:[-webkit-text-fill-color:var(--foreground)]",
 
     /**
      * Label de campo en formularios y modales.

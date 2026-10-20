@@ -179,6 +179,20 @@
   [data-slot="textarea"] {
     font-size: var(--ui-input);
   }
+
+  /*
+   * Dato que no se puede editar: gris claro.
+   * Dato que sí se puede editar: --foreground (casi negro), también en Ver
+   * cuando el campo lleva data-view-mode="true".
+   */
+  [data-slot="input"]:disabled:not([data-view-mode="true"]),
+  [data-slot="input"][readonly]:not([data-view-mode="true"]),
+  [data-slot="textarea"]:disabled:not([data-view-mode="true"]),
+  [data-slot="textarea"][readonly]:not([data-view-mode="true"]),
+  button[aria-disabled="true"]:not([data-view-mode="true"]) {
+    color: #b4bec9 !important;
+    -webkit-text-fill-color: #b4bec9 !important;
+  }
   [data-slot="table"] {
     font-size: var(--ui-table-font);
   }

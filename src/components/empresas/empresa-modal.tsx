@@ -407,7 +407,6 @@ export function EmpresaModal({
                             id="empresa-codigo-erp"
                             value={codigoErp}
                             disabled={true}
-                            data-view-mode={true}
                             className={`${UI_THEME.forms.inputBase} font-mono`}
                           />
                           {nombreErp && (

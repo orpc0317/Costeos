@@ -299,6 +299,7 @@ export function UsuarioModal({ usuario, trigger, onSuccess, permisos }: UsuarioM
                           setFieldErrors(prev => { const n = { ...prev }; delete n.rol; return n })
                         }}
                         disabled={mode === 'view'}
+                        viewMode={mode === 'view'}
                         searchable={false}
                         error={!!fieldErrors.rol}
                         placeholder="Seleccionar rol"

@@ -356,7 +356,8 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
   const has100EnCosteos = resultadosBusqueda.some(r => r.pct === 100 && r.source !== 'erp')
 
   // Campo bloqueado si: modo vista, ERP vinculado (al crearlo), o si el registro ya existía con un código ERP
-  const disabledPorERP = (mode === 'view') || (erpVinculado !== null) || Boolean(item?.codigoErp)
+  const bloqueadoPorERP = (erpVinculado !== null) || Boolean(item?.codigoErp)
+  const disabledPorERP = (mode === 'view') || bloqueadoPorERP
   const disabledDescripcion = disabledPorERP
 
   /** Badge que indica que el campo vino del ERP */
@@ -734,7 +735,6 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                         <Input
                           value={empresaNombre}
                           disabled
-                          data-view-mode={true}
                           className={UI_THEME.forms.inputBase}
                         />
                       </div>
@@ -754,7 +754,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                             if (erpVinculado) setErpVinculado(null)
                           }}
                           disabled={disabledDescripcion}
-                          data-view-mode={disabledDescripcion}
+                          data-view-mode={mode === 'view' && !bloqueadoPorERP}
                           className={`${UI_THEME.forms.inputBase} uppercase`}
                           aria-invalid={!!fieldErrors.descripcion}
                         />
@@ -842,7 +842,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                           value={unidadMedida}
                           onChange={e => setUnidadMedida(e.target.value)}
                           disabled={disabledPorERP}
-                          data-view-mode={disabledPorERP}
+                          data-view-mode={mode === 'view' && !bloqueadoPorERP}
                           className={`${UI_THEME.forms.inputBase} uppercase`}
                           aria-invalid={!!fieldErrors.unidadMedida}
                         />
@@ -859,6 +859,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                           value={tipoItem}
                           onChange={setTipoItem}
                           disabled={disabledPorERP}
+                          viewMode={mode === 'view' && !bloqueadoPorERP}
                           placeholder="Seleccione..."
                           searchable={false}
                         />
@@ -876,6 +877,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                           value={categoriaId}
                           onChange={setCategoriaId}
                           disabled={mode === 'view'}
+                          viewMode={mode === 'view'}
                           placeholder="Seleccione..."
                           searchable={false}
                           error={!!fieldErrors.categoriaId}
@@ -891,7 +893,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                           value={codigoErp}
                           onChange={e => setCodigoErp(e.target.value)}
                           disabled={disabledPorERP || !syncItemsHabilitado}
-                          data-view-mode={disabledPorERP || !syncItemsHabilitado}
+                          data-view-mode={mode === 'view' && !bloqueadoPorERP && syncItemsHabilitado}
                           className={`${UI_THEME.forms.inputBase} uppercase font-mono`}
                           title={!syncItemsHabilitado ? 'El Código ERP es asignado automáticamente cuando la empresa tiene sync con ERP habilitado' : undefined}
                         />
@@ -939,6 +941,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                               value={tipoProducto}
                               onChange={setTipoProducto}
                               disabled={mode === 'view' || !esEditable}
+                              viewMode={mode === 'view' && esEditable}
                               placeholder="—"
                               searchable={false}
                             />
@@ -976,6 +979,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                           value={manejoCostos}
                           onChange={setManejoCostos}
                           disabled={mode === 'view' || Number(tipoItem) === 2}
+                          viewMode={mode === 'view' && Number(tipoItem) !== 2}
                           searchable={false}
                         />
                         <FieldError message={fieldErrors.manejoCostos} />
@@ -1013,6 +1017,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                             value={cotizacionScope}
                             onChange={setCotizacionScope}
                             disabled={mode === 'view'}
+                            viewMode={mode === 'view'}
                             searchable={false}
                           />
                         </div>
@@ -1057,6 +1062,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                                 value={costoReferenciaItemId}
                                 onChange={setCostoReferenciaItemId}
                                 disabled={mode === 'view'}
+                                viewMode={mode === 'view'}
                                 placeholder="Buscar ítem de referencia..."
                               />
                               <FieldError message={fieldErrors.costoReferenciaItemId} />
@@ -1076,6 +1082,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                           value={tipoComboId}
                           onChange={setTipoComboId}
                           disabled={mode === 'view'}
+                          viewMode={mode === 'view'}
                           placeholder="Sin asignar"
                         />
                       </div>

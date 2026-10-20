@@ -944,7 +944,6 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
               <Input
                 readOnly
                 tabIndex={-1}
-                data-view-mode={true}
                 value={(bonoSeleccionado?.costo ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 className={UI_THEME.forms.inputBase}
               />
@@ -955,7 +954,6 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
             <Input
               readOnly
               tabIndex={-1}
-              data-view-mode={true}
               value={new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
                 factorCosto * (bonoSolicitaCosto ? selectedBonoCosto : (bonoSeleccionado?.costo ?? 0))
               )}
@@ -1141,7 +1139,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                     <Input
                       value="GUATEMALA"
                       disabled
-                      data-view-mode={true} className={UI_THEME.forms.inputBase}
+                      className={UI_THEME.forms.inputBase}
                     />
                   </div>
                   
@@ -1290,7 +1288,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                           value={servicioSeleccionado?.unidadMedida || localItem?.unidadMedida || ''}
                           readOnly
                           tabIndex={-1}
-                          data-view-mode={true} className={`${UI_THEME.forms.inputBase} uppercase`}
+                          className={`${UI_THEME.forms.inputBase} uppercase`}
                         />
                       </div>
                     </>
@@ -1459,7 +1457,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                     <Input
                       value={new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factorCosto * (precioVenta || 0))}
                       readOnly tabIndex={-1}
-                      data-view-mode={true} className={UI_THEME.forms.inputBase}
+                      className={UI_THEME.forms.inputBase}
                     />
                   </div>
                   <div className="col-span-1 flex flex-col gap-1.5">
@@ -1467,7 +1465,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                     <Input
                       value={new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factorCosto * (precioVenta || 0))}
                       readOnly tabIndex={-1}
-                      data-view-mode={true} className={UI_THEME.forms.inputBase}
+                      className={UI_THEME.forms.inputBase}
                     />
                   </div>
                 </div>
@@ -1487,7 +1485,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                       <Input
                         value={(sinManejoCotos ? 0 : (costoUnitario || 0)).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                         readOnly tabIndex={-1}
-                        data-view-mode={true} className={UI_THEME.forms.inputBase}
+                        className={UI_THEME.forms.inputBase}
                       />
                     )}
                     {fieldErrors.costoUnitario && <FieldError message={fieldErrors.costoUnitario} />}
@@ -1497,7 +1495,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                     <Input
                       value={new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factorCosto * (costoUnitario || 0))}
                       readOnly tabIndex={-1}
-                      data-view-mode={true} className={UI_THEME.forms.inputBase}
+                      className={UI_THEME.forms.inputBase}
                     />
                   </div>
                   <div className="col-span-1 flex flex-col gap-1.5">
@@ -1508,7 +1506,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                         return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factorCosto * bonosTotal);
                       })()}
                       readOnly tabIndex={-1}
-                      data-view-mode={true} className={UI_THEME.forms.inputBase}
+                      className={UI_THEME.forms.inputBase}
                     />
                   </div>
                   <div className="col-span-1 flex flex-col gap-1.5">
@@ -1520,7 +1518,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                         return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(subtotal + bonosTotal);
                       })()}
                       readOnly tabIndex={-1}
-                      data-view-mode={true} className={UI_THEME.forms.inputBase}
+                      className={UI_THEME.forms.inputBase}
                     />
                   </div>
                 </div>

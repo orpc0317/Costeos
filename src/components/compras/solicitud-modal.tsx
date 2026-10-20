@@ -370,7 +370,7 @@ export function SolicitudModal({
                       <Input
                         value={solicitud!.empresaNombre ?? ''}
                         disabled
-                        data-view-mode={true} className={UI_THEME.forms.inputBase}
+                        className={UI_THEME.forms.inputBase}
                       />
                     )}
                     <FieldError message={fieldErrors.empresaId} />
@@ -397,7 +397,7 @@ export function SolicitudModal({
                       <Input
                         value={solicitud!.itemDescripcion}
                         disabled
-                        data-view-mode={true} className={UI_THEME.forms.inputBase}
+                        className={UI_THEME.forms.inputBase}
                       />
                     )}
                     <FieldError message={fieldErrors.itemId} />
@@ -439,7 +439,7 @@ export function SolicitudModal({
                             : (items.find(i => i.value === itemId)?.unidadMedida ?? '')) || '—'
                         }
                         disabled
-                        data-view-mode={true} className={UI_THEME.forms.inputBase}
+                        className={UI_THEME.forms.inputBase}
                       />
                     </div>
 
@@ -455,7 +455,7 @@ export function SolicitudModal({
                       <Input
                         value={labelCotizacionScope(solicitud?.scope)}
                         disabled
-                        data-view-mode={true} className={UI_THEME.forms.inputBase}
+                        className={UI_THEME.forms.inputBase}
                       />
                     </div>
                   )}
@@ -479,7 +479,7 @@ export function SolicitudModal({
                       <Input
                         value={formatDate(solicitud!.fecha)}
                         disabled
-                        data-view-mode={true} className={UI_THEME.forms.inputBase}
+                        className={UI_THEME.forms.inputBase}
                       />
                     </div>
                   )}

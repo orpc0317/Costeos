@@ -229,7 +229,8 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
   const bloqueaCrear    = has100EnCosteos || has100EnERP
 
   // NIT y Nombre son read-only si vinculó ERP o está en modo vista
-  const disabledPorERP = (mode === 'view') || (erpVinculado !== null) || (isEditing && !!codigoErp)
+  const bloqueadoPorERP = (erpVinculado !== null) || (isEditing && !!codigoErp)
+  const disabledPorERP = (mode === 'view') || bloqueadoPorERP
 
   const doSave = async () => {
     setLoading(true)
@@ -593,7 +594,6 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
                         <Input
                           value={empresaNombre}
                           disabled
-                          data-view-mode={true}
                           className={UI_THEME.forms.inputBase}
                         />
                       </div>
@@ -611,7 +611,7 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
                             if (fieldErrors.nit) setFieldErrors(prev => { const n = { ...prev }; delete n.nit; return n })
                           }}
                           disabled={disabledPorERP}
-                          data-view-mode={disabledPorERP}
+                          data-view-mode={mode === 'view' && !bloqueadoPorERP}
                           className={UI_THEME.forms.inputBase}
                           aria-invalid={!!fieldErrors.nit}
                         />
@@ -631,7 +631,7 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
                             if (fieldErrors.nombre) setFieldErrors(prev => { const n = { ...prev }; delete n.nombre; return n })
                           }}
                           disabled={disabledPorERP}
-                          data-view-mode={disabledPorERP}
+                          data-view-mode={mode === 'view' && !bloqueadoPorERP}
                           className={`${UI_THEME.forms.inputBase} uppercase`}
                           aria-invalid={!!fieldErrors.nombre}
                         />
@@ -690,7 +690,6 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
                           id="codigoErp"
                           value={codigoErp && codigoErp !== 'NULL' ? codigoErp : ''}
                           disabled
-                          data-view-mode={true}
                           className={`${UI_THEME.forms.inputBase} font-mono`}
                           title="Asignado automáticamente al vincular con el ERP"
                         />

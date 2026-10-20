@@ -1,7 +1,7 @@
 import React from 'react'
 import { UI_THEME } from '@/lib/theme'
 
-export function ViewField({ label, value }: { label: string; value?: string | null }) {
+export function ViewField({ label, value, locked = false }: { label: string; value?: string | null; locked?: boolean }) {
   return (
     <div className="grid gap-1">
       <span
@@ -15,8 +15,8 @@ export function ViewField({ label, value }: { label: string; value?: string | nu
         style={{ height: 'var(--ui-field-height)' }}
       >
         <span
-          className="block truncate font-medium text-foreground"
-          style={{ fontSize: 'var(--ui-viewfield-value)' }}
+          className="block truncate font-medium"
+          style={{ fontSize: 'var(--ui-viewfield-value)', color: locked ? '#b4bec9' : 'var(--foreground)' }}
         >
           {value || ''}
         </span>

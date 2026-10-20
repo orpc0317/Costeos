@@ -28,7 +28,7 @@ Reglas cortas: `.cursor/rules/ui-conventions.mdc`, `crud-modal.mdc`, `crud-lista
 
 ## 🚨 PASO 0 — LECTURA OBLIGATORIA ANTES DE ESCRIBIR CUALQUIER COMPONENTE
 
-> **INSTRUCCIÓN CRÍTICA:** Antes de escribir UNA SOLA LÍNEA de un modal o una página CRUD, ejecutar estos pasos **en orden** sin excepción. No hay justificación válida para saltarse este paso.
+> **INSTRUCCIÓN CRÝTICA:** Antes de escribir UNA SOLA LÝNEA de un modal o una página CRUD, ejecutar estos pasos **en orden** sin excepción. No hay justificación válida para saltarse este paso.
 
 ### Al crear o modificar un MODAL (`*-modal.tsx`):
 
@@ -43,7 +43,7 @@ Reglas cortas: `.cursor/rules/ui-conventions.mdc`, `crud-modal.mdc`, `crud-lista
 3. Completar los TODO del template. **NO escribir desde cero.**
 4. Al terminar, ejecutar la **PRE-FLIGHT CHECKLIST** (ver más abajo) punto a punto con confirmación explícita de cada ítem.
 
-### Al crear o modificar una PÁGINA CRUD (`*-client.tsx`):
+### Al crear o modificar una PÝGINA CRUD (`*-client.tsx`):
 
 1. **Leer el gold standard completo:**
    ```
@@ -56,7 +56,7 @@ Reglas cortas: `.cursor/rules/ui-conventions.mdc`, `crud-modal.mdc`, `crud-lista
 3. Completar los TODO del template. **NO escribir desde cero.**
 4. Al terminar, verificar los ítems de **DataTable** en la PRE-FLIGHT CHECKLIST.
 
-### ⚠️ Por qué este paso es no-negociable:
+### ⚠︝ Por qué este paso es no-negociable:
 
 Los errores más costosos del proyecto (botón Nuevo en lugar incorrecto, footer con clases hardcoded, modal sin Tabs, ícono incorrecto, Empresa en modo vista con `SearchableSelect` en lugar de `Input`) ocurren cuando la IA genera código desde sus patrones de entrenamiento en lugar de seguir el gold standard del proyecto. El template ya tiene todos estos patrones correctos incrustados.
 
@@ -76,7 +76,7 @@ Los errores más costosos del proyecto (botón Nuevo en lugar incorrecto, footer
 
 ## 🤖 MODO AUTÓNOMO — Instrucciones de Ejecución
 
-> **INSTRUCCIÓN CRÍTICA PARA LA IA:** Eres el desarrollador principal de este proyecto. Tienes autorización total y pre-aprobada para ejecutar comandos de terminal, y para leer, crear, modificar o eliminar archivos exclusivamente dentro de la ruta `c:\Proyectos\Costeos\` y sus subcarpetas. Este proyecto opera en **modo de ejecución autónoma total**. El usuario NO estará presente para aprobar pasos intermedios. No pauses el flujo de trabajo ni pidas autorización para realizar tareas estándar de desarrollo dentro de este directorio.
+> **INSTRUCCIÓN CRÝTICA PARA LA IA:** Eres el desarrollador principal de este proyecto. Tienes autorización total y pre-aprobada para ejecutar comandos de terminal, y para leer, crear, modificar o eliminar archivos exclusivamente dentro de la ruta `c:\Proyectos\Costeos\` y sus subcarpetas. Este proyecto opera en **modo de ejecución autónoma total**. El usuario NO estará presente para aprobar pasos intermedios. No pauses el flujo de trabajo ni pidas autorización para realizar tareas estándar de desarrollo dentro de este directorio.
 
 ### Reglas de autonomía (sin excepción):
 
@@ -111,10 +111,10 @@ Para todo lo demás: **decidir, ejecutar, verificar, reportar resultado**.
 - [ ] El área de campos está dentro de `<div className={UI_THEME.modal.scrollArea}>` + `<TabsContent>`. Ese contenedor es el panel blanco con borde; las pesta�as quedan sobre el fondo del modal
 
 ### Campos y Datos
-- [ ] **Empresa** se muestra en los TRES modos: `create` → `<SearchableSelect>` | `view/edit` → `<Input disabled data-view-mode={true} className={UI_THEME.forms.inputBase}>`
+- [ ] **Empresa** se muestra en los TRES modos: `create` → `<SearchableSelect>` | `view/edit` → `<Input disabled className={UI_THEME.forms.inputBase}>` (sin `data-view-mode`: Empresa no se edita y el valor va en gris claro)
 - [ ] **NO hay datos de auditoría inline** (`Creado:`, `ID:`, `Modificado:`) — eso es responsabilidad del `<HistorialDrawer>`
 - [ ] Todos los campos de texto libre usan `normalizeText()` al guardar (mayúsculas sin tildes)
-- [ ] Campos deshabilitados en vista: `disabled={mode === 'view'}` y `data-view-mode={mode === 'view'}`. El subrayado inferior se conserva (mismo `border-b-2` de nuevo/editar); no ocultarlo.
+- [ ] El color del valor dice si el campo se puede editar. Editable, tambien en Ver si al pasar a Editar se habilita: casi negro (`--foreground`). No editable: gris claro `#b4bec9`. El subrayado no cambia y no se usa opacidad. `data-view-mode="true"` (y `viewMode` en `SearchableSelect`) solo cuando el control esta deshabilitado por estar en Ver y el campo si se edita en Editar. Un campo siempre bloqueado va `disabled` o `readOnly` sin esa marca.
 - [ ] **NO hay `<input type="number">`** — usar `<NumericInput>` de `src/components/ui/numeric-input.tsx`
 - [ ] **Campos numéricos en modo vista** — si usan `<Input disabled>`, el `value` usa `formatNumber()` de `src/lib/utils/format.ts` (R24). NUNCA el número crudo.
 
@@ -127,7 +127,7 @@ Para todo lo demás: **decidir, ejecutar, verificar, reportar resultado**.
 ### Selects
 - [ ] Todos los selects usan `<SearchableSelect>`, NUNCA `<select>` HTML nativo
 - [ ] Opciones de BD/ERP ordenadas con `.sort((a, b) => a.label.localeCompare(b.label))`
-- [ ] Se auto-selecciona el primer registro en listas de referencia (excepto búsquedas Cliente/Ítem)
+- [ ] Se auto-selecciona el primer registro en listas de referencia (excepto búsquedas Cliente/Ýtem)
 - [ ] `searchable={false}` solo en listas cortas y predecibles (< 8 opciones fijas)
 - [ ] Opciones hardcoded en Title Case (`'Producto'`, `'No Aplica'`) — NUNCA `ALL_CAPS`
 
@@ -202,7 +202,7 @@ Para todo lo demás: **decidir, ejecutar, verificar, reportar resultado**.
     ```
 - **Modales (Dialogs):** La librería `shadcn/ui` utiliza `@base-ui/react`. NO soporta la propiedad `asChild` en el `DialogTrigger`. Debes usar la propiedad `render={<button>...</button>}`.
 
-- **Selects (Comboboxes):** Usar SIEMPRE el componente `<SearchableSelect>` (`src/components/ui/searchable-select.tsx`), mapeando las opciones a `{value, label}`. Siempre se debe auto-seleccionar el primer registro disponible, a menos que sean búsquedas de Clientes/Ítems o se indique lo contrario. Deben mostrar el nombre al usuario pero el componente manejará internamente el código.
+- **Selects (Comboboxes):** Usar SIEMPRE el componente `<SearchableSelect>` (`src/components/ui/searchable-select.tsx`), mapeando las opciones a `{value, label}`. Siempre se debe auto-seleccionar el primer registro disponible, a menos que sean búsquedas de Clientes/Ýtems o se indique lo contrario. Deben mostrar el nombre al usuario pero el componente manejará internamente el código.
   - **Ordenamiento Obligatorio (R17):** Todo select que cargue datos desde la BD o ERP DEBE ordenarse alfabéticamente ascendente usando `.sort((a, b) => a.label.localeCompare(b.label))` al construir las opciones. **Excepción:** selects hardcoded (ej. `OPCIONES_CUBRE_DESCANSO`, estados fijos) y selects que representen jerarquías/árboles respetan su orden definido — NO aplicar sort.
   - **Capitalización Selects Hardcoded (R21):** Las opciones de selects definidas en el código (no provenientes de BD/ERP) deben mostrarse en **Title Case**: primera letra de cada palabra en mayúscula, el resto en minúsculas. Ejemplos: `'Producto'`, `'Recurso Humano'`, `'No Aplica'`. **NUNCA** en `ALL_CAPS` (`'PRODUCTO'`, `'ESTANDAR'`). Esta regla es la excepción explícita a la regla de normalización de textos, que aplica solo al texto libre ingresado por el usuario, no a labels de UI.
   - **Prop `searchable`:** El componente acepta `searchable={false}` para ocultar el input de búsqueda. Usar en listas cortas y predecibles (ej. Categorías de Items). Por defecto es `true`.
@@ -234,12 +234,12 @@ Para todo lo demás: **decidir, ejecutar, verificar, reportar resultado**.
   - Implementación de referencia: `src/components/items/item-modal.tsx` + `buscarItemsSimilaresConERP`. Ver `docs/conventions.md §7.5`.
 
 - **Estructura de Modales (Acciones):** En modo vista, botones ("Historial" y "Editar") van agrupados a la derecha. En modo edición, el botón "Cancelar" debe resetear el estado a modo vista (sin cerrar el modal si es un registro existente).
-- **⚠️ Footer de Modal:** Los botones de acción del modal (Historial, Editar, Cancelar, Guardar) se colocan **SIEMPRE en un footer fijo al fondo** del `DialogContent`. Usar **SIEMPRE** `className={UI_THEME.modal.footer}` para el contenedor y `UI_THEME.modal.buttons.*` para los colores de botones. **NUNCA** hardcodear clases Tailwind de color, **NUNCA** poner los botones en el header ni en el área scrolleable del formulario.
-- **⚠️ Pestañas en Modales — OBLIGATORIAS SIEMPRE:** TODO modal DEBE usar pestañas (`<Tabs>`), **aunque el formulario sea tan simple que solo tenga una pestaña "General"**. NUNCA construir un modal sin la estructura de tabs. El `<TabsList>` debe usar `variant="line"` y `className={UI_THEME.tabs.listClass}` (sin margen inferior). Los campos van dentro de `UI_THEME.modal.scrollArea`: panel blanco con borde, pegado a la l�nea de las pesta�as. Las pesta�as quedan sobre el fondo del modal. Cada `<TabsTrigger>` DEBE incluir el **ícono canónico de la entidad** a la izquierda del texto. Referencia obligatoria: `src/components/categorias/categoria-modal.tsx`.
+- **⚠︝ Footer de Modal:** Los botones de acción del modal (Historial, Editar, Cancelar, Guardar) se colocan **SIEMPRE en un footer fijo al fondo** del `DialogContent`. Usar **SIEMPRE** `className={UI_THEME.modal.footer}` para el contenedor y `UI_THEME.modal.buttons.*` para los colores de botones. **NUNCA** hardcodear clases Tailwind de color, **NUNCA** poner los botones en el header ni en el área scrolleable del formulario.
+- **⚠︝ Pestañas en Modales — OBLIGATORIAS SIEMPRE:** TODO modal DEBE usar pestañas (`<Tabs>`), **aunque el formulario sea tan simple que solo tenga una pestaña "General"**. NUNCA construir un modal sin la estructura de tabs. El `<TabsList>` debe usar `variant="line"` y `className={UI_THEME.tabs.listClass}` (sin margen inferior). Los campos van dentro de `UI_THEME.modal.scrollArea`: panel blanco con borde, pegado a la l�nea de las pesta�as. Las pesta�as quedan sobre el fondo del modal. Cada `<TabsTrigger>` DEBE incluir el **ícono canónico de la entidad** a la izquierda del texto. Referencia obligatoria: `src/components/categorias/categoria-modal.tsx`.
 - **Scroll Horizontal de Pestañas (R23):** El componente `<TabsList variant="line">` implementa scroll horizontal con **botones de flecha `‹` / `›`** que aparecen y desaparecen dinámicamente según el contenido. Internamente usa `ScrollableTabsList` con `ResizeObserver`. **NUNCA limitar el número de pestañas de un modal por miedo a que no quepan.** Agregar todas las que la entidad necesite. No se necesita ningún wrapper extra ni clase adicional en el código del modal. Ver detalles en `docs/conventions.md §5.0`.
-- **Campos Autogenerados:** Códigos/IDs autogenerados deben ocultarse al crear, y deshabilitarse *permanentemente* (`disabled={true}` + `data-view-mode={true}`) al editar un registro.
+- **Campos Autogenerados:** Códigos/IDs autogenerados deben ocultarse al crear, y deshabilitarse *permanentemente* (`disabled={true}`, sin `data-view-mode`) al editar un registro. El valor se ve en gris claro.
 - **Historial de Auditoría:** Utilizar SIEMPRE el componente `<HistorialDrawer tabla="nombre_tabla_db" />`. El nombre de la tabla debe coincidir exactamente con el esquema de Prisma para que cargue la bitácora.
-- **Íconos por Entidad (R14) — El sidebar es la fuente de verdad:** El ícono definido en el sidebar para cada entidad es el que debe aparecer en (1) el encabezado de su página principal y (2) su modal (`DialogTitle` + pestaña General). Consultar `docs/conventions.md` §15 para la tabla de íconos canónicos. Al crear una pantalla nueva, definir el ícono en el sidebar primero y registrarlo en esa tabla antes de escribir código.
+- **Ýconos por Entidad (R14) — El sidebar es la fuente de verdad:** El ícono definido en el sidebar para cada entidad es el que debe aparecer en (1) el encabezado de su página principal y (2) su modal (`DialogTitle` + pestaña General). Consultar `docs/conventions.md` §15 para la tabla de íconos canónicos. Al crear una pantalla nueva, definir el ícono en el sidebar primero y registrarlo en esa tabla antes de escribir código.
 
 - **Encabezado de Página (R15):** El markup del encabezado va **SIEMPRE en el client component** (`*-client.tsx`), NUNCA en `page.tsx`. Patrón obligatorio:
   ```tsx
@@ -259,10 +259,10 @@ Para todo lo demás: **decidir, ejecutar, verificar, reportar resultado**.
 
 - **Puerto de Desarrollo:** El proyecto corre en el puerto **30001**. Siempre que se levante el servidor, se debe notificar al usuario que acceda a `http://localhost:30001`.
 
-- **⚠️ BUG CRÍTICO — Modal "Flash" (Regresa a Vista al dar click en Editar):**
+- **⚠︝ BUG CRÝTICO — Modal "Flash" (Regresa a Vista al dar click en Editar):**
   La inicialización de los campos del formulario y el modo (`mode`) del modal DEBE ocurrir SIEMPRE dentro de la función `handleOpenChange` cuando `newOpen === true`. NUNCA usar un `useEffect` con dependencias en los datos del registro (`empresa`, `categoria`, etc.) NI en el estado `mode`. Esto causa que el modal regrese inmediatamente a modo Vista al dar click en Editar. Los `useEffect` que carguen datos externos (listas de selects como empresas) SOLO pueden depender de `[open]` y NO deben tocar el estado `mode`.
 
-- **⚠️ BUG CRÍTICO — Modal sin datos al abrir desde tabla (condición de carrera):**
+- **⚠︝ BUG CRÝTICO — Modal sin datos al abrir desde tabla (condición de carrera):**
   En la columna de acciones del `DataTable`, **NUNCA** usar estado compartido del tipo `selectedItem + setModalOpen` para abrir el modal de una fila. React agrupa ambos `setState` antes del re-render, pero el modal ya estaba montado con `item=undefined` del render anterior, por lo que se abre vacío.
   **SIEMPRE** usar **una instancia del modal por fila** vinculada vía `trigger` prop — exactamente igual que `<CategoriaModal>`:
   ```tsx
@@ -276,7 +276,7 @@ Para todo lo demás: **decidir, ejecutar, verificar, reportar resultado**.
   ```
   Ver `docs/conventions.md` sección 1.3 para el anti-patrón completo con código.
 
-- **⚠️ BUG — Modal "Nuevo" con datos del open anterior (R22 — Reset Defensivo):**
+- **⚠︝ BUG — Modal "Nuevo" con datos del open anterior (R22 — Reset Defensivo):**
   Al abrir el modal de "Nuevo" por segunda vez puede mostrar datos que el usuario escribió en la apertura anterior (nombre, icono, errores). Causa: `@base-ui/react` en modo dialog controlado **puede no invocar `onOpenChange`** al hacer click en el trigger si el estado controlado ya es `false`, dejando el estado de React con valores stale.
   
   **Solución obligatoria — patrón de doble capa:**
@@ -323,7 +323,7 @@ Para todo lo demás: **decidir, ejecutar, verificar, reportar resultado**.
   ```
   Implementación de referencia: `src/components/items/item-modal.tsx`. Ver `docs/conventions.md` §5.1.
 
-- **⚠️ SELECTS — `<SearchableSelect>` SIEMPRE (Portal obligatorio, sep-2026):**
+- **⚠︝ SELECTS — `<SearchableSelect>` SIEMPRE (Portal obligatorio, sep-2026):**
   El componente `<SearchableSelect>` (`src/components/ui/searchable-select.tsx`) usa `createPortal` para renderizar el dropdown en `document.body` con `position:fixed`. Esto **garantiza que nunca es recortado por ningún `overflow`** — incluyendo los modales del proyecto que tienen `overflow-y:auto` en el área de campos.
   - ✅ **SIEMPRE** usar `<SearchableSelect>` para cualquier select en formularios o modales.
   - ❌ **NUNCA** usar `<select>` HTML nativo en formularios/modales. La excepción es celdas de tabla con listas cortas (< 10 ítems) sin necesidad de búsqueda.
@@ -337,7 +337,7 @@ Para más detalle, consultar `docs/conventions.md`.
 
 ## Reglas Prisma ORM
 
-- **⚠️ NUNCA usar `--no-engine` en `prisma generate`:** El flag `--no-engine` genera un cliente para Prisma Accelerate (cloud) que **no puede conectar directamente a MySQL**. Siempre usar `npx prisma generate` sin flags adicionales. El error que produce es `P6001: the URL must start with the protocol prisma://`.
+- **⚠︝ NUNCA usar `--no-engine` en `prisma generate`:** El flag `--no-engine` genera un cliente para Prisma Accelerate (cloud) que **no puede conectar directamente a MySQL**. Siempre usar `npx prisma generate` sin flags adicionales. El error que produce es `P6001: the URL must start with the protocol prisma://`.
 
 - **Flujo obligatorio al cambiar el schema de Prisma:**
   1. Editar `prisma/schema.prisma`
@@ -350,7 +350,7 @@ Para más detalle, consultar `docs/conventions.md`.
 - **Estándar FK — Join manual en el Service (NO usar `include` de Prisma para resolver nombres):**
   El repositorio devuelve datos planos. El service resuelve los nombres de FK vía `Promise.all` con una query separada y construye un `Map` para el join en memoria.
   ```ts
-  // ✅ ESTÁNDAR — join manual en service
+  // ✅ ESTÝNDAR — join manual en service
   async listar() {
     const [rows, empresas] = await Promise.all([
       MiRepository.findAll(),

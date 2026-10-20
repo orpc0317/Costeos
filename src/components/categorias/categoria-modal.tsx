@@ -233,7 +233,6 @@ export function CategoriaModal({
                           id="cat-empresa"
                           value={empresaNombreActual}
                           disabled
-                          data-view-mode={true}
                           className={UI_THEME.forms.inputBase}
                         />
                       )}
@@ -295,7 +294,7 @@ export function CategoriaModal({
 
                     {/* Prioridad (solo lectura en modo vista) */}
                     {isEditing && mode === 'view' && (
-                      <ViewField label="Prioridad" value={categoria!.prioridad > 0 ? String(categoria!.prioridad) : 'Sin prioridad'} />
+                      <ViewField locked label="Prioridad" value={categoria!.prioridad > 0 ? String(categoria!.prioridad) : 'Sin prioridad'} />
                     )}
 
                   </div>

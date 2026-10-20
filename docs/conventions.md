@@ -568,7 +568,12 @@ irATabConError('descripcion')
 
 Clases estándar: contenedor `flex flex-col gap-1.5`, inputs `h-8 py-1`, grid `gap-x-6 gap-y-4`.
 
-En modo vista el input lleva `disabled` y `data-view-mode={true}`. Ese atributo **conserva** el subrayado inferior (`border-b-2 border-slate-200`), el mismo de nuevo y editar. `inputBase` solo quita la interacción: sin puntero, opacidad al 100 % y sin sombra. No volver a poner el borde en transparente.
+El color del valor dice si el campo se puede editar. El subrayado inferior se conserva (`border-b-2 border-slate-200`), el mismo de nuevo y editar. No usar opacidad: el borde no se apaga.
+
+- Editable, tambien en Ver si al pasar a Editar se habilita: casi negro (`--foreground`). El control lleva `disabled={mode === 'view'}` y `data-view-mode={mode === 'view'}`. En `SearchableSelect`, la prop es `viewMode={mode === 'view'}`.
+- No editable (Empresa ya asignada, codigo, calculado, bloqueado por ERP): gris claro `#b4bec9`. Va `disabled` o `readOnly` **sin** `data-view-mode`.
+
+La regla esta en `src/app/globals.css`. `data-view-mode="true"` excluye el gris.
 
 ### 6.2 Campos Autogenerados (Código, ID)
 
@@ -578,7 +583,7 @@ Ocultos al crear. Deshabilitados **permanentemente** al editar (no condicional c
 {isEditing && (
   <div className="flex flex-col gap-1.5 col-span-1">
     <Label>Código</Label>
-    <Input value={codigo} disabled={true} data-view-mode={true} className={`${UI_THEME.forms.inputBase} font-mono`} />
+    <Input value={codigo} disabled={true} className={`${UI_THEME.forms.inputBase} font-mono`} />
   </div>
 )}
 ```

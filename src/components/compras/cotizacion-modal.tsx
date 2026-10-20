@@ -433,7 +433,7 @@ export function CotizacionModal({
                         <Input
                           value={cotizacion!.empresaNombre ?? ''}
                           disabled
-                          data-view-mode={true} className={UI_THEME.forms.inputBase}
+                          className={UI_THEME.forms.inputBase}
                         />
                       )}
                       <FieldError message={fieldErrors.empresaId} />
@@ -464,7 +464,7 @@ export function CotizacionModal({
                         <Input
                           value={cotizacion!.itemDescripcion ?? ''}
                           disabled
-                          data-view-mode={true} className={UI_THEME.forms.inputBase}
+                          className={UI_THEME.forms.inputBase}
                         />
                       )}
                       <FieldError message={fieldErrors.itemId} />
@@ -491,7 +491,7 @@ export function CotizacionModal({
                         <Input
                           value={cotizacion!.proveedorNombre ?? ''}
                           disabled
-                          data-view-mode={true} className={UI_THEME.forms.inputBase}
+                          className={UI_THEME.forms.inputBase}
                         />
                       )}
                       <FieldError message={fieldErrors.proveedorId} />
@@ -613,7 +613,6 @@ export function CotizacionModal({
                             : '0.0000'
                         }
                         disabled
-                        data-view-mode={true}
                         className={UI_THEME.forms.inputBase}
                       />
                     </div>
@@ -723,7 +722,7 @@ export function CotizacionModal({
                         <Input
                           value={cotizacion!.empresaNombre ?? ''}
                           disabled
-                          data-view-mode={true} className={UI_THEME.forms.inputBase}
+                          className={UI_THEME.forms.inputBase}
                         />
                       </div>
 
@@ -733,7 +732,7 @@ export function CotizacionModal({
                         <Input
                           value={cotizacion!.itemDescripcion ?? ''}
                           disabled
-                          data-view-mode={true} className={UI_THEME.forms.inputBase}
+                          className={UI_THEME.forms.inputBase}
                         />
                       </div>
 
@@ -744,7 +743,7 @@ export function CotizacionModal({
                           <Input
                             value={cotizacion!.itemUnidadMedida}
                             disabled
-                            data-view-mode={true} className={UI_THEME.forms.inputBase}
+                            className={UI_THEME.forms.inputBase}
                           />
                         </div>
                       )}
@@ -756,7 +755,6 @@ export function CotizacionModal({
                           <Input
                             value={cotizacion!.solicitudId}
                             disabled
-                            data-view-mode={true}
                             className={`${UI_THEME.forms.inputBase} font-mono`}
                           />
                         </div>
@@ -769,7 +767,7 @@ export function CotizacionModal({
                           <Input
                             value={cotizacion!.clienteNombre}
                             disabled
-                            data-view-mode={true} className={UI_THEME.forms.inputBase}
+                            className={UI_THEME.forms.inputBase}
                           />
                         </div>
                       )}
@@ -781,7 +779,7 @@ export function CotizacionModal({
                           <Input
                             value={cotizacion!.proyectoNombre}
                             disabled
-                            data-view-mode={true} className={UI_THEME.forms.inputBase}
+                            className={UI_THEME.forms.inputBase}
                           />
                         </div>
                       )}

@@ -222,7 +222,6 @@ export function CotizacionForm({ solicitudId, onGuardado, onCancelar }: Cotizaci
           <Input
             value={costoUnitario > 0 ? costoUnitario.toFixed(4) : '0.0000'}
             disabled
-            data-view-mode={true}
             className={UI_THEME.forms.inputBase}
           />
         </div>

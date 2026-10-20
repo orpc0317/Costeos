@@ -285,7 +285,6 @@ export function TipoComboModal({ tipoCombo, trigger }: TipoComboModalProps) {
                           id="tc-empresaId"
                           value={initialTipoCombo?.empresaNombre ?? ''}
                           disabled
-                          data-view-mode={true}
                           className={UI_THEME.forms.inputBase}
                         />
                       )}
@@ -307,6 +306,7 @@ export function TipoComboModal({ tipoCombo, trigger }: TipoComboModalProps) {
                         placeholder="Ej: UNIFORME, EQUIPO SEGURIDAD"
                         className={cn('uppercase', fieldErrors.nombre ? 'border-red-500' : '')}
                         disabled={mode === 'view'}
+                        data-view-mode={mode === 'view'}
                         autoComplete="off"
                       />
                       <FieldError message={fieldErrors.nombre} />
@@ -357,6 +357,7 @@ export function TipoComboModal({ tipoCombo, trigger }: TipoComboModalProps) {
                         onChange={e => setIcono(e.target.value)}
                         placeholder="Ej: shield, hard-hat, shirt"
                         disabled={mode === 'view'}
+                        data-view-mode={mode === 'view'}
                         autoComplete="off"
                         className="font-mono text-sm"
                       />
