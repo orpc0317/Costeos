@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { useEditClick } from '@/lib/use-edit-click'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -8,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { FieldError } from '@/components/ui/field-error'
-import { Truck, Save, Pencil, History, Search, ArrowLeft } from 'lucide-react'
+import { Truck, Check, Pencil, History, Search, ArrowLeft, X } from 'lucide-react'
 import { HistorialDrawer } from '@/components/shared/historial-drawer'
 import { crearProveedor, actualizarProveedor, buscarProveedoresSimilares } from '@/app/actions/proveedores'
 import type { ProveedorSimilarConOrigen } from '@/app/actions/proveedores'
@@ -18,6 +19,11 @@ import { isConsumidorFinal, normalizeNIT, validateNIT } from '@/lib/utils/nit'
 import type { ProveedorInput, ProveedorRow } from '@/lib/types/proveedores'
 import type { ErpProveedor } from '@/lib/erp'
 import { UI_THEME } from '@/lib/theme'
+import { MODULE_ACCENT } from '@/lib/ui-accent'
+import { ModalHeading } from '@/components/ui/modal-heading'
+import { SegmentCard, TwoColumns } from '@/components/ui/form-layout'
+import { esConflicto } from '@/lib/conflicto'
+import { useRouter } from 'next/navigation'
 
 interface ProveedorModalProps {
   proveedor?: ProveedorRow
@@ -31,6 +37,7 @@ type ProveedorModalStep = 'busqueda' | 'formulario'
 type TipoBusqueda = 'nombre' | 'nit'
 
 export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpenChange }: ProveedorModalProps) {
+  const router = useRouter()
   const [internalOpen, setInternalOpen] = useState(false)
   const isControlled = controlledOpen !== undefined
   const open = isControlled ? controlledOpen : internalOpen
@@ -39,6 +46,7 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
 
   const isEditing = !!proveedor
   const [mode, setMode] = useState<'view' | 'edit'>('view')
+  const { onEditMouseDown, onEditClick, blockAccidentalSubmit } = useEditClick(setMode)
 
   // Wizard (solo para nuevos)
   const [step, setStep] = useState<ProveedorModalStep>('busqueda')
@@ -128,6 +136,7 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
 
   // CRÍTICO: inicializar formulario y mode dentro de handleOpenChange
   const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen && esConflicto(globalError)) router.refresh()
     if (newOpen) {
       resetForm(proveedor)
       setMode(isEditing ? 'view' : 'edit')
@@ -265,6 +274,7 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (blockAccidentalSubmit(e)) return
     setGlobalError(null)
 
     const errors: Record<string, string> = {}
@@ -354,21 +364,14 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
         {trigger && <DialogTrigger render={trigger as React.ReactElement} />}
-        <DialogContent
-          className={
-            !isEditing && step === 'busqueda'
-              ? 'sm:max-w-[520px] flex flex-col p-4 sm:p-6 overflow-hidden'
-              : 'sm:max-w-[560px] h-[90vh] sm:h-[580px] flex flex-col p-4 sm:p-6 overflow-hidden'
-          }
-        >
-          <DialogHeader className="shrink-0">
-            <DialogTitle className={UI_THEME.modal.title}>
-              <Truck className="w-5 h-5 text-indigo-600" />
-              {isEditing
-                ? mode === 'view' ? 'Detalle Proveedor' : 'Editar Proveedor'
-                : 'Nuevo Proveedor'}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className={!isEditing && step === 'busqueda' ? UI_THEME.modal.contentStandard : UI_THEME.modal.contentWide}>
+          <ModalHeading
+            accent={MODULE_ACCENT.proveedores}
+            icon={Truck}
+            mode={!isEditing ? 'create' : mode === 'view' ? 'view' : 'edit'}
+            title={isEditing ? (mode === 'view' ? 'Detalle Proveedor' : 'Editar Proveedor') : 'Nuevo Proveedor'}
+            subtitle={isEditing ? empresaNombre : null}
+          />
 
           {globalError && (
             <div className={`${UI_THEME.forms.globalError} mb-4`}>
@@ -533,7 +536,7 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
               {/* Footer Paso 1 */}
               <div className={UI_THEME.modal.footer}>
                 <div />
-                <div className={UI_THEME.modal.buttons.rightGroup}>
+                <div className={UI_THEME.modal.buttons.editRow}>
                   <Button
                     type="button"
                     variant="outline"
@@ -581,7 +584,8 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
 
                 <div className={UI_THEME.modal.scrollArea}>
                   <TabsContent value="general" className="mt-0">
-                    <div className="grid grid-cols-4 gap-x-6 gap-y-4">
+                    <TwoColumns
+                      left={<SegmentCard label="Identificacion"><div className="contents">
 
                       {/* Empresa */}
                       <div className="flex flex-col gap-1.5 col-span-4">
@@ -634,6 +638,8 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
                         <FieldError message={fieldErrors.nombre} />
                       </div>
 
+                      </div></SegmentCard>}
+                      right={<SegmentCard label="Contacto"><div className="contents">
                       {/* Contacto */}
                       <div className="flex flex-col gap-1.5 col-span-4">
                         <Label htmlFor="contacto">Contacto</Label>
@@ -650,7 +656,7 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
 
                       {/* Teléfono */}
                       <div className="flex flex-col gap-1.5 col-span-2">
-                        <Label htmlFor="telefono">Teléfono</Label>
+                        <Label htmlFor="telefono">Telefono</Label>
                         <Input
                           id="telefono"
                           value={telefono}
@@ -679,7 +685,7 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
 
                       {/* Código ERP (solo lectura, se puebla desde ERP) */}
                       <div className="flex flex-col gap-1.5 col-span-2">
-                        <Label htmlFor="codigoErp">Código ERP</Label>
+                        <Label htmlFor="codigoErp">Codigo ERP</Label>
                         <Input
                           id="codigoErp"
                           value={codigoErp && codigoErp !== 'NULL' ? codigoErp : ''}
@@ -690,62 +696,42 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
                         />
                       </div>
 
-                    </div>
+                      </div></SegmentCard>}
+                    />
                   </TabsContent>
                 </div>
               </Tabs>
 
               {/* FOOTER FIJO */}
               <div className={UI_THEME.modal.footer}>
-                <div>
-                  {!isEditing && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => { clearFormFields(); setStep('busqueda') }}
-                      disabled={loading}
-                    >
-                      <ArrowLeft className="w-4 h-4 mr-2" /> Atrás
+                {mode === 'view' ? (
+                  <div className={UI_THEME.modal.buttons.viewRow}>
+                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.proveedores.hover} onClick={() => setHistorialOpen(true)}>
+                      <History className={UI_THEME.modal.buttons.icon} /> Historial
                     </Button>
-                  )}
-                </div>
-                <div className={UI_THEME.modal.buttons.rightGroup}>
-                  {mode === 'view' && (
-                    <>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className={UI_THEME.modal.buttons.historial}
-                        onClick={() => setHistorialOpen(true)}
-                      >
-                        <History className="mr-2 h-4 w-4" /> Historial
-                      </Button>
-                      <Button type="button" onClick={() => setMode('edit')}>
-                        <Pencil className="w-4 h-4 mr-2" /> Editar
-                      </Button>
-                    </>
-                  )}
-                  {(mode === 'edit' || !isEditing) && (
-                    <>
-                      {isEditing && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            resetForm(proveedor)
-                            setMode('view')
-                          }}
-                          disabled={loading}
-                        >
-                          Cancelar
-                        </Button>
-                      )}
-                      <Button type="submit" disabled={loading}>
-                        {loading ? 'Guardando...' : <><Save className="w-4 h-4 mr-2" />Guardar</>}
-                      </Button>
-                    </>
-                  )}
-                </div>
+                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.proveedores.hover} onMouseDown={onEditMouseDown} onClick={onEditClick}>
+                      <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
+                    </Button>
+                  </div>
+                ) : isEditing ? (
+                  <div className={UI_THEME.modal.buttons.editRow}>
+                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.proveedores.hover} onClick={() => { resetForm(proveedor); setMode('view') }} disabled={loading}>
+                      <X className={UI_THEME.modal.buttons.icon} /> Cancelar
+                    </Button>
+                    <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.proveedores.hover} disabled={loading}>
+                      <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex w-full items-center justify-between">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => { clearFormFields(); setStep('busqueda') }} disabled={loading}>
+                      <ArrowLeft className={UI_THEME.modal.buttons.icon} /> Atras
+                    </Button>
+                    <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.proveedores.hover} disabled={loading}>
+                      <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
+                    </Button>
+                  </div>
+                )}
               </div>
             </form>
           )}

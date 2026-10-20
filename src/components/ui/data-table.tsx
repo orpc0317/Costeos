@@ -78,6 +78,8 @@ interface DataTableProps<TData, TValue> {
   loading?: boolean
   /** Número de registros por página. Default: 25. */
   pageSize?: number
+  /** Fondo de la fila activa (acento del módulo). */
+  rowAccent?: string
 }
 
 // Icono de dirección de ordenamiento
@@ -112,6 +114,12 @@ function DraggableTableHead({
   const align = (header.column.columnDef.meta as any)?.align || 'left'
   const justifyClass = align === 'center' ? 'justify-center' : align === 'right' ? 'justify-end' : 'justify-start'
   const alignClass = align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : 'text-left'
+  const stickyHead =
+    header.column.id === 'id'
+      ? `${UI_THEME.table.stickyLeft} ${UI_THEME.table.headerBg}`
+      : header.column.id === 'actions' || header.column.id === 'acciones'
+      ? `${UI_THEME.table.stickyRight} ${UI_THEME.table.headerBg}`
+      : ''
 
   const isActionCol = header.column.id === 'id' || header.column.id === 'actions' || header.column.id === 'acciones'
   const canSort   = !isActionCol && header.column.getCanSort()
@@ -140,7 +148,7 @@ function DraggableTableHead({
     <TableHead
       ref={setNodeRef}
       style={style}
-      className={`group ${UI_THEME.table.headerBg} relative ${alignClass}`}
+      className={`group ${UI_THEME.table.headerBg} relative ${alignClass} ${stickyHead}`}
     >
       <div className={`flex items-center gap-1 w-full h-full py-1 ${justifyClass}`}>
         {/* Drag handle */}
@@ -196,6 +204,7 @@ export function DataTable<TData, TValue>({
   onSearchChange,
   loading = false,
   pageSize = 25,
+  rowAccent,
 }: DataTableProps<TData, TValue>) {
   const [isMounted, setIsMounted] = useState(false)
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
@@ -204,6 +213,7 @@ export function DataTable<TData, TValue>({
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize })
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+  const [cursorId, setCursorId] = useState<string | null>(null)
 
   useEffect(() => {
     setIsMounted(true)
@@ -283,7 +293,7 @@ export function DataTable<TData, TValue>({
     // Cuando isServerSearch=true, el servidor ya filtró la búsqueda global.
     // globalFilter queda vacío para no filtrar dos veces. Los filtros de columna
     // siguen en el cliente: manualFiltering los apagaría también.
-    defaultColumn: { filterFn: 'columnFilter' },
+    defaultColumn: { filterFn: columnFilterFn as never },
     state: {
       columnVisibility,
       columnOrder,
@@ -372,8 +382,27 @@ export function DataTable<TData, TValue>({
 
   if (!isMounted) return null
 
+  const moveCursor = (dir: 1 | -1) => {
+    const rows = table.getRowModel().rows
+    if (!rows.length) return
+    const idx = rows.findIndex(r => r.id === cursorId)
+    const next = idx < 0 ? (dir === 1 ? 0 : rows.length - 1) : Math.min(rows.length - 1, Math.max(0, idx + dir))
+    setCursorId(rows[next].id)
+  }
+
   return (
-    <div className="space-y-4">
+    <div
+      className="space-y-4 outline-none"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowDown') { e.preventDefault(); moveCursor(1) }
+        if (e.key === 'ArrowUp') { e.preventDefault(); moveCursor(-1) }
+        if (e.key === 'Enter' && cursorId) {
+          const rowEl = document.getElementById(`dt-row-${tableId}-${cursorId}`)
+          rowEl?.querySelector('button')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+        }
+      }}
+    >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="relative max-w-sm w-full">
@@ -474,21 +503,42 @@ export function DataTable<TData, TValue>({
             </TableHeader>
             <TableBody>
               {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
+                table.getRowModel().rows.map((row) => {
+                  const isActive = cursorId === row.id
+                  return (
                   <TableRow
                     key={row.id}
+                    id={`dt-row-${tableId}-${row.id}`}
                     data-state={row.getIsSelected() && 'selected'}
-                    className={`${UI_THEME.table.rowHover} ${UI_THEME.table.border}`}
+                    onClick={() => setCursorId(row.id)}
+                    onDoubleClick={(e) => {
+                      const target = e.target as HTMLElement | null
+                      if (target?.closest('[role="dialog"], [role="alertdialog"]')) return
+                      const btn = (e.currentTarget as HTMLElement).querySelector('button')
+                      btn?.click()
+                    }}
+                    className={`${UI_THEME.table.rowHover} ${UI_THEME.table.border} cursor-pointer ${isActive ? `${rowAccent ?? 'bg-muted'} [&_button]:opacity-100` : ''}`}
                   >
-                    {row.getVisibleCells().map((cell) => (
+                    {row.getVisibleCells().map((cell) => {
+                      const sticky =
+                        cell.column.id === 'id'
+                          ? UI_THEME.table.stickyLeft
+                          : cell.column.id === 'actions' || cell.column.id === 'acciones'
+                          ? UI_THEME.table.stickyRight
+                          : ''
+                      const stickyBg = sticky
+                        ? (isActive ? (rowAccent ?? 'bg-muted') : 'bg-card group-hover:bg-muted/40')
+                        : ''
+                      return (
                       <TableCell 
                         key={cell.id}
                         className={
-                          (cell.column.columnDef.meta as any)?.align === 'center'
+                          `${sticky} ${stickyBg} ` +
+                          ((cell.column.columnDef.meta as any)?.align === 'center'
                             ? 'text-center'
                             : (cell.column.columnDef.meta as any)?.align === 'right'
                             ? 'text-right'
-                            : 'text-left'
+                            : 'text-left')
                         }
                       >
                         {flexRender(
@@ -496,9 +546,10 @@ export function DataTable<TData, TValue>({
                           cell.getContext()
                         )}
                       </TableCell>
-                    ))}
+                    )})}
                   </TableRow>
-                ))
+                  )
+                })
               ) : (
                 <TableRow>
                   <TableCell

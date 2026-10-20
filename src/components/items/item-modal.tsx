@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { useEditClick } from '@/lib/use-edit-click'
+import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -9,7 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { FieldError } from '@/components/ui/field-error'
-import { Package, Settings2, Save, Pencil, History, SlidersHorizontal, Search, ArrowLeft, DollarSign, Layers, Link2 } from 'lucide-react'
+import { Package, Settings2, Check, Pencil, History, SlidersHorizontal, Search, ArrowLeft, DollarSign, Layers, Link2, X } from 'lucide-react'
 import { HistorialDrawer } from '@/components/shared/historial-drawer'
 import { crearItem, actualizarItem, buscarItemsSimilaresConERP, buscarItemsLIKEConERP, getItemSyncHabilitado, contarCostosRefItem } from '@/app/actions/items'
 import { listarTiposCombosPorEmpresa } from '@/app/actions/tipos-combo'
@@ -25,6 +27,10 @@ import { CostoTab } from './costo-tab'
 import { CostoReferenciaTab } from './costo-referencia-tab'
 import { TiposComboTab, type ItemTipoComboAsoc } from './tipos-combo-tab'
 import { UI_THEME } from '@/lib/theme'
+import { MODULE_ACCENT } from '@/lib/ui-accent'
+import { ModalHeading } from '@/components/ui/modal-heading'
+import { SegmentCard, TwoColumns } from '@/components/ui/form-layout'
+import { esConflicto } from '@/lib/conflicto'
 
 
 interface ItemModalProps {
@@ -41,6 +47,7 @@ const MIN_BUSQUEDA_CHARS = 3
 type ItemModalStep = 'busqueda' | 'formulario'
 
 export function ItemModal({ item, categorias, todosItems = [], trigger, open: controlledOpen, onOpenChange }: ItemModalProps) {
+  const router = useRouter()
   const [internalOpen, setInternalOpen] = useState(false)
   const isControlled = controlledOpen !== undefined
   const open = isControlled ? controlledOpen : internalOpen
@@ -54,6 +61,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
 
   const isEditing = !!currentItem
   const [mode, setMode] = useState<'view' | 'edit'>('view')
+  const { onEditMouseDown, onEditClick, blockAccidentalSubmit } = useEditClick(setMode)
 
   // Wizard de búsqueda (solo para nuevos ítems)
   const [step, setStep] = useState<ItemModalStep>('busqueda')
@@ -265,6 +273,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
 
   // CRÍTICO: inicializar formulario y mode dentro de handleOpenChange, nunca en useEffect
   const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen && esConflicto(globalError)) router.refresh()
     if (newOpen) {
       setCurrentItem(item)           // sincroniza con el prop al abrir
       resetForm(item)
@@ -430,6 +439,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
    */
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (blockAccidentalSubmit(e)) return
     setGlobalError(null)
     setSimilares([])
 
@@ -512,21 +522,13 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
         {trigger && <DialogTrigger render={trigger as React.ReactElement} />}
-        <DialogContent
-          className={
-            !isEditing && step === 'busqueda'
-              ? 'sm:max-w-[520px] flex flex-col p-4 sm:p-6 overflow-hidden'
-              : 'sm:max-w-[650px] h-[85vh] sm:h-[550px] flex flex-col p-4 sm:p-6 overflow-hidden'
-          }
-        >
-          <DialogHeader className="mb-2 shrink-0">
-            <DialogTitle className={UI_THEME.modal.title}>
-              <Package className="w-5 h-5 text-slate-500" />
-              {isEditing
-                ? mode === 'view' ? 'Detalle Item' : 'Editar Item'
-                : 'Nuevo Item'}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className={!isEditing && step === 'busqueda' ? UI_THEME.modal.contentStandard : UI_THEME.modal.contentWide}>
+          <ModalHeading
+            accent={MODULE_ACCENT.items}
+            icon={Package}
+            mode={!isEditing ? 'create' : mode === 'view' ? 'view' : 'edit'}
+            title={isEditing ? (mode === 'view' ? 'Detalle Item' : 'Editar Item') : 'Nuevo Item'}
+          />
 
           {globalError && (
             <div className={`${UI_THEME.forms.globalError} shrink-0`}>
@@ -724,7 +726,8 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                 <div className={UI_THEME.modal.scrollArea}>
                   {/* ── PESTAÑA GENERAL ── */}
                   <TabsContent value="general" className="mt-0">
-                    <div className="grid grid-cols-4 gap-x-6 gap-y-4">
+                    <TwoColumns
+                      left={<SegmentCard label="Datos"><div className="contents">
 
                       <div className="flex flex-col gap-1.5 col-span-4">
                         <Label className={UI_THEME.forms.labelBase}>Empresa</Label>
@@ -861,7 +864,9 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                         />
                       </div>
 
-                      {/* Categoría */}
+                      </div></SegmentCard>}
+                      right={<SegmentCard label="Clasificacion"><div className="contents">
+                      {/* Categoria */}
                       <div className="flex flex-col gap-1.5 col-span-2">
                         <Label htmlFor="categoria">
                           Categoría <span className="text-red-500">*</span>
@@ -907,12 +912,14 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                           </Label>
                         </div>
                       )}
-                    </div>
+                    </div></SegmentCard>}
+                    />
                   </TabsContent>
 
                   {/* ── PESTAÑA PARÁMETROS ── */}
                   <TabsContent value="parametros" className="mt-0">
-                    <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                    <TwoColumns
+                      left={<SegmentCard label="Costos"><div className="contents">
                       {/* Tipo Producto — siempre visible, editable solo para tipoItem=3 (Servicio) */}
                       {(() => {
                         const tiNum = Number(tipoItem)
@@ -1073,6 +1080,8 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                         />
                       </div>
 
+                      </div></SegmentCard>}
+                      right={<SegmentCard label="Opciones"><div className="contents">
                       {/* Checkboxes */}
                       <div className="col-span-2 flex flex-col gap-3 mt-1">
                         <div className="flex items-center gap-2">
@@ -1149,7 +1158,8 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                           </Label>
                         </div>
                       </div>
-                    </div>
+                    </div></SegmentCard>}
+                    />
                   </TabsContent>
 
                   {/* ── PESTAÑA COMBO ── */}
@@ -1202,56 +1212,34 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
               {/* Nota: sm:-mx-6 sm:-mb-6 sm:px-6 extienden UI_THEME.modal.footer
                   porque este DialogContent usa sm:p-6 (padding mayor al estándar sm:p-4) */}
               <div className={`${UI_THEME.modal.footer} sm:-mx-6 sm:-mb-6 sm:px-6`}>
-                {/* Botón Atrás (solo para nuevo ítem en paso 2) */}
-                <div>
-                  {!isEditing && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setStep('busqueda')}
-                      disabled={loading}
-                    >
-                      <ArrowLeft className="w-4 h-4 mr-2" /> Atrás
+                {mode === 'view' ? (
+                  <div className={UI_THEME.modal.buttons.viewRow}>
+                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.items.hover} onClick={() => setHistorialOpen(true)}>
+                      <History className={UI_THEME.modal.buttons.icon} /> Historial
                     </Button>
-                  )}
-                </div>
-                <div className={UI_THEME.modal.buttons.rightGroup}>
-                  {mode === 'view' && (
-                    <>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className={UI_THEME.modal.buttons.historial}
-                        onClick={() => setHistorialOpen(true)}
-                      >
-                        <History className="mr-2 h-4 w-4" /> Historial
-                      </Button>
-                      <Button type="button" onClick={() => setMode('edit')}>
-                        <Pencil className="w-4 h-4 mr-2" /> Editar
-                      </Button>
-                    </>
-                  )}
-                  {(mode === 'edit' || !isEditing) && (
-                    <>
-                      {isEditing && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            resetForm(item)
-                            setMode('view')
-                          }}
-                          disabled={loading}
-                        >
-                          Cancelar
-                        </Button>
-                      )}
-                      <Button type="submit" disabled={loading}>
-                        {loading ? 'Guardando...' : <><Save className="w-4 h-4 mr-2" />Guardar</>}
-                      </Button>
-                    </>
-                  )}
-                </div>
+                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.items.hover} onMouseDown={onEditMouseDown} onClick={onEditClick}>
+                      <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
+                    </Button>
+                  </div>
+                ) : isEditing ? (
+                  <div className={UI_THEME.modal.buttons.editRow}>
+                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.items.hover} onClick={() => { resetForm(item); setMode('view') }} disabled={loading}>
+                      <X className={UI_THEME.modal.buttons.icon} /> Cancelar
+                    </Button>
+                    <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.items.hover} disabled={loading}>
+                      <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex w-full items-center justify-between">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setStep('busqueda')} disabled={loading}>
+                      <ArrowLeft className={UI_THEME.modal.buttons.icon} /> Atras
+                    </Button>
+                    <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.items.hover} disabled={loading}>
+                      <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
+                    </Button>
+                  </div>
+                )}
               </div>
             </form>
           )}

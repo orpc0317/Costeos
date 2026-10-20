@@ -918,10 +918,10 @@ export default function EditorPanel() {
 
             <div className="pt-2">
               <div className="flex items-center mb-3 min-h-[24px]">
-                <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider border-l-2 border-blue-500 pl-2 leading-none">
+                <h3 className="text-xs font-bold text-primary uppercase tracking-wider border-l-2 border-primary pl-2 leading-none">
                   CONFIGURACION
                 </h3>
-                <div className="flex-1 border-t border-blue-200 ml-3 mt-0.5"></div>
+                <div className="flex-1 border-t border-primary/30 ml-3 mt-0.5"></div>
               </div>
               
               {nodeData.categoria === 'RECURSO_HUMANO' ? (
@@ -1178,10 +1178,10 @@ export default function EditorPanel() {
 
             <div className="pt-4">
               <div className="flex items-center mb-3 min-h-[24px]">
-                <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider border-l-2 border-blue-500 pl-2 leading-none">
+                <h3 className="text-xs font-bold text-primary uppercase tracking-wider border-l-2 border-primary pl-2 leading-none">
                   FINANCIERO
                 </h3>
-                <div className="flex-1 border-t border-blue-200 ml-3 mt-0.5"></div>
+                <div className="flex-1 border-t border-primary/30 ml-3 mt-0.5"></div>
               </div>
 
               <div className="grid grid-cols-3 gap-4">
@@ -1677,10 +1677,10 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas, proye
               {hasDireccion && (
                 <div className="pt-4 border-t mt-4 col-span-2">
                   <div className="flex items-center mb-3">
-                    <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider border-l-2 border-blue-500 pl-2 leading-none">
+                    <h3 className="text-xs font-bold text-primary uppercase tracking-wider border-l-2 border-primary pl-2 leading-none">
                       Direccion
                     </h3>
-                    <div className="flex-1 border-t border-blue-200 mx-3 mt-0.5"></div>
+                    <div className="flex-1 border-t border-primary/30 mx-3 mt-0.5"></div>
                     {!isNewAddress ? (
                       <Button type="button" variant="ghost" size="sm" onClick={() => handleSelectDireccion('NEW')} className="text-blue-600 h-6 text-xs px-2">
                         + Crear Nueva

@@ -1,6 +1,7 @@
 'use server'
 
-import { requireManagerOrAdmin } from '@/lib/auth-helpers'
+import { requirePermiso, puedeConsultar } from '@/app/actions/permisos'
+import { PERMISOS } from '@/lib/permisos'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { normalizeText } from '@/lib/utils/text'
@@ -17,8 +18,7 @@ const MAX_ACTIVOS = 8
  * Usado en el panel de gestión.
  */
 export async function listarTiposComboRH(): Promise<TipoComboRHRow[]> {
-  const guard = await requireManagerOrAdmin()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.TCB_CAT))) return []
 
   const [rows, empresas] = await Promise.all([
     prisma.tipoComboRH.findMany({
@@ -42,8 +42,7 @@ export async function listarTiposComboRH(): Promise<TipoComboRHRow[]> {
 export async function listarTiposComboRHPorEmpresa(
   empresaId: number,
 ): Promise<TipoComboRHRow[]> {
-  const guard = await requireManagerOrAdmin()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.TCB_CAT))) return []
 
   const rows = await prisma.tipoComboRH.findMany({
     where: { empresaId, activo: true },
@@ -60,7 +59,7 @@ export async function crearTipoComboRH(data: {
   nombre: string
   requerido: boolean
 }): Promise<ActionResult<TipoComboRHRow>> {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.TCB_CAT, 'agregar')
   if (!guard.ok) return { ok: false, error: 'No autorizado' }
 
   const nombre = normalizeText(data.nombre)
@@ -110,7 +109,7 @@ export async function editarTipoComboRH(
     orden: number
   },
 ): Promise<ActionResult<TipoComboRHRow>> {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.TCB_CAT, 'modificar')
   if (!guard.ok) return { ok: false, error: 'No autorizado' }
 
   const nombre = normalizeText(data.nombre)
@@ -141,7 +140,7 @@ export async function editarTipoComboRH(
 export async function toggleActivoTipoComboRH(
   id: number,
 ): Promise<ActionResult<undefined>> {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.TCB_CAT, 'eliminar')
   if (!guard.ok) return { ok: false, error: 'No autorizado' }
 
   const tipo = await prisma.tipoComboRH.findUnique({ where: { id } })

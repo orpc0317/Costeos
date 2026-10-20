@@ -1,5 +1,7 @@
 # Estándar para Pantallas CRUD
 
+El boton Nuevo va en `PageHeader` (`actions`), no en la barra de la tabla. `DataTable` recibe `rowAccent`. La columna `id` queda fija a la izquierda y `actions` a la derecha. Aspecto: `.cursor/rules/ui-conventions.mdc`.
+
 Para mantener la consistencia en el proyecto, **todas las pantallas CRUD** (listados de registros con opciones para crear, editar, eliminar) deben utilizar el componente reutilizable `DataTable` ubicado en `src/components/ui/data-table.tsx`.
 
 ## Requisitos de Implementación

@@ -3,7 +3,8 @@
 import { prisma } from '@/lib/prisma'
 import { erp } from '@/lib/erp'
 import { normalizeText } from '@/lib/utils/text'
-import { requireManagerOrAdmin } from '@/lib/auth-helpers'
+import { requirePermiso, puedeConsultar } from '@/app/actions/permisos'
+import { PERMISOS } from '@/lib/permisos'
 
 export type CatalogoTipo = 'ITEMS' | 'CATEGORIAS'
 
@@ -52,8 +53,7 @@ export async function buscarConFuzzyMatch(
   catalogo: CatalogoTipo, 
   busqueda: string
 ) {
-  const guard = await requireManagerOrAdmin()
-  if (!guard.ok) return { error: guard.error }
+  if (!(await puedeConsultar(PERMISOS.ITE_CAT))) return { error: 'No tienes permiso para realizar esta acción.' }
 
   if (busqueda.length < 3) {
     return { data: [], error: 'Ingrese al menos 3 caracteres' }
@@ -193,7 +193,7 @@ export async function guardarRegistroCatalogo(
   catalogo: CatalogoTipo, 
   payload: any, 
 ) {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.ITE_CAT, 'modificar')
   if (!guard.ok) return { error: guard.error }
   const usuarioId = guard.userId
 

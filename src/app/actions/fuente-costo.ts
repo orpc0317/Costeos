@@ -14,7 +14,8 @@
  *   0 = Sin definir   → sin fuente
  */
 
-import { requireManagerOrAdmin } from '@/lib/auth-helpers'
+import { requirePermiso, puedeConsultar } from '@/app/actions/permisos'
+import { PERMISOS } from '@/lib/permisos'
 import { prisma } from '@/lib/prisma'
 
 export interface FuenteCostoInfo {
@@ -74,8 +75,7 @@ export async function getFuenteCosto(
   itemId:   number,
   costeoId: number,
 ): Promise<FuenteCostoInfo | null> {
-  const guard = await requireManagerOrAdmin()
-  if (!guard.ok) return null
+  if (!(await puedeConsultar(PERMISOS.COS_CAT))) return null
 
   // Obtener datos del ítem
   const item = await prisma.item.findUnique({

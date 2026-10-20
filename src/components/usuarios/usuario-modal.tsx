@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Users, Power, PowerOff, History, Pencil, Save } from 'lucide-react'
+import { useEditClick } from '@/lib/use-edit-click'
+import { Users, Power, PowerOff, History, Pencil, Check, ShieldCheck, X } from 'lucide-react'
 import { normalizeText } from '@/lib/utils/text'
 import {
   Dialog,
@@ -18,14 +19,31 @@ import { FieldError } from '@/components/ui/field-error'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { crearUsuario, editarUsuario, toggleActivo } from '@/app/actions/usuarios'
+import { leerPermisosUsuario } from '@/app/actions/permisos'
 import { UI_THEME } from '@/lib/theme'
-import { ROLES } from '@/lib/permisos'
+import { MENUS, ROLES, presetDeRol, type PermisoFlags, type PermisosPantalla } from '@/lib/permisos'
+import { MODULE_ACCENT } from '@/lib/ui-accent'
+import { ModalHeading } from '@/components/ui/modal-heading'
+import { SegmentCard, TwoColumns } from '@/components/ui/form-layout'
+import { esConflicto } from '@/lib/conflicto'
 import type { UsuarioRow } from '@/lib/types/usuarios'
+
+function grillaDe(rol: string, guardadas?: PermisoFlags[]): PermisoFlags[] {
+  if (guardadas && guardadas.length && guardadas.some((f) => !f.consultar || !f.agregar || !f.modificar || !f.eliminar)) {
+    return MENUS.map((m) => guardadas.find((f) => f.indice === m.indice) ?? { indice: m.indice, consultar: false, agregar: false, modificar: false, eliminar: false })
+  }
+  if (rol === ROLES.ADMIN) {
+    return MENUS.map((m) => ({ indice: m.indice, consultar: true, agregar: true, modificar: true, eliminar: true }))
+  }
+  const preset = presetDeRol(rol)
+  return MENUS.map((m) => preset.find((f) => f.indice === m.indice) ?? { indice: m.indice, consultar: false, agregar: false, modificar: false, eliminar: false })
+}
 
 interface UsuarioModalProps {
   usuario?: UsuarioRow
   trigger?: React.ReactNode
   onSuccess?: () => void
+  permisos?: PermisosPantalla
 }
 
 const ROLES_OPCIONES = [
@@ -35,11 +53,13 @@ const ROLES_OPCIONES = [
   { value: ROLES.VIEWER,   label: 'Viewer' },
 ].sort((a, b) => a.label.localeCompare(b.label))
 
-export function UsuarioModal({ usuario, trigger, onSuccess }: UsuarioModalProps) {
+export function UsuarioModal({ usuario, trigger, onSuccess, permisos }: UsuarioModalProps) {
+  const puedeEditar = permisos?.modificar !== false
   const isEditing = !!usuario
   const [open, setOpen] = useState(false)
   const [historialOpen, setHistorialOpen] = useState(false)
   const [mode, setMode] = useState<'view' | 'edit'>('view')
+  const { onEditMouseDown, onEditClick, blockAccidentalSubmit } = useEditClick(setMode)
   const [loading, setLoading] = useState(false)
   const [isPendingToggle, setIsPendingToggle] = useState(false)
   const [globalError, setGlobalError] = useState<string | null>(null)
@@ -49,23 +69,33 @@ export function UsuarioModal({ usuario, trigger, onSuccess }: UsuarioModalProps)
   const [email, setEmail] = useState('')
   const [usuarioErp, setUsuarioErp] = useState('')
   const [rol, setRol] = useState<string>(ROLES.ANALISTA)
+  const [flags, setFlags] = useState<PermisoFlags[]>(() => grillaDe(ROLES.ANALISTA))
   const [snapUsuario, setSnapUsuario] = useState<UsuarioRow | null>(null)
 
   function resetFields(data?: UsuarioRow | null) {
     setNombre(data?.nombre ?? '')
     setEmail(data?.email ?? '')
     setUsuarioErp(data?.usuarioErp ?? '')
-    setRol(data?.rol ?? ROLES.ANALISTA)
+    const nextRol = data?.rol ?? ROLES.ANALISTA
+    setRol(nextRol)
+    setFlags(grillaDe(nextRol))
     setGlobalError(null)
     setFieldErrors({})
     setActiveTab('general')
   }
 
   function handleOpenChange(newOpen: boolean) {
+    if (!newOpen && esConflicto(globalError)) onSuccess?.()
     if (newOpen) {
       resetFields(usuario)
       setSnapUsuario(usuario ?? null)
       setMode(isEditing ? 'view' : 'edit')
+      if (usuario) {
+        leerPermisosUsuario(usuario.id).then((rows) => {
+          const restringido = rows.some((f) => !f.consultar || !f.agregar || !f.modificar || !f.eliminar)
+          setFlags(restringido ? rows : grillaDe(usuario.rol, rows))
+        })
+      }
     }
     setOpen(newOpen)
   }
@@ -93,6 +123,7 @@ export function UsuarioModal({ usuario, trigger, onSuccess }: UsuarioModalProps)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (blockAccidentalSubmit(e)) return
     setGlobalError(null)
 
     const localErrors: Record<string, string> = {}
@@ -114,6 +145,8 @@ export function UsuarioModal({ usuario, trigger, onSuccess }: UsuarioModalProps)
     formData.append('email', email)
     formData.append('usuarioErp', usuarioErp)
     formData.append('rol', rol)
+    const todoActivo = flags.every((f) => f.consultar && f.agregar && f.modificar && f.eliminar)
+    formData.append('permisos', JSON.stringify(rol === ROLES.ADMIN && todoActivo ? [] : flags))
     if (isEditing && snapUsuario) {
       formData.append('registroVersion', String(snapUsuario.registroVersion))
     }
@@ -155,13 +188,14 @@ export function UsuarioModal({ usuario, trigger, onSuccess }: UsuarioModalProps)
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
         {trigger && <DialogTrigger render={trigger as React.ReactElement} />}
-        <DialogContent className="sm:max-w-[480px] h-[85vh] sm:h-[450px] flex flex-col p-4 sm:p-6 overflow-hidden">
-          <DialogHeader className="mb-2 shrink-0">
-            <DialogTitle className={UI_THEME.modal.title}>
-              <Users className="w-5 h-5 text-slate-500" />
-              {title}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className={UI_THEME.modal.contentWide}>
+          <ModalHeading
+            accent={MODULE_ACCENT.usuarios}
+            icon={Users}
+            mode={!isEditing ? 'create' : mode === 'edit' ? 'edit' : 'view'}
+            title={title}
+            subtitle={usuario ? usuario.email : null}
+          />
 
           {globalError && (
             <div className={UI_THEME.forms.globalError}>{globalError}</div>
@@ -174,11 +208,17 @@ export function UsuarioModal({ usuario, trigger, onSuccess }: UsuarioModalProps)
                   <Users className="w-4 h-4 mr-2" />
                   General
                 </TabsTrigger>
+                <TabsTrigger value="permisos">
+                  <ShieldCheck className="w-4 h-4 mr-2" />
+                  Permisos
+                </TabsTrigger>
               </TabsList>
 
               <div className={UI_THEME.modal.scrollArea}>
                 <TabsContent value="general" className="mt-0">
-                  <div className="grid grid-cols-4 gap-x-6 gap-y-4">
+                  <TwoColumns
+                    left={<SegmentCard label="Identificacion">
+                  <div className="col-span-2 grid grid-cols-2 gap-2">
                     <div className="flex flex-col gap-1.5 col-span-4">
                       <Label htmlFor="u-nombre" className={UI_THEME.forms.labelBase}>
                         Nombre <span className="text-red-500">*</span>
@@ -241,6 +281,10 @@ export function UsuarioModal({ usuario, trigger, onSuccess }: UsuarioModalProps)
                       <FieldError message={fieldErrors.usuarioErp} />
                     </div>
 
+                    </div>
+                    </SegmentCard>}
+                    right={<SegmentCard label="Acceso">
+                    <div className="col-span-2 grid gap-2">
                     <div className="flex flex-col gap-1.5 col-span-4">
                       <Label htmlFor="u-rol" className={UI_THEME.forms.labelBase}>
                         Rol <span className="text-red-500">*</span>
@@ -251,6 +295,7 @@ export function UsuarioModal({ usuario, trigger, onSuccess }: UsuarioModalProps)
                         value={rol}
                         onChange={(val) => {
                           setRol(val)
+                          setFlags(grillaDe(val))
                           setFieldErrors(prev => { const n = { ...prev }; delete n.rol; return n })
                         }}
                         disabled={mode === 'view'}
@@ -260,58 +305,86 @@ export function UsuarioModal({ usuario, trigger, onSuccess }: UsuarioModalProps)
                       />
                       <FieldError message={fieldErrors.rol} />
                     </div>
-                  </div>
+                    </div>
+                    </SegmentCard>}
+                  />
+                </TabsContent>
+                <TabsContent value="permisos" className="mt-0">
+                  <SegmentCard label="Pantallas">
+                    <div className="col-span-2 overflow-x-auto">
+                      <table className="w-full text-left">
+                        <thead>
+                          <tr className="text-muted-foreground">
+                            <th className="py-1 pr-2 font-semibold" style={{ fontSize: 'var(--ui-form-label)' }}>Pantalla</th>
+                            {(['consultar', 'agregar', 'modificar', 'eliminar'] as const).map((op) => (
+                              <th key={op} className="px-2 py-1 text-center font-semibold capitalize" style={{ fontSize: 'var(--ui-form-label)' }}>{op}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {MENUS.map((menu) => {
+                            const flag = flags.find((f) => f.indice === menu.indice)
+                            return (
+                              <tr key={menu.indice} className="border-t border-border/50">
+                                <td className="py-1 pr-2 text-sm">{menu.nombre}</td>
+                                {(['consultar', 'agregar', 'modificar', 'eliminar'] as const).map((op) => (
+                                  <td key={op} className="px-2 py-1 text-center">
+                                    <input
+                                      type="checkbox"
+                                      checked={!!flag?.[op]}
+                                      disabled={mode === 'view'}
+                                      onChange={(e) => {
+                                        setFlags((prev) => prev.map((f) => f.indice === menu.indice ? { ...f, [op]: e.target.checked } : f))
+                                      }}
+                                    />
+                                  </td>
+                                ))}
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </SegmentCard>
                 </TabsContent>
               </div>
             </Tabs>
 
             <div className={UI_THEME.modal.footer}>
-              <div>
-                {mode === 'view' && isEditing && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className={usuario?.activo ? UI_THEME.modal.buttons.eliminar : undefined}
-                    disabled={isPendingToggle}
-                    onClick={handleToggle}
-                  >
-                    {usuario?.activo
-                      ? <><PowerOff className="mr-2 h-4 w-4" />Desactivar</>
-                      : <><Power className="mr-2 h-4 w-4" />Activar</>}
+              {mode === 'view' ? (
+                <div className={UI_THEME.modal.buttons.viewRow}>
+                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.usuarios.hover} onClick={() => setHistorialOpen(true)}>
+                    <History className={UI_THEME.modal.buttons.icon} /> Historial
                   </Button>
-                )}
-              </div>
-              <div className={UI_THEME.modal.buttons.rightGroup}>
-                {mode === 'view' && (
-                  <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className={UI_THEME.modal.buttons.historial}
-                      onClick={() => setHistorialOpen(true)}
-                    >
-                      <History className="mr-2 h-4 w-4" />
-                      Historial
+                  {isEditing && (
+                    <Button type="button" variant="ghost" size="sm" className={usuario?.activo ? UI_THEME.modal.buttons.eliminar : MODULE_ACCENT.usuarios.hover} disabled={isPendingToggle} onClick={handleToggle}>
+                      {usuario?.activo
+                        ? <><PowerOff className={UI_THEME.modal.buttons.icon} />Desactivar</>
+                        : <><Power className={UI_THEME.modal.buttons.icon} />Activar</>}
                     </Button>
-                    <Button type="button" onClick={() => setMode('edit')}>
-                      <Pencil className="w-4 h-4 mr-2" />
-                      Editar
+                  )}
+                  {puedeEditar && (
+                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.usuarios.hover} onMouseDown={onEditMouseDown} onClick={onEditClick}>
+                      <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
                     </Button>
-                  </>
-                )}
-                {mode === 'edit' && (
-                  <>
-                    {isEditing && (
-                      <Button type="button" variant="outline" onClick={resetToView} disabled={loading}>
-                        Cancelar
-                      </Button>
-                    )}
-                    <Button type="submit" disabled={loading}>
-                      {loading ? 'Guardando...' : <><Save className="w-4 h-4 mr-2" />Guardar</>}
-                    </Button>
-                  </>
-                )}
-              </div>
+                  )}
+                </div>
+              ) : isEditing ? (
+                <div className={UI_THEME.modal.buttons.editRow}>
+                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.usuarios.hover} onClick={resetToView} disabled={loading}>
+                    <X className={UI_THEME.modal.buttons.icon} /> Cancelar
+                  </Button>
+                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.usuarios.hover} disabled={loading}>
+                    <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
+                  </Button>
+                </div>
+              ) : (
+                <div className={UI_THEME.modal.buttons.editRow}>
+                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.usuarios.hover} disabled={loading}>
+                    <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
+                  </Button>
+                </div>
+              )}
             </div>
           </form>
         </DialogContent>

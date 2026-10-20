@@ -1,7 +1,8 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireManagerOrAdmin } from '@/lib/auth-helpers'
+import { requirePermiso, puedeConsultar } from '@/app/actions/permisos'
+import { PERMISOS } from '@/lib/permisos'
 import { itemSchema, itemCostoSchema, itemCostoRefSchema, type ItemInput, type ItemRow, type ItemCostoInput, type ItemCostoRow, type ItemCostoRefInput, type ItemCostoRefRow } from '@/lib/types/items'
 import { ItemService } from '@/lib/services/item.service'
 import { ItemCostoService } from '@/lib/services/item-costo.service'
@@ -16,13 +17,12 @@ import type { ActionResult } from '@/lib/types/common'
 const PATH = '/dashboard/configuracion/items'
 
 export async function listarItems(params?: { search?: string; limit?: number }): Promise<ItemRow[]> {
-  const guard = await requireManagerOrAdmin()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.ITE_CAT))) return []
   return ItemService.listar(params)
 }
 
 export async function crearItem(data: ItemInput): Promise<ActionResult<ItemRow>> {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.ITE_CAT, 'agregar')
   if (!guard.ok) return guard
 
   const parsed = itemSchema.safeParse(data)
@@ -39,7 +39,7 @@ export async function actualizarItem(
   id: number,
   data: ItemInput & { registroVersion: number },
 ): Promise<ActionResult<ItemRow>> {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.ITE_CAT, 'modificar')
   if (!guard.ok) return guard
 
   const parsed = itemSchema.safeParse(data)
@@ -58,8 +58,7 @@ export async function actualizarItem(
  */
 export async function getItemSyncHabilitado(empresaId: number): Promise<boolean> {
   if (!empresaId) return false
-  const guard = await requireManagerOrAdmin()
-  if (!guard.ok) return false
+  if (!(await puedeConsultar(PERMISOS.ITE_CAT))) return false
   const config = await prisma.empresaCatalogoSync.findUnique({
     where: { empresaId_catalogo: { empresaId, catalogo: 'ITEMS' } },
   })
@@ -84,8 +83,7 @@ export async function buscarItemsLIKEConERP(
   empresaId: number,
   excluirId?: number,
 ): Promise<SimilarItemConOrigen[]> {
-  const guard = await requireManagerOrAdmin()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.ITE_CAT))) return []
 
   const searchNorm = descripcion.trim().toLowerCase()
 
@@ -190,8 +188,7 @@ export async function buscarItemsSimilaresConERP(
   empresaId: number,
   excluirId?: number,
 ): Promise<SimilarItemConOrigen[]> {
-  const guard = await requireManagerOrAdmin()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.ITE_CAT))) return []
 
   // ── 1. Similares en Costeos ────────────────────────────────────────────────
   const todos = await ItemRepository.findAll()
@@ -291,8 +288,7 @@ export async function buscarItemsSimilaresConERP(
 // ─── Costos manuales del ítem ────────────────────────────────────────────────
 
 export async function listarCostosItem(itemId: number): Promise<ItemCostoRow[]> {
-  const guard = await requireManagerOrAdmin()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.ITE_CAT))) return []
   return ItemCostoService.listar(itemId)
 }
 
@@ -300,7 +296,7 @@ export async function agregarCostoItem(
   itemId: number,
   data: ItemCostoInput,
 ): Promise<ActionResult<ItemCostoRow[]>> {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.ITE_CAT, 'modificar')
   if (!guard.ok) return guard
 
   const parsed = itemCostoSchema.safeParse(data)
@@ -319,7 +315,7 @@ export async function eliminarCostoItem(
   id: number,
   itemId: number,
 ): Promise<ActionResult<ItemCostoRow[]>> {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.ITE_CAT, 'eliminar')
   if (!guard.ok) return guard
   return ItemCostoService.eliminar(id, itemId, guard.userId)
 }
@@ -332,8 +328,7 @@ export async function eliminarCostoItem(
 export async function getCostosUltimosManual(
   itemIds: number[],
 ): Promise<Record<number, number>> {
-  const guard = await requireManagerOrAdmin()
-  if (!guard.ok || itemIds.length === 0) return {}
+  if (!(await puedeConsultar(PERMISOS.COS_CAT)) || itemIds.length === 0) return {}
 
   // Traer todos los registros de los ítems pedidos, ordenados por fecha DESC
   const costos = await prisma.itemCosto.findMany({
@@ -397,8 +392,7 @@ export async function buscarItemsParaCombo(
   empresaId: number,
   excluirItemIds: number[] = [],
 ): Promise<ComboItemOpcion[]> {
-  const guard = await requireManagerOrAdmin()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.ITE_CAT))) return []
 
   // ── 1. Items de Costeos ───────────────────────────────────────────────────
   const todosCosteos = await ItemRepository.findAll()
@@ -480,7 +474,7 @@ export async function autoCrearItemDesdeERP(
   opcion: ComboItemOpcion,
   empresaId: number,
 ): Promise<ActionResult<ItemRow>> {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.ITE_CAT, 'modificar')
   if (!guard.ok) return guard
 
   if (opcion.source !== 'erp' || !opcion.erpCodigo) {
@@ -541,14 +535,13 @@ export async function autoCrearItemDesdeERP(
 
 /** Lista el historial de porcentajes de un ítem de tipo Referencia. */
 export async function listarCostosRefItem(itemId: number): Promise<ItemCostoRefRow[]> {
-  const guard = await requireManagerOrAdmin()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.ITE_CAT))) return []
   return ItemCostoRefService.listar(itemId)
 }
 
 /** Cuenta los registros de porcentaje para un ítem (para determinar inmutabilidad del ítem de referencia). */
 export async function contarCostosRefItem(itemId: number): Promise<number> {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.ITE_CAT, 'modificar')
   if (!guard.ok) return 0
   return ItemCostoRefRepository.countByItemId(itemId)
 }
@@ -558,7 +551,7 @@ export async function agregarCostoRefItem(
   itemId: number,
   rawData: { pct: number | string; fecha: string },
 ): Promise<ActionResult<ItemCostoRefRow[]>> {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.ITE_CAT, 'modificar')
   if (!guard.ok) return { ok: false, error: 'No autorizado' }
 
   const parsed = itemCostoRefSchema.safeParse(rawData)
@@ -575,7 +568,7 @@ export async function eliminarCostoRefItem(
   id: number,
   itemId: number,
 ): Promise<ActionResult<ItemCostoRefRow[]>> {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.ITE_CAT, 'eliminar')
   if (!guard.ok) return { ok: false, error: 'No autorizado' }
   return ItemCostoRefService.eliminar(id, itemId, guard.userId)
 }

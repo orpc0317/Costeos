@@ -211,7 +211,7 @@ export function SearchableSelect({
         }}
         className={cn(
           UI_THEME.forms.inputBase,
-          "flex w-full min-w-0 items-center justify-between shadow-sm ring-offset-background aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
+          "flex w-full min-w-0 items-center justify-between text-left aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
           !selectedOption && "text-muted-foreground",
           error && "border-red-400 focus:ring-red-400 focus-visible:ring-red-400"
         )}

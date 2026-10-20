@@ -3,7 +3,8 @@
  * solicitudes.ts — Server Actions para el módulo de Cotizaciones Compras.
  */
 import { revalidatePath } from 'next/cache'
-import { requireAuth } from '@/lib/auth-helpers'
+import { requirePermiso, puedeConsultar } from '@/app/actions/permisos'
+import { PERMISOS } from '@/lib/permisos'
 import { SolicitudCotizacionService } from '@/lib/services/solicitud-cotizacion.service'
 import { cotizacionItemSchema, type CotizacionItemInput, type SolicitudRow, type CotizacionItemRow, type CotizacionRow, nuevaCotizacionDirectaSchema, type NuevaCotizacionDirectaInput } from '@/lib/types/cotizaciones'
 import type { ActionResult } from '@/lib/types/common'
@@ -19,7 +20,7 @@ export async function crearOObtenerSolicitud(params: {
   scope:     string
   empresaId: number
 }): Promise<ActionResult<{ id: number; estado: number; costoVigente: number | null }>> {
-  const guard = await requireAuth()
+  const guard = await requirePermiso(PERMISOS.SOL_COM, 'agregar')
   if (!guard.ok) return guard
   try {
     const result = await SolicitudCotizacionService.crearOObtener({
@@ -40,8 +41,7 @@ export async function getCostoVigente(
   itemId:   number,
   costeoId?: number,
 ): Promise<number | null> {
-  const guard = await requireAuth()
-  if (!guard.ok) return null
+  if (!(await puedeConsultar(PERMISOS.SOL_COM))) return null
   try {
     return await SolicitudCotizacionService.getCostoVigente(itemId, costeoId)
   } catch {
@@ -52,8 +52,7 @@ export async function getCostoVigente(
 // ─── Listar solicitudes para pantalla Compras ─────────────────────────────────
 
 export async function listarSolicitudes(empresaId?: number): Promise<SolicitudRow[]> {
-  const guard = await requireAuth()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.SOL_COM))) return []
   try {
     return await SolicitudCotizacionService.listar(empresaId)
   } catch {
@@ -64,8 +63,7 @@ export async function listarSolicitudes(empresaId?: number): Promise<SolicitudRo
 // ─── Listar cotizaciones de una solicitud ─────────────────────────────────────
 
 export async function listarCotizaciones(solicitudId: number): Promise<CotizacionItemRow[]> {
-  const guard = await requireAuth()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.COT_COM))) return []
   try {
     return await SolicitudCotizacionService.listarCotizaciones(solicitudId)
   } catch {
@@ -78,7 +76,7 @@ export async function listarCotizaciones(solicitudId: number): Promise<Cotizacio
 export async function registrarCotizacion(
   data: CotizacionItemInput,
 ): Promise<ActionResult<CotizacionItemRow>> {
-  const guard = await requireAuth()
+  const guard = await requirePermiso(PERMISOS.COT_COM, 'agregar')
   if (!guard.ok) return guard
   const parsed = cotizacionItemSchema.safeParse(data)
   if (!parsed.success) {
@@ -101,7 +99,7 @@ export async function marcarCotizacionVigente(
   cotizacionId: number,
   solicitudId:  number,
 ): Promise<ActionResult<void>> {
-  const guard = await requireAuth()
+  const guard = await requirePermiso(PERMISOS.COT_COM, 'modificar')
   if (!guard.ok) return guard
   try {
     await SolicitudCotizacionService.marcarVigente(cotizacionId, solicitudId)
@@ -116,7 +114,7 @@ export async function marcarCotizacionVigente(
 // ─── Eliminar cotización ──────────────────────────────────────────────────────
 
 export async function eliminarCotizacion(id: number): Promise<ActionResult<void>> {
-  const guard = await requireAuth()
+  const guard = await requirePermiso(PERMISOS.COT_COM, 'eliminar')
   if (!guard.ok) return guard
   try {
     await SolicitudCotizacionService.eliminarCotizacion(id)
@@ -131,7 +129,7 @@ export async function eliminarCotizacion(id: number): Promise<ActionResult<void>
 // ─── Anular solicitud ─────────────────────────────────────────────────────────
 
 export async function anularSolicitud(id: number): Promise<ActionResult<void>> {
-  const guard = await requireAuth()
+  const guard = await requirePermiso(PERMISOS.SOL_COM, 'eliminar')
   if (!guard.ok) return guard
   try {
     await SolicitudCotizacionService.anularSolicitud(id)
@@ -144,8 +142,7 @@ export async function anularSolicitud(id: number): Promise<ActionResult<void>> {
 }
 
 export async function getItemsByEmpresa(empresaId: number) {
-  const session = await requireAuth()
-  if (!session.ok) throw new Error('No autenticado')
+  if (!(await puedeConsultar(PERMISOS.SOL_COM))) throw new Error('No autenticado')
   const items = await prisma.item.findMany({
     where: { empresaId },
     select: {
@@ -171,7 +168,7 @@ export async function crearSolicitud(data: {
   cantidad:  number
   scope:     string
 }): Promise<ActionResult<{ id: number }>> {
-  const guard = await requireAuth()
+  const guard = await requirePermiso(PERMISOS.SOL_COM, 'agregar')
   if (!guard.ok) return guard
   try {
     const result = await SolicitudCotizacionService.crear({ ...data, usuarioCreo: guard.userId })
@@ -188,7 +185,7 @@ export async function actualizarSolicitud(
   data: { cantidad: number },
   registroVersion: number,
 ): Promise<ActionResult<void>> {
-  const guard = await requireAuth()
+  const guard = await requirePermiso(PERMISOS.SOL_COM, 'modificar')
   if (!guard.ok) return guard
   try {
     await SolicitudCotizacionService.actualizar(id, data, registroVersion, guard.userId)
@@ -201,7 +198,7 @@ export async function actualizarSolicitud(
 }
 
 export async function eliminarSolicitud(id: number): Promise<ActionResult<void>> {
-  const guard = await requireAuth()
+  const guard = await requirePermiso(PERMISOS.SOL_COM, 'eliminar')
   if (!guard.ok) return guard
   try {
     await SolicitudCotizacionService.eliminar(id, guard.userId)
@@ -218,8 +215,7 @@ export async function eliminarSolicitud(id: number): Promise<ActionResult<void>>
 const PATH_COTIZACIONES = '/dashboard/compras/cotizaciones'
 
 export async function listarTodasCotizaciones(): Promise<CotizacionRow[]> {
-  const guard = await requireAuth()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.COT_COM))) return []
   try {
     const rows: any[] = await (prisma as any).cotizacionItem.findMany({
       orderBy: { fechaCreo: 'desc' },
@@ -353,7 +349,7 @@ export async function listarTodasCotizaciones(): Promise<CotizacionRow[]> {
 export async function crearCotizacionDirecta(
   data: NuevaCotizacionDirectaInput,
 ): Promise<ActionResult<{ cotizacionId: number }>> {
-  const guard = await requireAuth()
+  const guard = await requirePermiso(PERMISOS.COT_COM, 'agregar')
   if (!guard.ok) return guard
   const parsed = nuevaCotizacionDirectaSchema.safeParse(data)
   if (!parsed.success) {
@@ -403,7 +399,7 @@ export async function actualizarCotizacion(
   },
   registroVersion: number,
 ): Promise<ActionResult<void>> {
-  const guard = await requireAuth()
+  const guard = await requirePermiso(PERMISOS.COT_COM, 'modificar')
   if (!guard.ok) return guard
   try {
     const result = await (prisma as any).cotizacionItem.updateMany({
@@ -419,7 +415,7 @@ export async function actualizarCotizacion(
       },
     })
     if (result.count === 0) {
-      return { ok: false, error: 'El registro fue modificado por otro usuario. Recarga e intenta de nuevo.' }
+      return { ok: false, error: 'Este registro fue modificado por otro usuario. Cierra el formulario, recarga los datos y vuelve a intentarlo.' }
     }
     revalidatePath(PATH_COMPRAS)
     revalidatePath(PATH_COTIZACIONES)
@@ -431,8 +427,7 @@ export async function actualizarCotizacion(
 }
 
 export async function getCotizacionById(id: number): Promise<CotizacionRow | null> {
-  const guard = await requireAuth()
-  if (!guard.ok) return null
+  if (!(await puedeConsultar(PERMISOS.COT_COM))) return null
   try {
     const rows = await listarTodasCotizaciones()
     return rows.find(r => r.id === id) ?? null

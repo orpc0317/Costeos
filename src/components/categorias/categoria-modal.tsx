@@ -1,5 +1,6 @@
 'use client'
 import React, { useState, useEffect } from 'react'
+import { useEditClick } from '@/lib/use-edit-click'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -7,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { FieldError } from '@/components/ui/field-error'
-import { Tags, Save, Pencil, History, ArrowUpDown } from 'lucide-react'
+import { Tags, Check, Pencil, History, ArrowUpDown, X } from 'lucide-react'
 import { HistorialDrawer } from '@/components/shared/historial-drawer'
 import { PrioridadModal } from '@/components/categorias/prioridad-modal'
 import { crearCategoria, actualizarCategoria, buscarCategoriasSimilares } from '@/app/actions/categorias'
@@ -15,6 +16,11 @@ import type { SimilarItem } from '@/lib/utils/similarity'
 import { getEmpresasForUser } from '@/app/actions/erp'
 import { normalizeText } from '@/lib/utils/text'
 import { UI_THEME } from '@/lib/theme'
+import { MODULE_ACCENT } from '@/lib/ui-accent'
+import { ModalHeading } from '@/components/ui/modal-heading'
+import { esConflicto } from '@/lib/conflicto'
+import { SegmentCard, SingleColumn, ViewField } from '@/components/ui/form-layout'
+import type { PermisosPantalla } from '@/lib/permisos'
 import type { CategoriaInput, CategoriaRow } from '@/lib/types/categorias'
 
 interface CategoriaModalProps {
@@ -23,6 +29,7 @@ interface CategoriaModalProps {
   open?: boolean
   onOpenChange?: (open: boolean) => void
   onSuccess?: () => void
+  permisos?: PermisosPantalla
 }
 
 export function CategoriaModal({
@@ -31,7 +38,9 @@ export function CategoriaModal({
   open: controlledOpen,
   onOpenChange,
   onSuccess,
+  permisos,
 }: CategoriaModalProps) {
+  const puedeEditar = permisos?.modificar !== false
   const [internalOpen, setInternalOpen] = useState(false)
   const isControlled = controlledOpen !== undefined
   const open = isControlled ? controlledOpen : internalOpen
@@ -41,6 +50,7 @@ export function CategoriaModal({
 
   const isEditing = !!categoria
   const [mode, setMode] = useState<'view' | 'edit'>('view')
+  const { onEditMouseDown, onEditClick, blockAccidentalSubmit } = useEditClick(setMode)
 
   // Campos del formulario
   const [empresa, setEmpresa] = useState<string>('')
@@ -84,6 +94,7 @@ export function CategoriaModal({
 
   // CRÍTICO: inicializar estado aquí, NUNCA en useEffect con deps en datos del registro
   const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen && esConflicto(globalError)) onSuccess?.()
     if (newOpen) {
       resetForm(categoria)
       setMode(isEditing ? 'view' : 'edit')
@@ -127,6 +138,7 @@ export function CategoriaModal({
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (blockAccidentalSubmit(e)) return
     setGlobalError(null)
     setSimilares([])
 
@@ -171,15 +183,14 @@ export function CategoriaModal({
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
         {trigger && <DialogTrigger render={trigger as React.ReactElement} />}
-        <DialogContent className="sm:max-w-[500px] h-[85vh] sm:h-[420px] flex flex-col p-4 sm:p-6 overflow-hidden">
-          <DialogHeader className="mb-2 shrink-0">
-            <DialogTitle className={UI_THEME.modal.title}>
-              <Tags className="w-5 h-5 text-slate-500" />
-              {isEditing
-                ? (mode === 'view' ? 'Detalle Categoria' : 'Editar Categoria')
-                : 'Nueva Categoria'}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className={UI_THEME.modal.contentStandard}>
+          <ModalHeading
+            accent={MODULE_ACCENT.categorias}
+            icon={Tags}
+            mode={isEditing ? (mode === 'view' ? 'view' : 'edit') : 'create'}
+            title={isEditing ? (mode === 'view' ? 'Detalle Categoria' : 'Editar Categoria') : 'Nueva Categoria'}
+            subtitle={isEditing ? empresaNombreActual : null}
+          />
 
           {globalError && (
             <div className={`${UI_THEME.forms.globalError} shrink-0`}>
@@ -198,7 +209,9 @@ export function CategoriaModal({
 
               <div className={UI_THEME.modal.scrollArea}>
                 <TabsContent value="general" className="mt-0">
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                  <SingleColumn>
+                  <SegmentCard label="General">
+                  <div className="col-span-2 grid gap-2">
 
                     {/* Empresa */}
                     <div className="flex flex-col gap-1.5 col-span-2">
@@ -282,85 +295,50 @@ export function CategoriaModal({
 
                     {/* Prioridad (solo lectura en modo vista) */}
                     {isEditing && mode === 'view' && (
-                      <div className="flex flex-col gap-1.5 col-span-2">
-                        <Label>Prioridad</Label>
-                        <div className="flex items-center gap-2">
-                          {categoria!.prioridad > 0 ? (
-                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 text-sm font-bold">
-                              {categoria!.prioridad}
-                            </span>
-                          ) : (
-                            <span className="text-sm text-muted-foreground italic">
-                              Sin prioridad asignada
-                            </span>
-                          )}
-                          <span className="text-xs text-muted-foreground">
-                            Usa el botón "Prioridad" para reordenar
-                          </span>
-                        </div>
-                      </div>
+                      <ViewField label="Prioridad" value={categoria!.prioridad > 0 ? String(categoria!.prioridad) : 'Sin prioridad'} />
                     )}
 
                   </div>
+                  </SegmentCard>
+                  </SingleColumn>
                 </TabsContent>
               </div>
             </Tabs>
 
             {/* Footer fijo — botones de acción */}
             <div className={UI_THEME.modal.footer}>
-              <div>
-                {/* Botón Prioridad solo en modo vista de registro existente */}
-                {mode === 'view' && isEditing && empresa && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className={UI_THEME.modal.buttons.accionEspecial}
-                    onClick={() => setPrioridadOpen(true)}
-                  >
-                    <ArrowUpDown className="mr-2 h-4 w-4" />
-                    Prioridad
+              {mode === 'view' ? (
+                <div className={UI_THEME.modal.buttons.viewRow}>
+                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.categorias.hover} onClick={() => setHistorialOpen(true)}>
+                    <History className={UI_THEME.modal.buttons.icon} /> Historial
                   </Button>
-                )}
-              </div>
-              <div className={UI_THEME.modal.buttons.rightGroup}>
-                {mode === 'view' && (
-                  <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className={UI_THEME.modal.buttons.historial}
-                      onClick={() => setHistorialOpen(true)}
-                    >
-                      <History className="mr-2 h-4 w-4" />
-                      Historial
+                  {isEditing && empresa && (
+                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.categorias.hover} onClick={() => setPrioridadOpen(true)}>
+                      <ArrowUpDown className={UI_THEME.modal.buttons.icon} /> Prioridad
                     </Button>
-                    <Button type="button" onClick={() => setMode('edit')}>
-                      <Pencil className="w-4 h-4 mr-2" />
-                      Editar
+                  )}
+                  {puedeEditar && (
+                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.categorias.hover} onMouseDown={onEditMouseDown} onClick={onEditClick}>
+                      <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
                     </Button>
-                  </>
-                )}
-                {mode === 'edit' && (
-                  <>
-                    {isEditing && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => { resetForm(categoria); setMode('view') }}
-                        disabled={loading}
-                      >
-                        Cancelar
-                      </Button>
-                    )}
-                    <Button type="submit" disabled={loading}>
-                      {loading
-                        ? 'Guardando...'
-                        : <><Save className="w-4 h-4 mr-2" />Guardar</>
-                      }
-                    </Button>
-                  </>
-                )}
-              </div>
+                  )}
+                </div>
+              ) : isEditing ? (
+                <div className={UI_THEME.modal.buttons.editRow}>
+                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.categorias.hover} onClick={() => { resetForm(categoria); setMode('view') }} disabled={loading}>
+                    <X className={UI_THEME.modal.buttons.icon} /> Cancelar
+                  </Button>
+                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.categorias.hover} disabled={loading}>
+                    <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
+                  </Button>
+                </div>
+              ) : (
+                <div className={UI_THEME.modal.buttons.editRow}>
+                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.categorias.hover} disabled={loading}>
+                    <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
+                  </Button>
+                </div>
+              )}
             </div>
           </form>
         </DialogContent>

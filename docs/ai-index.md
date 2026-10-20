@@ -14,7 +14,10 @@ Idioma de la app: no cambiar. Los chats con el usuario van en español.
 | Convenciones de producto/UI | `docs/conventions.md` |
 | Estándar de tablas CRUD | `docs/crud-standard.md` |
 | Dominio de negocio (costeo) | `docs/flujo-costeo.md` |
-| Tokens visuales | `src/lib/theme.ts` |
+| Tokens visuales | `src/lib/theme.ts` y `src/lib/ui-accent.ts` |
+| Aspecto (badges, dos columnas, tabla) | `.cursor/rules/ui-conventions.mdc` |
+| Permisos por pantalla | `.cursor/rules/permisos.mdc` y `src/lib/permisos.ts` |
+| Skill de pantalla CRUD | `.cursor/skills/crud-screen/SKILL.md` |
 | Schema de BD | `prisma/schema.prisma` |
 | Gold CRUD lista | `src/app/(dashboard)/dashboard/configuracion/categorias/categorias-client.tsx` |
 | Gold CRUD modal | `src/components/categorias/categoria-modal.tsx` |
@@ -43,7 +46,7 @@ Antes de un CRUD nuevo: leer gold + copiar template. No escribir desde cero. No 
 | Tarea | Leer |
 |---|---|
 | Lista CRUD (`*-client.tsx`, `page.tsx` de configuración) | Gold `categorias-client.tsx` + template client + `docs/crud-standard.md` |
-| Modal (`*-modal.tsx`) | Gold `categoria-modal.tsx` + template modal + checklist de `AGENTS.md` |
+| Modal (`*-modal.tsx`) | Gold `categoria-modal.tsx` y `usuario-modal.tsx` + template modal + `.cursor/rules/ui-conventions.mdc` |
 | Server Action / service / repo | `src/app/actions/categorias.ts` + `src/lib/services/categoria.service.ts` + `src/lib/repositories/categoria.repository.ts` |
 | ERP | `src/lib/erp/index.ts` (solo `import { erp } from '@/lib/erp'`) |
 | Wizard / builder de costeo | `docs/flujo-costeo.md` + `src/app/(dashboard)/costeos/nuevo/_wizard.tsx` + `src/lib/context/CosteoContext.tsx` |

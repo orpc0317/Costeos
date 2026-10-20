@@ -1,43 +1,33 @@
 /**
- * PageHeader — Encabezado estándar para páginas CRUD.
- *
- * Centraliza el markup del encabezado (ícono + título + subtítulo) que
- * se repite en todos los `*-client.tsx`. Para cambiar el estilo visual
- * de todos los encabezados, editar UI_THEME.page en `src/lib/theme.ts`.
- *
- * Uso:
- *   <PageHeader icon={Tags} title="Categorias" subtitle="5 categorías registradas" />
+ * Encabezado de pantalla: badge de color del módulo, título en color de texto
+ * y acciones (Nuevo) solo aquí.
  */
 
 import React from 'react'
 import { UI_THEME } from '@/lib/theme'
+import type { ModuleAccent } from '@/lib/ui-accent'
 
 interface PageHeaderProps {
-  /** Componente de ícono de lucide-react (ej. Tags, Building2, Users) */
   icon: React.ElementType
-  /** Título principal de la página */
   title: string
-  /** Subtítulo / conteo de registros */
   subtitle?: string
-  /** Acciones adicionales a la derecha (botón "Nuevo", etc.) */
   actions?: React.ReactNode
+  accent: ModuleAccent
 }
 
-export function PageHeader({ icon: Icon, title, subtitle, actions }: PageHeaderProps) {
+export function PageHeader({ icon: Icon, title, subtitle, actions, accent }: PageHeaderProps) {
   return (
-    <div className="flex items-center justify-between">
-      <div>
+    <div className="flex items-center justify-between gap-4">
+      <div className="min-w-0">
         <div className={UI_THEME.page.headingRow}>
-          <Icon className={UI_THEME.page.headingIcon} />
+          <div className={`${UI_THEME.page.headingBadge} ${accent.badge}`}>
+            <Icon className={`${UI_THEME.page.headingIcon} ${accent.icon}`} />
+          </div>
           <h1 className={UI_THEME.page.headingText}>{title}</h1>
         </div>
-        {subtitle && (
-          <p className={UI_THEME.page.subtitle}>{subtitle}</p>
-        )}
+        {subtitle ? <p className={UI_THEME.page.subtitle}>{subtitle}</p> : null}
       </div>
-      {actions && (
-        <div>{actions}</div>
-      )}
+      {actions ? <div className="shrink-0">{actions}</div> : null}
     </div>
   )
 }

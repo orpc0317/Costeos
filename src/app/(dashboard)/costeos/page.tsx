@@ -3,6 +3,8 @@ import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { getEmpresasForUser } from '@/app/actions/erp'
 import { CosteosClient, type CosteoListRow } from './costeos-client'
+import { getPermisosDetalle } from '@/app/actions/permisos'
+import { PERMISOS } from '@/lib/permisos'
 
 export const metadata = {
   title: 'Costeos | Costeos',
@@ -41,7 +43,8 @@ export default async function CosteosPage() {
     modificadoEn: c.modificadoEn,
   }))
 
+  const permisos = await getPermisosDetalle(PERMISOS.COS_CAT)
   return (
-    <CosteosClient costeos={costeos} />
+    <CosteosClient costeos={costeos} permisos={permisos} />
   )
 }

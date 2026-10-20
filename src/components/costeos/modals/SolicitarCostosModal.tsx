@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { NumericInput } from "@/components/ui/numeric-input";
-import { DollarSign, Save, X } from "lucide-react";
+import { DollarSign } from "lucide-react";
 import { UI_THEME } from "@/lib/theme";
 
 export interface ItemSolicitarCosto {
@@ -114,15 +114,9 @@ export function SolicitarCostosModal({
         {/* Footer */}
         <div className={UI_THEME.modal.footer}>
           <div />
-          <div className={UI_THEME.modal.buttons.rightGroup}>
-            <Button variant="outline" onClick={onCancel}>
-              <X className="h-4 w-4 mr-1" />
-              Cancelar
-            </Button>
-            <Button onClick={handleConfirm}>
-              <Save className="h-4 w-4 mr-1" />
-              Confirmar y Costear
-            </Button>
+          <div className={UI_THEME.modal.buttons.editRow}>
+            <Button variant="outline" onClick={onCancel}>Cancelar</Button>
+            <Button onClick={handleConfirm}>Confirmar y Costear</Button>
           </div>
         </div>
       </DialogContent>

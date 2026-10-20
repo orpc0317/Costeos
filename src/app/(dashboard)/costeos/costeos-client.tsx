@@ -5,6 +5,8 @@ import { ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/ui/data-table'
 import { PageHeader } from '@/components/ui/page-header'
 import { UI_THEME } from '@/lib/theme'
+import { MODULE_ACCENT } from '@/lib/ui-accent'
+import type { PermisosPantalla } from '@/lib/permisos'
 import { CosteosTableActions } from '@/components/costeos/CosteosTableActions'
 import { Calculator } from 'lucide-react'
 import Link from 'next/link'
@@ -21,7 +23,8 @@ export type CosteoListRow = {
   modificadoEn: Date
 }
 
-export function CosteosClient({ costeos }: { costeos: CosteoListRow[] }) {
+export function CosteosClient({ costeos, permisos }: { costeos: CosteoListRow[]; permisos?: PermisosPantalla }) {
+  const puedeAgregar = permisos?.agregar !== false
   const columns: ColumnDef<CosteoListRow>[] = useMemo(
     () => [
       {
@@ -122,6 +125,12 @@ export function CosteosClient({ costeos }: { costeos: CosteoListRow[] }) {
         icon={Calculator}
         title="Costeos"
         subtitle={costeos.length === 1 ? '1 registro' : `${costeos.length} registros`}
+        accent={MODULE_ACCENT.costeos}
+        actions={puedeAgregar ? (
+          <Link href="/costeos/nuevo" className={buttonVariants({ variant: 'default' })}>
+            Nuevo Costeo
+          </Link>
+        ) : null}
       />
 
       {/* Tabla Estandarizada */}
@@ -130,11 +139,7 @@ export function CosteosClient({ costeos }: { costeos: CosteoListRow[] }) {
         data={costeos}
         tableId="costeos-crud-v2"
         searchPlaceholder="Buscar en todos los campos..."
-        customToolbarActions={
-          <Link href="/costeos/nuevo" className={buttonVariants({ variant: "default" })}>
-            Nuevo Costeo
-          </Link>
-        }
+        rowAccent={MODULE_ACCENT.costeos.row}
       />
     </div>
   )

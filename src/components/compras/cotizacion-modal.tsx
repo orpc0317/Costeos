@@ -11,6 +11,7 @@
  * Ícono canónico: FileText (el mismo del sidebar para Cotizaciones)
  */
 import React, { useState, useEffect } from 'react'
+import { useEditClick } from '@/lib/use-edit-click'
 import {
   Dialog,
   DialogContent,
@@ -29,14 +30,18 @@ import { NumericInput } from '@/components/ui/numeric-input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { HistorialDrawer } from '@/components/shared/historial-drawer'
 import { UI_THEME } from '@/lib/theme'
+import { MODULE_ACCENT } from '@/lib/ui-accent'
+import { ModalHeading } from '@/components/ui/modal-heading'
+import { SegmentCard, TwoColumns } from '@/components/ui/form-layout'
 import {
   FileText,
   ClipboardList,
-  Save,
+  Check,
   Pencil,
   History,
   CheckCircle2,
   ExternalLink,
+  X,
 } from 'lucide-react'
 import type { CotizacionRow } from '@/lib/types/cotizaciones'
 import { labelEstadoSolicitud } from '@/lib/constants/cotizaciones'
@@ -84,6 +89,7 @@ export function CotizacionModal({
 
   const isEditing = !!cotizacion
   const [mode, setMode]             = useState<'view' | 'edit'>('view')
+  const { onEditMouseDown, onEditClick, blockAccidentalSubmit } = useEditClick(setMode)
   const [historialOpen, setHistorialOpen] = useState(false)
   const [activeTab, setActiveTab]   = useState('general')
 
@@ -252,6 +258,7 @@ export function CotizacionModal({
   // ── Guardar ────────────────────────────────────────────────────────────────
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (blockAccidentalSubmit(e)) return
     setGlobalError(null)
 
     // Validaciones
@@ -374,13 +381,8 @@ export function CotizacionModal({
       <Dialog open={open} onOpenChange={handleOpenChange}>
         {trigger && <DialogTrigger render={trigger as React.ReactElement} />}
 
-        <DialogContent className="h-[85vh] sm:h-[640px] flex flex-col p-4 sm:p-6 overflow-hidden sm:max-w-2xl">
-          <DialogHeader className="shrink-0">
-            <DialogTitle className={UI_THEME.modal.title}>
-              <FileText className="h-5 w-5 text-indigo-600" />
-              {titulo}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className={UI_THEME.modal.contentWide}>
+          <ModalHeading accent={MODULE_ACCENT.cotizaciones} icon={FileText} mode={!isEditing ? 'create' : mode === 'edit' ? 'edit' : 'view'} title={titulo} />
 
           <form onSubmit={handleSave} className="flex flex-col flex-1 min-h-0">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
@@ -406,7 +408,8 @@ export function CotizacionModal({
 
                 {/* ─── Tab General ─── */}
                 <TabsContent value="general" className="mt-0">
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                  <TwoColumns
+                    left={<SegmentCard label="Pedido"><div className="contents">
 
                     {/* Empresa */}
                     <div className="flex flex-col gap-1.5 col-span-2">
@@ -494,6 +497,8 @@ export function CotizacionModal({
                       <FieldError message={fieldErrors.proveedorId} />
                     </div>
 
+                    </div></SegmentCard>}
+                    right={<SegmentCard label="Detalle"><div className="contents">
                     {/* Vigente (solo en vista) */}
                     {isEditing && (
                       <div className="flex flex-col gap-1.5 col-span-2">
@@ -693,7 +698,8 @@ export function CotizacionModal({
                       </div>
                     )}
 
-                  </div>
+                    </div></SegmentCard>}
+                  />
                 </TabsContent>
 
                 {/* ─── Tab Solicitud ─── */}
@@ -789,76 +795,47 @@ export function CotizacionModal({
 
             {/* ─── Footer fijo ─── */}
             <div className={UI_THEME.modal.footer}>
-              <div>
-                {/* Modo Vista: Marcar Vigente a la izquierda si no es vigente */}
-                {isEditing && mode === 'view' && vigenteLocal !== 1 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className={UI_THEME.modal.buttons.accionEspecial}
-                    onClick={handleMarcarVigente}
-                    disabled={submittingVigente}
-                  >
-                    <CheckCircle2 className="h-4 w-4 mr-1.5" />
-                    {submittingVigente ? 'Procesando...' : 'Marcar Vigente'}
+              {mode === 'view' && isEditing ? (
+                <div className={UI_THEME.modal.buttons.viewRow}>
+                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.cotizaciones.hover} onClick={() => setHistorialOpen(true)}>
+                    <History className={UI_THEME.modal.buttons.icon} /> Historial
                   </Button>
-                )}
-              </div>
-
-              <div className={UI_THEME.modal.buttons.rightGroup}>
-                {/* Modo Vista */}
-                {mode === 'view' && isEditing && (
-                  <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className={UI_THEME.modal.buttons.historial}
-                      onClick={() => setHistorialOpen(true)}
-                    >
-                      <History className="mr-2 h-4 w-4" />
-                      Historial
+                  {vigenteLocal !== 1 && (
+                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.cotizaciones.hover} onClick={handleMarcarVigente} disabled={submittingVigente}>
+                      <CheckCircle2 className={UI_THEME.modal.buttons.icon} />
+                      {submittingVigente ? 'Procesando...' : 'Marcar Vigente'}
                     </Button>
-                    <Button
-                      type="button"
-                      onClick={() => setMode('edit')}
-                    >
-                      <Pencil className="w-4 h-4 mr-2" />
-                      Editar
-                    </Button>
-                  </>
-                )}
-
-                {/* Modo Editar/Crear */}
-                {mode === 'edit' && (
-                  <>
-                    {isEditing && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          // Reset campos al estado original del cotizacion
-                          setReferencia(cotizacion!.referencia ?? '')
-                          setFecha(cotizacion!.fecha ?? new Date().toISOString().split('T')[0])
-                          setCantidad(cotizacion!.cantidad)
-                          setTotal(cotizacion!.total)
-                          setImpuestos(cotizacion!.impuestos === 1)
-                          setComentario(cotizacion!.comentario ?? '')
-                          setGlobalError(null)
-                          setFieldErrors({})
-                          setMode('view')
-                        }}
-                        disabled={loading}
-                      >
-                        Cancelar
-                      </Button>
-                    )}
-                    <Button type="submit" disabled={loading}>
-                      <Save className="w-4 h-4 mr-2" />
-                      {loading ? 'Guardando...' : 'Guardar'}
-                    </Button>
-                  </>
-                )}
-              </div>
+                  )}
+                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.cotizaciones.hover} onMouseDown={onEditMouseDown} onClick={onEditClick}>
+                    <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
+                  </Button>
+                </div>
+              ) : isEditing ? (
+                <div className={UI_THEME.modal.buttons.editRow}>
+                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.cotizaciones.hover} disabled={loading} onClick={() => {
+                    setReferencia(cotizacion!.referencia ?? '')
+                    setFecha(cotizacion!.fecha ?? new Date().toISOString().split('T')[0])
+                    setCantidad(cotizacion!.cantidad)
+                    setTotal(cotizacion!.total)
+                    setImpuestos(cotizacion!.impuestos === 1)
+                    setComentario(cotizacion!.comentario ?? '')
+                    setGlobalError(null)
+                    setFieldErrors({})
+                    setMode('view')
+                  }}>
+                    <X className={UI_THEME.modal.buttons.icon} /> Cancelar
+                  </Button>
+                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.cotizaciones.hover} disabled={loading}>
+                    <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
+                  </Button>
+                </div>
+              ) : (
+                <div className={UI_THEME.modal.buttons.editRow}>
+                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.cotizaciones.hover} disabled={loading}>
+                    <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
+                  </Button>
+                </div>
+              )}
             </div>
           </form>
         </DialogContent>

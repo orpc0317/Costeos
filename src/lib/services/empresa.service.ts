@@ -131,7 +131,7 @@ export const EmpresaService = {
     if (!actualizada) {
       return {
         ok:    false,
-        error: 'El registro fue modificado por otro usuario. Recarga la información e intenta de nuevo.',
+        error: 'Este registro fue modificado por otro usuario. Cierra el formulario, recarga los datos y vuelve a intentarlo.',
       }
     }
 

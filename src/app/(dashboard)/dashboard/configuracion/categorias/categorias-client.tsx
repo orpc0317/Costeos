@@ -8,13 +8,16 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Tags, Plus, Eye } from 'lucide-react'
 import { CategoriaModal } from '@/components/categorias/categoria-modal'
 import { UI_THEME } from '@/lib/theme'
+import { MODULE_ACCENT } from '@/lib/ui-accent'
+import type { PermisosPantalla } from '@/lib/permisos'
 import type { CategoriaRow } from '@/lib/types/categorias'
 import { listarCategorias } from '@/app/actions/categorias'
 import { useDebounce } from '@/hooks/use-debounce'
 
-interface Props { initialData: CategoriaRow[] }
+interface Props { initialData: CategoriaRow[]; permisos?: PermisosPantalla }
 
-export function CategoriasClient({ initialData }: Props) {
+export function CategoriasClient({ initialData, permisos }: Props) {
+  const puedeAgregar = permisos?.agregar !== false
   const router                        = useRouter()
   const [data, setData]               = useState<CategoriaRow[]>(initialData)
   const [searchQuery, setSearchQuery] = useState('')
@@ -69,6 +72,7 @@ export function CategoriasClient({ initialData }: Props) {
       cell: ({ row }) => (
         <CategoriaModal
           categoria={row.original}
+          permisos={permisos}
           onSuccess={() => router.refresh()}
           trigger={<button className={UI_THEME.action.viewButton}><Eye className="h-4 w-4 text-blue-600" /></button>}
         />
@@ -82,7 +86,19 @@ export function CategoriasClient({ initialData }: Props) {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={Tags} title="Categorias" subtitle={subtitulo} />
+      <PageHeader
+        icon={Tags}
+        title="Categorias"
+        subtitle={subtitulo}
+        accent={MODULE_ACCENT.categorias}
+        actions={puedeAgregar ? (
+          <CategoriaModal
+            onSuccess={() => router.refresh()}
+            permisos={permisos}
+            trigger={<Button className="gap-2"><Plus className="w-4 h-4" />Nueva Categoria</Button>}
+          />
+        ) : null}
+      />
       <DataTable
         columns={columns}
         data={data}
@@ -92,12 +108,7 @@ export function CategoriasClient({ initialData }: Props) {
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
         loading={loading}
-        customToolbarActions={
-          <CategoriaModal
-            onSuccess={() => router.refresh()}
-            trigger={<Button className="gap-2"><Plus className="w-4 h-4" />Nueva Categoría</Button>}
-          />
-        }
+        rowAccent={MODULE_ACCENT.categorias.row}
       />
     </div>
   )

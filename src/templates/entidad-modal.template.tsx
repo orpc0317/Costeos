@@ -12,6 +12,8 @@
  *
  * GOLD STANDARD DE REFERENCIA (leer antes de modificar):
  *   src/components/categorias/categoria-modal.tsx
+ * Cabecera: ModalHeading. Grupos: SegmentCard. Dos lados: TwoColumns.
+ * Vista: ViewField. Candado: registroVersion. Permiso: requirePermiso.
  */
 
 import React, { useState, useEffect } from 'react'
@@ -28,12 +30,13 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { FieldError } from '@/components/ui/field-error'
-import { IconoEntidad, Save, Pencil, History } from 'lucide-react' // ← cambiar IconoEntidad
+import { IconoEntidad, Check, Pencil, History, X } from 'lucide-react' // ← cambiar IconoEntidad
 import { HistorialDrawer } from '@/components/shared/historial-drawer'
 import { crearEntidad, actualizarEntidad } from '@/app/actions/entidades' // ← ajustar import
 import { getEmpresasForUser } from '@/app/actions/erp'
 import { normalizeText } from '@/lib/utils/text'
 import { UI_THEME } from '@/lib/theme'
+import { MODULE_ACCENT } from '@/lib/ui-accent'
 import type { EntidadInput, EntidadRow } from '@/lib/types/entidades' // ← ajustar import
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -358,58 +361,31 @@ export function EntidadModal({
 
             {/* ── Footer fijo — NUNCA dentro del área scrolleable ──────── */}
             <div className={UI_THEME.modal.footer}>
-              <div>
-                {/* Izquierda: Eliminar (si aplica) o vacío */}
-                {/* mode === 'view' && isEditing && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className={UI_THEME.modal.buttons.eliminar}
-                    onClick={handleEliminar}
-                  >
-                    Eliminar
+              {mode === 'view' ? (
+                <div className={UI_THEME.modal.buttons.viewRow}>
+                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.categorias.hover} onClick={() => setHistorialOpen(true)}>
+                    <History className={UI_THEME.modal.buttons.icon} /> Historial
                   </Button>
-                ) */}
-              </div>
-              <div className={UI_THEME.modal.buttons.rightGroup}>
-                {mode === 'view' && (
-                  <>
-                    {/* Derecha en Vista: Historial + Editar */}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className={UI_THEME.modal.buttons.historial}
-                      onClick={() => setHistorialOpen(true)}
-                    >
-                      <History className="h-4 w-4 mr-1.5" />
-                      Historial
-                    </Button>
-                    <Button type="button" onClick={() => setMode('edit')}>
-                      <Pencil className="h-4 w-4 mr-1.5" />
-                      Editar
-                    </Button>
-                  </>
-                )}
-                {(mode === 'edit' || !isEditing) && (
-                  <>
-                    {/* Derecha en Edición/Creación: Cancelar + Guardar */}
-                    {isEditing && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => { resetForm(entidad); setMode('view') }}
-                        disabled={loading}
-                      >
-                        Cancelar
-                      </Button>
-                    )}
-                    <Button type="submit" disabled={loading}>
-                      <Save className="h-4 w-4 mr-1.5" />
-                      {loading ? 'Guardando...' : 'Guardar'}
-                    </Button>
-                  </>
-                )}
-              </div>
+                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.categorias.hover} onClick={() => setMode('edit')}>
+                    <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
+                  </Button>
+                </div>
+              ) : isEditing ? (
+                <div className={UI_THEME.modal.buttons.editRow}>
+                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.categorias.hover} onClick={() => { resetForm(entidad); setMode('view') }} disabled={loading}>
+                    <X className={UI_THEME.modal.buttons.icon} /> Cancelar
+                  </Button>
+                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.categorias.hover} disabled={loading}>
+                    <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
+                  </Button>
+                </div>
+              ) : (
+                <div className={UI_THEME.modal.buttons.editRow}>
+                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.categorias.hover} disabled={loading}>
+                    <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
+                  </Button>
+                </div>
+              )}
             </div>
           </form>
         </DialogContent>

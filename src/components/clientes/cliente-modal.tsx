@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { useEditClick } from '@/lib/use-edit-click'
+import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -9,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { FieldError } from '@/components/ui/field-error'
 import { NumericInput } from '@/components/ui/numeric-input'
-import { Building2, Settings2, Save, Pencil, History, Search, ArrowLeft } from 'lucide-react'
+import { Building2, Settings2, Check, Pencil, History, Search, ArrowLeft, UserRound, X } from 'lucide-react'
 import { HistorialDrawer } from '@/components/shared/historial-drawer'
 import { crearCliente, actualizarCliente, buscarClientesSimilares } from '@/app/actions/clientes'
 import type { ClienteSimilarConOrigen } from '@/app/actions/clientes'
@@ -19,6 +21,10 @@ import { isConsumidorFinal, normalizeNIT, validateNIT } from '@/lib/utils/nit'
 import type { ClienteInput, ClienteRow } from '@/lib/types/clientes'
 import type { ErpCliente } from '@/lib/erp'
 import { UI_THEME } from '@/lib/theme'
+import { MODULE_ACCENT } from '@/lib/ui-accent'
+import { ModalHeading } from '@/components/ui/modal-heading'
+import { SegmentCard, TwoColumns } from '@/components/ui/form-layout'
+import { esConflicto } from '@/lib/conflicto'
 
 interface ClienteModalProps {
   cliente?: ClienteRow
@@ -32,6 +38,7 @@ type ClienteModalStep = 'busqueda' | 'formulario'
 type TipoBusqueda = 'nombre' | 'nit'
 
 export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenChange }: ClienteModalProps) {
+  const router = useRouter()
   const [internalOpen, setInternalOpen] = useState(false)
   const isControlled = controlledOpen !== undefined
   const open = isControlled ? controlledOpen : internalOpen
@@ -40,6 +47,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
 
   const isEditing = !!cliente
   const [mode, setMode] = useState<'view' | 'edit'>('view')
+  const { onEditMouseDown, onEditClick, blockAccidentalSubmit } = useEditClick(setMode)
 
   // Wizard (solo para nuevos)
   const [step, setStep] = useState<ClienteModalStep>('busqueda')
@@ -157,6 +165,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
 
   // CRÍTICO: inicializar formulario y mode dentro de handleOpenChange
   const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen && esConflicto(globalError)) router.refresh()
     if (newOpen) {
       resetForm(cliente)
       setMode(isEditing ? 'view' : 'edit')
@@ -309,6 +318,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (blockAccidentalSubmit(e)) return
     setGlobalError(null)
 
     const errors: Record<string, string> = {}
@@ -419,21 +429,14 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
         {trigger && <DialogTrigger render={trigger as React.ReactElement} />}
-        <DialogContent
-          className={
-            !isEditing && step === 'busqueda'
-              ? 'sm:max-w-[560px] flex flex-col p-4 sm:p-6 overflow-hidden'
-              : 'sm:max-w-[640px] h-[90vh] sm:h-[650px] flex flex-col p-4 sm:p-6 overflow-hidden'
-          }
-        >
-          <DialogHeader className="mb-2 shrink-0">
-            <DialogTitle className={UI_THEME.modal.title}>
-              <Building2 className="w-5 h-5 text-slate-500" />
-              {isEditing
-                ? mode === 'view' ? 'Detalle Cliente' : 'Editar Cliente'
-                : 'Nuevo Cliente'}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className={!isEditing && step === 'busqueda' ? UI_THEME.modal.contentStandard : UI_THEME.modal.contentWide}>
+          <ModalHeading
+            accent={MODULE_ACCENT.clientes}
+            icon={UserRound}
+            mode={!isEditing ? 'create' : mode === 'view' ? 'view' : 'edit'}
+            title={isEditing ? (mode === 'view' ? 'Detalle Cliente' : 'Editar Cliente') : 'Nuevo Cliente'}
+            subtitle={isEditing ? empresaNombre : null}
+          />
 
           {globalError && (
             <div className={`${UI_THEME.forms.globalError} mb-4`}>
@@ -647,7 +650,8 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
 
                 <div className={UI_THEME.modal.scrollArea}>
                   <TabsContent value="general" className="mt-0">
-                    <div className="grid grid-cols-4 gap-x-6 gap-y-4">
+                    <TwoColumns
+                      left={<SegmentCard label="Identificacion"><div className="contents">
 
                       <div className="flex flex-col gap-1.5 col-span-4">
                         <Label className={UI_THEME.forms.labelBase}>Empresa</Label>
@@ -683,7 +687,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                       {/* Razón Social */}
                       <div className="flex flex-col gap-1.5 col-span-4">
                         <Label htmlFor="razonSocial">
-                          Razón Social <span className="text-red-500">*</span>
+                          Razon Social <span className="text-red-500">*</span>
                         </Label>
                         <Input
                           id="razonSocial"
@@ -700,20 +704,14 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                         <FieldError message={fieldErrors.razonSocial} />
                       </div>
 
-                      {/* ─── Dirección Fiscal ─────────────────────── */}
-                      <div className="col-span-4">
-                        <div className="flex items-center mb-3">
-                          <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider border-l-2 border-blue-500 pl-2 leading-none">
-                            Direccion Fiscal
-                          </h3>
-                          <div className="flex-1 border-t border-blue-200 mx-3 mt-0.5" />
-                        </div>
-                        <div className="grid grid-cols-4 gap-x-6 gap-y-4">
+                      </div></SegmentCard>}
+                      right={<SegmentCard label="Direccion Fiscal"><div className="contents">
+                        <div className="col-span-2 grid grid-cols-2 gap-2">
 
                           {/* Dirección (texto libre) */}
                           <div className="flex flex-col gap-1.5 col-span-4">
                             <Label htmlFor="direccionFiscal">
-                              Dirección <span className="text-red-500">*</span>
+                              Direccion <span className="text-red-500">*</span>
                             </Label>
                             <Input
                               id="direccionFiscal"
@@ -733,7 +731,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
 
                           {/* País (fijo) */}
                           <div className="flex flex-col gap-1.5 col-span-2">
-                            <Label>País</Label>
+                            <Label>Pais</Label>
                             <SearchableSelect
                               options={[{ value: '1', label: 'Guatemala' }]}
                               value="1"
@@ -789,7 +787,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
 
                       {/* Código ERP (solo lectura, se puebla desde ERP) */}
                       <div className="flex flex-col gap-1.5 col-span-2">
-                        <Label htmlFor="codigoErp">Código ERP</Label>
+                        <Label htmlFor="codigoErp">Codigo ERP</Label>
                         <Input
                           id="codigoErp"
                           value={codigoErp && codigoErp !== 'NULL' ? codigoErp : ''}
@@ -802,7 +800,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
 
                       {/* Días Crédito */}
                       <div className="flex flex-col gap-1.5 col-span-2">
-                        <Label htmlFor="diasCredito">Días Crédito</Label>
+                        <Label htmlFor="diasCredito">Dias de Credito</Label>
                         <NumericInput
                           id="diasCredito"
                           value={diasCredito}
@@ -812,62 +810,42 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                         />
                       </div>
 
-                      </div>
+                    </SegmentCard>}
+                    />
                   </TabsContent>
                 </div>
               </Tabs>
 
               {/* FOOTER FIJO */}
               <div className={UI_THEME.modal.footer}>
-                <div>
-                  {!isEditing && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => { clearFormFields(); setStep('busqueda') }}
-                      disabled={loading}
-                    >
-                      <ArrowLeft className="w-4 h-4 mr-2" /> Atrás
+                {mode === 'view' ? (
+                  <div className={UI_THEME.modal.buttons.viewRow}>
+                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.clientes.hover} onClick={() => setHistorialOpen(true)}>
+                      <History className={UI_THEME.modal.buttons.icon} /> Historial
                     </Button>
-                  )}
-                </div>
-                <div className={UI_THEME.modal.buttons.rightGroup}>
-                  {mode === 'view' && (
-                    <>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className={UI_THEME.modal.buttons.historial}
-                        onClick={() => setHistorialOpen(true)}
-                      >
-                        <History className="mr-2 h-4 w-4" /> Historial
-                      </Button>
-                      <Button type="button" onClick={() => setMode('edit')}>
-                        <Pencil className="w-4 h-4 mr-2" /> Editar
-                      </Button>
-                    </>
-                  )}
-                  {(mode === 'edit' || !isEditing) && (
-                    <>
-                      {isEditing && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            resetForm(cliente)
-                            setMode('view')
-                          }}
-                          disabled={loading}
-                        >
-                          Cancelar
-                        </Button>
-                      )}
-                      <Button type="submit" disabled={loading}>
-                        {loading ? 'Guardando...' : <><Save className="w-4 h-4 mr-2" />Guardar</>}
-                      </Button>
-                    </>
-                  )}
-                </div>
+                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.clientes.hover} onMouseDown={onEditMouseDown} onClick={onEditClick}>
+                      <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
+                    </Button>
+                  </div>
+                ) : isEditing ? (
+                  <div className={UI_THEME.modal.buttons.editRow}>
+                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.clientes.hover} onClick={() => { resetForm(cliente); setMode('view') }} disabled={loading}>
+                      <X className={UI_THEME.modal.buttons.icon} /> Cancelar
+                    </Button>
+                    <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.clientes.hover} disabled={loading}>
+                      <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex w-full items-center justify-between">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => { clearFormFields(); setStep('busqueda') }} disabled={loading}>
+                      <ArrowLeft className={UI_THEME.modal.buttons.icon} /> Atras
+                    </Button>
+                    <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.clientes.hover} disabled={loading}>
+                      <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
+                    </Button>
+                  </div>
+                )}
               </div>
             </form>
           )}

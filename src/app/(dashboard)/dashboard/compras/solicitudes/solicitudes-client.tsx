@@ -12,12 +12,15 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { ClipboardList, Eye, Plus } from 'lucide-react'
 import { UI_THEME } from '@/lib/theme'
+import { MODULE_ACCENT } from '@/lib/ui-accent'
+import type { PermisosPantalla } from '@/lib/permisos'
 import type { SolicitudRow } from '@/lib/types/cotizaciones'
 import { labelEstadoSolicitud } from '@/lib/constants/cotizaciones'
 import { SolicitudModal } from '@/components/compras/solicitud-modal'
 import { formatCurrency } from '@/lib/utils/format'
 
-export function SolicitudesClient({ solicitudes }: { solicitudes: SolicitudRow[] }) {
+export function SolicitudesClient({ solicitudes, permisos }: { solicitudes: SolicitudRow[]; permisos?: PermisosPantalla }) {
+  const puedeAgregar = permisos?.agregar !== false
   const router = useRouter()
 
   const columns: ColumnDef<SolicitudRow>[] = useMemo(() => [
@@ -138,23 +141,20 @@ export function SolicitudesClient({ solicitudes }: { solicitudes: SolicitudRow[]
         icon={ClipboardList}
         title="Solicitudes"
         subtitle={solicitudes.length === 1 ? '1 solicitud registrada' : `${solicitudes.length} solicitudes registradas`}
+        accent={MODULE_ACCENT.solicitudes}
+        actions={puedeAgregar ? (
+          <SolicitudModal
+            onSuccess={() => router.refresh()}
+            trigger={<Button className="gap-2"><Plus className="w-4 h-4" />Nueva Solicitud</Button>}
+          />
+        ) : null}
       />
       <DataTable
         columns={columns}
         data={solicitudes}
         tableId="solicitudes-compras-v3"
-        searchPlaceholder="Buscar por ítem, empresa, cliente..."
-        customToolbarActions={
-          <SolicitudModal
-            onSuccess={() => router.refresh()}
-            trigger={
-              <Button className="gap-2">
-                <Plus className="w-4 h-4" />
-                Nueva Solicitud
-              </Button>
-            }
-          />
-        }
+        searchPlaceholder="Buscar por item, empresa, cliente..."
+        rowAccent={MODULE_ACCENT.solicitudes.row}
       />
     </div>
   )

@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Building2, Pencil, History, Save, Loader2, Plug } from 'lucide-react'
+import { useEditClick } from '@/lib/use-edit-click'
+import { Building2, Pencil, History, Check, Loader2, Plug, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -17,6 +18,10 @@ import { CATALOGOS_ERP, type CatalogoSyncRow } from '@/lib/types/empresas'
 import type { EmpresaRow } from '@/lib/types/empresas'
 import type { SimilarItem } from '@/lib/utils/similarity'
 import { UI_THEME } from '@/lib/theme'
+import { MODULE_ACCENT } from '@/lib/ui-accent'
+import { ModalHeading } from '@/components/ui/modal-heading'
+import { SegmentCard, TwoColumns } from '@/components/ui/form-layout'
+import { esConflicto } from '@/lib/conflicto'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -48,6 +53,7 @@ export function EmpresaModal({
 
   // ── Estado del modo ─────────────────────────────────────────────────────────
   const [mode, setMode] = useState<'view' | 'edit'>('view')
+  const { onEditMouseDown, onEditClick, blockAccidentalSubmit } = useEditClick(setMode)
 
   // ── Estado del formulario ───────────────────────────────────────────────────
   const [nombre, setNombre]           = useState('')
@@ -85,6 +91,7 @@ export function EmpresaModal({
   // CRÍTICO: Inicializar estado AQUÍ, cuando newOpen === true.
   // NUNCA en useEffect con dependencias en `empresa` o `mode`.
   function handleOpenChange(newOpen: boolean) {
+    if (!newOpen && esConflicto(globalError)) onSuccess?.()
     if (newOpen) {
       resetForm(empresa)
       setMode(isExisting ? 'view' : 'edit')
@@ -188,6 +195,7 @@ export function EmpresaModal({
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
+    if (blockAccidentalSubmit(e)) return
     setGlobalError(null)
     setSimilares([])
 
@@ -272,13 +280,8 @@ export function EmpresaModal({
       <Dialog open={open} onOpenChange={handleOpenChange}>
         {trigger && <DialogTrigger render={trigger as React.ReactElement} />}
 
-        <DialogContent className="sm:max-w-[500px] h-[85vh] sm:h-[600px] flex flex-col p-4 sm:p-6 overflow-hidden">
-          <DialogHeader className="mb-2 shrink-0">
-            <DialogTitle className={UI_THEME.modal.title}>
-              <Building2 className="w-5 h-5 text-slate-500" />
-              {title}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className={UI_THEME.modal.contentWide}>
+          <ModalHeading accent={MODULE_ACCENT.empresas} icon={Building2} mode={!isExisting ? 'create' : mode === 'view' ? 'view' : 'edit'} title={title} />
 
           {/* Error global */}
           {globalError && (
@@ -306,7 +309,8 @@ export function EmpresaModal({
 
                 {/* ── Pestaña General ──────────────────────────────────────────── */}
                 <TabsContent value="general" className="mt-0">
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                  <TwoColumns
+                    left={<SegmentCard label="Identificacion"><div className="contents">
 
                     {/* Nombre */}
                     <div className="flex flex-col gap-1.5 col-span-2">
@@ -364,7 +368,7 @@ export function EmpresaModal({
 
                     {/* Razón Social */}
                     <div className="flex flex-col gap-1.5 col-span-2">
-                      <Label htmlFor="empresa-razon-social">Razón Social <span className="text-red-500">*</span></Label>
+                      <Label htmlFor="empresa-razon-social">Razon Social <span className="text-red-500">*</span></Label>
                       <Input
                         id="empresa-razon-social"
                         value={razonSocial}
@@ -377,6 +381,8 @@ export function EmpresaModal({
                       <FieldError message={fieldErrors.razonSocial} />
                     </div>
 
+                    </div></SegmentCard>}
+                    right={<SegmentCard label="Fiscal"><div className="contents">
                     {/* NIT */}
                     <div className="flex flex-col gap-1.5 col-span-1">
                       <Label htmlFor="empresa-nit">NIT <span className="text-red-500">*</span></Label>
@@ -400,7 +406,6 @@ export function EmpresaModal({
                           <Input
                             id="empresa-codigo-erp"
                             value={codigoErp}
-                            disabled={true}
                             disabled={true}
                             data-view-mode={true}
                             className={`${UI_THEME.forms.inputBase} font-mono`}
@@ -442,7 +447,8 @@ export function EmpresaModal({
                       )}
                     </div>
 
-                  </div>
+                    </div></SegmentCard>}
+                  />
                 </TabsContent>
 
                 {/* ── Pestaña ERP ──────────────────────────────────────────────── */}
@@ -486,48 +492,31 @@ export function EmpresaModal({
 
             {/* ── Footer estándar ── */}
             <div className={UI_THEME.modal.footer}>
-              <div />
-              <div className={UI_THEME.modal.buttons.rightGroup}>
-                {mode === 'view' && (
-                  <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className={UI_THEME.modal.buttons.historial}
-                      onClick={() => setHistorialOpen(true)}
-                    >
-                      <History className="mr-2 h-4 w-4" /> Historial
-                    </Button>
-                    <Button type="button" onClick={() => setMode('edit')}>
-                      <Pencil className="w-4 h-4 mr-2" /> Editar
-                    </Button>
-                  </>
-                )}
-                {mode === 'edit' && (
-                  <>
-                    {isExisting && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          resetForm(empresa)
-                          setMode('view')
-                        }}
-                        disabled={loading}
-                      >
-                        Cancelar
-                      </Button>
-                    )}
-                    <Button type="submit" disabled={loading || buscandoErp}>
-                      {loading
-                        ? 'Guardando...'
-                        : buscandoErp
-                        ? 'Verificando...'
-                        : <><Save className="w-4 h-4 mr-2" />Guardar</>}
-                    </Button>
-                  </>
-                )}
-              </div>
+              {mode === 'view' ? (
+                <div className={UI_THEME.modal.buttons.viewRow}>
+                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.empresas.hover} onClick={() => setHistorialOpen(true)}>
+                    <History className={UI_THEME.modal.buttons.icon} /> Historial
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.empresas.hover} onMouseDown={onEditMouseDown} onClick={onEditClick}>
+                    <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
+                  </Button>
+                </div>
+              ) : isExisting ? (
+                <div className={UI_THEME.modal.buttons.editRow}>
+                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.empresas.hover} onClick={() => { resetForm(empresa); setMode('view') }} disabled={loading}>
+                    <X className={UI_THEME.modal.buttons.icon} /> Cancelar
+                  </Button>
+                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.empresas.hover} disabled={loading || buscandoErp}>
+                    <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : buscandoErp ? 'Verificando...' : 'Guardar'}
+                  </Button>
+                </div>
+              ) : (
+                <div className={UI_THEME.modal.buttons.editRow}>
+                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.empresas.hover} disabled={loading || buscandoErp}>
+                    <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : buscandoErp ? 'Verificando...' : 'Guardar'}
+                  </Button>
+                </div>
+              )}
             </div>
           </form>
         </DialogContent>

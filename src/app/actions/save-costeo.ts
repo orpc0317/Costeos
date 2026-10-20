@@ -1,6 +1,7 @@
 'use server'
 
-import { requireAuth } from '@/lib/auth-helpers'
+import { requirePermiso, puedeConsultar } from '@/app/actions/permisos'
+import { PERMISOS } from '@/lib/permisos'
 import { prisma } from '@/lib/prisma'
 import { ProyectoCosteo, NodoCosteo, RecursoCosteo } from '@/lib/types/costeos'
 
@@ -9,7 +10,7 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
     nodos: Record<string, string>;
     recursos: Record<string, string>;
   } = { nodos: {}, recursos: {} };
-  const guard = await requireAuth()
+  const guard = await requirePermiso(PERMISOS.COS_NEW, 'modificar')
   if (!guard.ok) throw new Error(guard.error)
 
   const costeoId = parseInt(proyecto.id, 10)

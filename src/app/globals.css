@@ -60,6 +60,17 @@
 
 /* ─── Modo Claro ─────────────────────────────────────────────────────────────── */
 :root {
+  /* Escala visual (misma densidad que Cartera) */
+  --ui-viewfield-label:  11px;
+  --ui-viewfield-value:  12px;
+  --ui-section-divider:  11px;
+  --ui-form-label:       11px;
+  --ui-input:            12px;
+  --ui-field-height:     calc(var(--ui-input) * 2.18);
+  --ui-table-font:       13px;
+  --ui-table-head-h:     32px;
+  --ui-table-cell-py:    6px;
+
   --background:            oklch(0.978 0.003 247);     /* slate-50 levemente azulado */
   --foreground:            oklch(0.175 0.018 264);     /* slate-900 */
   --card:                  oklch(1 0 0);
@@ -162,6 +173,21 @@
   }
   body {
     @apply bg-background text-foreground h-full antialiased;
+  }
+
+  [data-slot="input"],
+  [data-slot="textarea"] {
+    font-size: var(--ui-input);
+  }
+  [data-slot="table"] {
+    font-size: var(--ui-table-font);
+  }
+  [data-slot="table-head"] {
+    height: var(--ui-table-head-h);
+  }
+  [data-slot="table-cell"] {
+    padding-top: var(--ui-table-cell-py);
+    padding-bottom: var(--ui-table-cell-py);
   }
 
   /* Tipografía de encabezados */

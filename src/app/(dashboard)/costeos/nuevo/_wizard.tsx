@@ -11,6 +11,7 @@ import { NumericInput } from '@/components/ui/numeric-input'
 import { FieldError } from '@/components/ui/field-error'
 import { PageHeader } from '@/components/ui/page-header'
 import { UI_THEME } from '@/lib/theme'
+import { MODULE_ACCENT } from '@/lib/ui-accent'
 import { createCosteo } from '@/app/actions/costeos'
 import { Calculator, Search, Plus, Database } from 'lucide-react'
 import {
@@ -207,6 +208,7 @@ export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
         icon={Calculator}
         title="Nuevo Costeo"
         subtitle="Completa los pasos para crear un costeo."
+        accent={MODULE_ACCENT.costeos}
       />
 
       {/* Error global de carga (antes de mostrar form) */}

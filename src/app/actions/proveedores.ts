@@ -1,7 +1,8 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireManagerOrAdmin } from '@/lib/auth-helpers'
+import { requirePermiso, puedeConsultar } from '@/app/actions/permisos'
+import { PERMISOS } from '@/lib/permisos'
 import { proveedorSchema, type ProveedorInput, type ProveedorRow } from '@/lib/types/proveedores'
 import { ProveedorService } from '@/lib/services/proveedor.service'
 import { ProveedorRepository } from '@/lib/repositories/proveedor.repository'
@@ -14,13 +15,12 @@ import type { ErpProveedor } from '@/lib/erp'
 const PATH = '/dashboard/configuracion/proveedores'
 
 export async function listarProveedores(params?: { search?: string; limit?: number }): Promise<ProveedorRow[]> {
-  const guard = await requireManagerOrAdmin()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.PRV_CAT))) return []
   return ProveedorService.listar(params)
 }
 
 export async function crearProveedor(data: ProveedorInput): Promise<ActionResult<ProveedorRow>> {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.PRV_CAT, 'agregar')
   if (!guard.ok) return guard
 
   const parsed = proveedorSchema.safeParse(data)
@@ -37,7 +37,7 @@ export async function actualizarProveedor(
   id: number,
   data: ProveedorInput & { registroVersion: number },
 ): Promise<ActionResult<ProveedorRow>> {
-  const guard = await requireManagerOrAdmin()
+  const guard = await requirePermiso(PERMISOS.PRV_CAT, 'modificar')
   if (!guard.ok) return guard
 
   const parsed = proveedorSchema.safeParse(data)
@@ -81,8 +81,7 @@ export async function buscarProveedoresSimilares(
   empresaId: number,
   excluirId?: number,
 ): Promise<ProveedorSimilarConOrigen[]> {
-  const guard = await requireManagerOrAdmin()
-  if (!guard.ok) return []
+  if (!(await puedeConsultar(PERMISOS.PRV_CAT))) return []
 
   const todos = await ProveedorRepository.findAll()
   const resultado: ProveedorSimilarConOrigen[] = []
