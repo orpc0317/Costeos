@@ -8,7 +8,8 @@ test.describe('App autenticada', () => {
 
   test('entra al dashboard', async ({ page }) => {
     await login(page)
-    await expect(page.getByRole('link', { name: 'COSTEOS' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'COSTEOS', exact: true })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Costeos' })).toBeVisible()
   })
 
   test('Categorías: lista gold + modal Nuevo sin guardar', async ({ page }) => {

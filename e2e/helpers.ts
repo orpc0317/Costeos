@@ -18,5 +18,5 @@ export async function login(page: Page) {
   await page.getByRole('textbox', { name: 'Contraseña' }).fill(creds.password)
   await page.getByRole('button', { name: 'Ingresar' }).click()
   await expect(page).toHaveURL(/\/dashboard/)
-  await expect(page.getByRole('heading', { name: /Buen día/ })).toBeVisible()
+  await expect(page.getByText(/Buen día/)).toBeVisible()
 }
