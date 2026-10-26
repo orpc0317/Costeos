@@ -17,7 +17,7 @@ El aspecto es el de Cartera, sobre el stack de Costeos.
 - Se conservan Prisma/MySQL, NextAuth, ERP, `SearchableSelect`, `NumericInput`, `FieldError`, `HistorialDrawer`, anti-similares y un modal por fila via `trigger`.
 - El Costeador no se convierte en modal de catalogo. Solo cromado (tipografia, campos, badges).
 
-Reglas cortas: `.cursor/rules/ui-conventions.mdc`, `crud-modal.mdc`, `crud-lista.mdc`, `permisos.mdc`, `server-actions.mdc`. Skill: `.cursor/skills/crud-screen/SKILL.md`.
+Mapa: `docs/ai-index.md`. Reglas cortas: `.cursor/rules/ui-conventions.mdc`, `crud-modal.mdc`, `crud-lista.mdc`, `permisos.mdc`, `server-actions.mdc`. Skill: `.cursor/skills/crud-screen/SKILL.md`.
 
 # CONVENCIONES DEL PROYECTO (Costeos)
 

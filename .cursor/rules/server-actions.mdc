@@ -9,10 +9,12 @@ alwaysApply: false
 Patron: `src/app/actions/categorias.ts` → service → repository.
 
 - Escritura: `requirePermiso` primero. Lectura de lista: `puedeConsultar`.
+- No usar `requireAdmin` / `requireManagerOrAdmin` para pantallas del menu.
 - Validar con Zod del tipo en `src/lib/types/`.
 - Repo plano. Nombres de FK en el service, no `include` de Prisma para labels.
 - `findAll` con `search`: si el texto es entero, incluir `id` exacto.
 - ERP: solo `import { erp } from '@/lib/erp'`.
-- Tras mutar: `revalidatePath`.
+- Tras mutar: `revalidatePath` si `ok`. Errores: `ActionResult`, no toast.
 - Concurrencia: `where: { id, registroVersion }` y `registroVersion: { increment: 1 }`. Si `count === 0`, error `Este registro fue modificado por otro usuario. Cierra el formulario, recarga los datos y vuelve a intentarlo.`
 - `modificoFecha` es auditoria. No es el candado.
+- `npx prisma generate` sin `--no-engine`. Tras schema: `db push` → `generate` → reiniciar `npm run dev`.

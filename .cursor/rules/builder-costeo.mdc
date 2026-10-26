@@ -1,0 +1,15 @@
+---
+description: Wizard y builder de costeo — no usar el patrón CRUD de catálogos.
+globs: src/app/(dashboard)/costeos/**/*.tsx,src/components/costeos/**/*.tsx,src/lib/context/CosteoContext.tsx,src/lib/utils/financial-calculations.ts,src/app/actions/costeos.ts,src/app/actions/save-costeo.ts,src/app/actions/costear.ts
+alwaysApply: false
+---
+
+# Wizard y builder
+
+Esto **no** es un CRUD de catálogo. No copiar el template de entidad.
+
+- Alta: `_wizard.tsx` → `createCosteo` (`src/app/actions/costeos.ts`).
+- Editor: `builder/page.tsx` hidrata `CosteoProvider` (`CosteoContext.tsx`). Persistencia: `saveCosteoTree`.
+- Costos: `costear.ts` (`manejoCostos` 1–5 / 99). Totales: `calcularResumenFinanciero`.
+- Dominio: `docs/flujo-costeo.md`. Tipos: `src/lib/types/costeos.ts`.
+- No romper MENSUAL vs UNICO ni el factor de personas en recurso humano.

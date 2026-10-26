@@ -1,0 +1,15 @@
+---
+description: Integración ERP — solo el barrel erp, nunca las clases concretas.
+globs: src/lib/erp/**/*.ts,src/app/actions/erp.ts,src/lib/erp-db.ts
+alwaysApply: false
+---
+
+# ERP
+
+```ts
+import { erp } from '@/lib/erp'
+```
+
+Nunca importar `SqlServerErpRepository` ni `ApiRestErpRepository` desde UI, actions o services. El switch es `ERP_INTEGRATION_MODE` en `src/lib/erp/index.ts`.
+
+Tipos en `src/lib/erp/types.ts`. El ERP es lectura (SQL Server) salvo el push de costeo aprobado (cuando exista). Catálogos locales viven en Prisma.
