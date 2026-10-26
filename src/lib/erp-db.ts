@@ -5,6 +5,10 @@ const globalForSql = globalThis as unknown as {
   erpPool: sql.ConnectionPool | undefined
 }
 
+export function erpDbConfigurado(): boolean {
+  return Boolean(process.env.ERP_DB_USER && process.env.ERP_DB_SERVER && process.env.ERP_DB_NAME)
+}
+
 export async function getErpDbConnection() {
   const user = process.env.ERP_DB_USER
   const password = process.env.ERP_DB_PASSWORD
