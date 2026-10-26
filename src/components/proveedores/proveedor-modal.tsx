@@ -109,6 +109,8 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
         if (!proveedor && sorted.length > 0) {
           setEmpresaId(prev => prev || sorted[0].value)
         }
+      }).catch((err: unknown) => {
+        setGlobalError(err instanceof Error ? err.message : 'No se pudieron cargar las empresas')
       }).finally(() => setCargandoEmpresas(false))
     }
   }, [open]) // SOLO depende de `open`
