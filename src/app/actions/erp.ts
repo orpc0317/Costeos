@@ -3,6 +3,7 @@
 import { requireAuth } from '@/lib/auth-helpers'
 import { getUsuarioErp } from '@/lib/auth-helpers'
 import { erp } from '@/lib/erp'
+import { erpDbConfigurado } from '@/lib/erp-db'
 import { prisma } from '@/lib/prisma'
 import type { ErpCliente, ErpProveedor } from '@/lib/erp'
 
@@ -30,7 +31,21 @@ async function resolveCodigoErpEmpresa(empresaId: number): Promise<string> {
   return empresa.codigoErp
 }
 
+async function empresasLocales() {
+  const empresas = await prisma.empresa.findMany({
+    select: { id: true, nombre: true },
+    orderBy: { nombre: 'asc' },
+  })
+  return empresas.map(e => ({ id: e.id, nombre: e.nombre }))
+}
+
 export async function getEmpresasForUser() {
+  const mode = process.env.ERP_INTEGRATION_MODE ?? 'sqlserver'
+  // Sin SQL Server del ERP, la lista sale de las empresas ya guardadas en Costeos.
+  if (mode !== 'api' && !erpDbConfigurado()) {
+    return empresasLocales()
+  }
+
   const usuarioErp = await getUsuarioErp()
   if (!usuarioErp?.usuarioErp) {
     throw new Error('El usuario no tiene un código ERP asociado')
