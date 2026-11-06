@@ -8,13 +8,20 @@ import { Input } from '@/components/ui/input'
 import { NumericInput } from '@/components/ui/numeric-input'
 import { FieldError } from '@/components/ui/field-error'
 import { listarCostosRefItem, agregarCostoRefItem, eliminarCostoRefItem } from '@/app/actions/items'
+import { SearchableSelect } from '@/components/ui/searchable-select'
 import type { ItemCostoRefRow } from '@/lib/types/items'
+import { fechaHoyNavegador } from './costo-tab'
 
 interface CostoReferenciaTabProps {
   itemId: number
   mode: 'view' | 'edit'
   /** Descripción del ítem de referencia (para mostrar como campo informativo). */
   referenciaDescripcion: string | null | undefined
+  itemsReferencia?: { value: string; label: string }[]
+  referenciaItemId?: string
+  onReferenciaChange?: (id: string) => void
+  referenciaBloqueada?: boolean
+  referenciaError?: string
 }
 
 function formatFecha(fechaStr: string): string {
@@ -30,12 +37,21 @@ function formatFechaHora(date: Date | string): string {
   })
 }
 
-export function CostoReferenciaTab({ itemId, mode, referenciaDescripcion }: CostoReferenciaTabProps) {
+export function CostoReferenciaTab({
+  itemId,
+  mode,
+  referenciaDescripcion,
+  itemsReferencia = [],
+  referenciaItemId = '',
+  onReferenciaChange,
+  referenciaBloqueada = false,
+  referenciaError,
+}: CostoReferenciaTabProps) {
   const [registros, setRegistros] = useState<ItemCostoRefRow[]>([])
   const [cargando, setCargando] = useState(false)
 
   // Formulario de nuevo registro
-  const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10))
+  const [fecha, setFecha] = useState(() => fechaHoyNavegador())
   const [pct, setPct] = useState<number | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [globalError, setGlobalError] = useState<string | null>(null)
@@ -74,7 +90,7 @@ export function CostoReferenciaTab({ itemId, mode, referenciaDescripcion }: Cost
       }
     } else {
       setRegistros(res.data!)
-      setFecha(new Date().toISOString().slice(0, 10))
+      setFecha(fechaHoyNavegador())
       setPct(null)
       setFieldErrors({})
     }
@@ -97,18 +113,32 @@ export function CostoReferenciaTab({ itemId, mode, referenciaDescripcion }: Cost
   return (
     <div className="space-y-4">
 
-      {/* ─── Ítem de Referencia (solo informativo) ─── */}
-      <div className="rounded-md border border-blue-200 bg-blue-50 p-3 flex items-start gap-2">
-        <Link2 className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
-        <div className="min-w-0">
-          <p className="text-xs font-semibold text-blue-700">Ítem Referencia</p>
-          <p className="text-sm text-blue-900 font-medium truncate mt-0.5">
-            {referenciaDescripcion ?? <span className="italic text-blue-400">No asignado</span>}
-          </p>
-          <p className="text-xs text-blue-500 mt-1">
-            El costo de este ítem se calcula como un porcentaje del costo vigente del ítem de referencia.
-          </p>
-        </div>
+      <div className="rounded-md border border-blue-200 bg-blue-50 p-3 space-y-2">
+        <Label htmlFor="item-referencia-tab" className="text-xs font-semibold text-blue-700">
+          Item Referencia {mode === 'edit' && !referenciaBloqueada && <span className="text-red-500">*</span>}
+        </Label>
+        {mode === 'view' || referenciaBloqueada ? (
+          <Input
+            id="item-referencia-tab"
+            value={referenciaDescripcion || itemsReferencia.find(o => o.value === referenciaItemId)?.label || ''}
+            disabled
+            className="h-8"
+          />
+        ) : (
+          <SearchableSelect
+            id="item-referencia-tab"
+            value={referenciaItemId}
+            onChange={onReferenciaChange ?? (() => {})}
+            options={itemsReferencia}
+            placeholder="Seleccionar item..."
+          />
+        )}
+        <FieldError message={referenciaError} />
+        <p className="text-xs text-blue-500">
+          {referenciaBloqueada
+            ? 'El item de referencia no se puede modificar.'
+            : 'El costo se calcula como un porcentaje del costo vigente de este item. Despues de grabar el registro no se puede cambiar.'}
+        </p>
       </div>
 
       {/* ─── Panel de nuevo registro (solo en modo edición) ─── */}

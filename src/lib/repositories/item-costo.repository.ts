@@ -32,7 +32,7 @@ export const ItemCostoRepository = {
   },
 
   async create(
-    data: { itemId: number; costo: number; fecha: Date; usuarioId: number },
+    data: { itemId: number; costo: number; costoDiferenciado: number; fecha: Date; usuarioId: number },
     tx: TxClient = prisma as unknown as TxClient,
   ) {
     return (tx as any).itemCosto.create({ data })

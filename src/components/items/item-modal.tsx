@@ -11,9 +11,9 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { FieldError } from '@/components/ui/field-error'
-import { Package, Settings2, Check, Pencil, History, SlidersHorizontal, Search, ArrowLeft, DollarSign, Layers, Link2, X } from 'lucide-react'
+import { Package, Settings2, Check, Pencil, History, Search, ArrowLeft, DollarSign, Layers, X } from 'lucide-react'
 import { HistorialDrawer } from '@/components/shared/historial-drawer'
-import { crearItem, actualizarItem, buscarItemsSimilaresConERP, buscarItemsLIKEConERP, getItemSyncHabilitado, contarCostosRefItem } from '@/app/actions/items'
+import { crearItem, actualizarItem, buscarItemsSimilaresConERP, buscarItemsLIKEConERP, getItemSyncHabilitado, agregarCostoItem } from '@/app/actions/items'
 import { listarTiposCombosPorEmpresa } from '@/app/actions/tipos-combo'
 import type { SimilarItemConOrigen, ErpSimilarData } from '@/lib/utils/similarity'
 import { getEmpresasForUser } from '@/app/actions/erp'
@@ -23,7 +23,7 @@ import type { CategoriaRow } from '@/lib/types/categorias'
 import { TIPOS_ITEM, TIPOS_PRODUCTO_SERVICIO, MANEJO_COSTOS_OPCIONES, getTipoProductoFijo, labelTipoProducto } from '@/lib/constants/items'
 import { NumericInput } from '@/components/ui/numeric-input'
 import { ComboTab } from './combo-tab'
-import { CostoTab } from './costo-tab'
+import { CostoTab, fechaHoyNavegador, type CostoBorrador } from './costo-tab'
 import { CostoReferenciaTab } from './costo-referencia-tab'
 import { TiposComboTab, type ItemTipoComboAsoc } from './tipos-combo-tab'
 import { UI_THEME } from '@/lib/theme'
@@ -40,13 +40,15 @@ interface ItemModalProps {
   trigger?: React.ReactNode
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  onSaved?: (item: ItemRow) => void
+  onClosed?: () => void
 }
 
 const MIN_BUSQUEDA_CHARS = 3
 
 type ItemModalStep = 'busqueda' | 'formulario'
 
-export function ItemModal({ item, categorias, todosItems = [], trigger, open: controlledOpen, onOpenChange }: ItemModalProps) {
+export function ItemModal({ item, categorias, todosItems = [], trigger, open: controlledOpen, onOpenChange, onSaved, onClosed }: ItemModalProps) {
   const router = useRouter()
   const [internalOpen, setInternalOpen] = useState(false)
   const isControlled = controlledOpen !== undefined
@@ -83,11 +85,16 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
   const [recurrente, setRecurrente] = useState(false)
   const [recurrenteGasto, setRecurrenteGasto] = useState(false)
   const [manejoCostos, setManejoCostos] = useState<string>('99')
+  const [costosBorrador, setCostosBorrador] = useState<CostoBorrador[]>([])
+  const [costosRevision, setCostosRevision] = useState(0)
   const [cotizacionScope, setCotizacionScope] = useState<string>('GENERAL')
   const [porCosteo, setPorCosteo] = useState<boolean>(false)
   const [costoReferenciaItemId, setCostoReferenciaItemId] = useState<string>('')
-  // Contador de registros en costeo_item_costo_ref — controla la inmutabilidad del ítem de referencia
-  const [contadorCostosRef, setContadorCostosRef] = useState<number>(0)
+  const [fechaCostoNuevo, setFechaCostoNuevo] = useState('')
+  const [costoNuevo, setCostoNuevo] = useState<number | null>(null)
+  const [costoDifNuevo, setCostoDifNuevo] = useState<number | null>(null)
+  const [fechaPctNuevo, setFechaPctNuevo] = useState('')
+  const [pctNuevo, setPctNuevo] = useState<number | null>(null)
   const [tipo, setTipo] = useState(false)
   const [perfil, setPerfil] = useState(false)
   const [uniforme, setUniforme] = useState(false)
@@ -127,12 +134,17 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
     setCategoriaId(tc?.categoriaId?.toString() ?? '')
     setTipoComboId(tc?.tipoComboId ? tc.tipoComboId.toString() : '')
     setCostoReferenciaItemId(tc?.costoReferenciaItemId ? tc.costoReferenciaItemId.toString() : '')
-    setContadorCostosRef(0)
+    setFechaCostoNuevo('')
+    setCostoNuevo(null)
+    setCostoDifNuevo(null)
+    setFechaPctNuevo('')
+    setPctNuevo(null)
     setFieldErrors({})
     setGlobalError(null)
     setSimilares([])
     setCotizacionScope(tc?.cotizacionScope ?? 'GENERAL')
     setPorCosteo(tc ? Boolean(tc.porCosteo) : false)
+    setCostosBorrador([])
     setTiposComboAsocs(tc?.tiposCombo?.map(t => ({ tipoComboId: t.tipoComboId, obligatorio: t.obligatorio })) ?? [])
 
     // ── Cargar empresas ───────────────────────────────────────────────────────
@@ -151,13 +163,6 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
         }
       })
       .finally(() => { if (active) setCargandoEmpresas(false) })
-
-    // ── Cargar contador de pcts de referencia (para inmutabilidad) ────────────
-    if (tc?.id && tc.manejoCostos === 3) {
-      contarCostosRefItem(tc.id).then(count => {
-        if (active) setContadorCostosRef(count)
-      })
-    }
 
     return () => { active = false }
   }, [open]) // SOLO depende de `open`
@@ -192,6 +197,17 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
     }
   }, [tipoItem])
 
+  useEffect(() => {
+    if (isEditing) return
+    if (manejoCostos === '2') setFechaCostoNuevo(prev => prev || fechaHoyNavegador())
+    if (manejoCostos === '3') setFechaPctNuevo(prev => prev || fechaHoyNavegador())
+  }, [manejoCostos, isEditing])
+
+  useEffect(() => {
+    if (activeTab === 'costo' && manejoCostos !== '2') setActiveTab('general')
+    if (activeTab === 'costo-ref' && manejoCostos !== '3') setActiveTab('general')
+  }, [manejoCostos, activeTab])
+
 
   // Lista de categorías filtrada por empresa y ordenada alfabéticamente.
   // fallback false: si aún no hay empresa seleccionada no se muestra ninguna categoría.
@@ -217,6 +233,12 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
     setRecurrente(data ? Boolean(data.recurrente) : false)
     setRecurrenteGasto(data ? Boolean(data.recurrenteGasto) : false)
     setManejoCostos(data ? String(data.manejoCostos) : '99')
+    setFechaCostoNuevo('')
+    setCostoNuevo(null)
+    setCostoDifNuevo(null)
+    setFechaPctNuevo('')
+    setPctNuevo(null)
+    setCostosBorrador([])
     setCotizacionScope(data?.cotizacionScope ?? 'GENERAL')
     setPorCosteo(data ? Boolean(data.porCosteo) : false)
     setTipo(data ? Boolean(data.tipo) : false)
@@ -273,7 +295,10 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
 
   // CRÍTICO: inicializar formulario y mode dentro de handleOpenChange, nunca en useEffect
   const handleOpenChange = (newOpen: boolean) => {
-    if (!newOpen && esConflicto(globalError)) router.refresh()
+    if (!newOpen) {
+      if (esConflicto(globalError)) router.refresh()
+      onClosed?.()
+    }
     if (newOpen) {
       setCurrentItem(item)           // sincroniza con el prop al abrir
       resetForm(item)
@@ -349,6 +374,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
     setFieldErrors({})
 
     if (erpData) handleUsarDelERP(erpData)
+    else setManejoCostos('')
     setStep('formulario')
   }
 
@@ -367,12 +393,10 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
     </span>
   ) : null
 
-  /** Campos que viven en la pestaña "parámetros" — todos los demás están en "general". */
-  const PARAM_FIELDS = ['tipoItem', 'tipoProducto', 'venta', 'precioVentaCero', 'recurrente', 'recurrenteGasto', 'manejoCostos', 'costoReferenciaItemId', 'tipo', 'perfil', 'uniforme', 'activo']
-
   /** Navega a la pestaña que contiene el campo con error. */
   const irATabConError = (campo: string) => {
-    if (PARAM_FIELDS.includes(campo)) setActiveTab('parametros')
+    if (campo === 'fechaCosto' || campo === 'costo' || campo === 'costoDiferenciado' || campo === 'costoInicial') setActiveTab('costo')
+    else if (campo === 'costoReferenciaItemId' || campo === 'fechaPct' || campo === 'pct' || campo === 'pctInicial') setActiveTab('costo-ref')
     else setActiveTab('general')
   }
 
@@ -398,6 +422,12 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
       costoReferenciaItemId: manejoCostos === '3' && costoReferenciaItemId
         ? parseInt(costoReferenciaItemId, 10)
         : null,
+      costoInicial: !isEditing && manejoCostos === '2'
+        ? { fecha: fechaCostoNuevo, costo: costoNuevo ?? 0, costoDiferenciado: costoDifNuevo ?? 0 }
+        : undefined,
+      pctInicial: !isEditing && manejoCostos === '3'
+        ? { fecha: fechaPctNuevo, pct: pctNuevo ?? 0 }
+        : undefined,
       tipo,
       perfil,
       uniforme,
@@ -422,14 +452,37 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
       } else {
         setGlobalError(res.error)
       }
-    } else {
-      if (isEditing) {
-        setCurrentItem(res.data)   // actualiza la copia local con los datos del servidor
-        resetForm(res.data)
-        setMode('view')
-      } else {
-        setOpen(false)
+      return
+    }
+
+    if (res.data) onSaved?.(res.data)
+
+    if (isEditing && currentItem && Number(manejoCostos) === 2 && costosBorrador.length > 0) {
+      const ordenados = [...costosBorrador].sort((a, b) => a.fecha.localeCompare(b.fecha))
+      for (let i = 0; i < ordenados.length; i++) {
+        const row = ordenados[i]
+        const grabado = await agregarCostoItem(currentItem.id, {
+          fecha: row.fecha,
+          costo: row.costo,
+          costoDiferenciado: row.costoDiferenciado,
+        })
+        if (!grabado.ok) {
+          setCostosBorrador(ordenados.slice(i))
+          setGlobalError(grabado.error)
+          setCurrentItem(res.data)
+          return
+        }
       }
+    }
+    setCostosBorrador([])
+    setCostosRevision(n => n + 1)
+
+    if (isEditing) {
+      setCurrentItem(res.data)
+      resetForm(res.data)
+      setMode('view')
+    } else {
+      setOpen(false)
     }
   }
 
@@ -450,7 +503,16 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
     if (!unidadMedida.trim()) errors.unidadMedida = 'Requerido'
     if (!categoriaId) errors.categoriaId = 'Requerido'
     if (Number(manejoCostos) === 0) errors.manejoCostos = 'Selecciona cómo se manejarán los costos'
-    if (manejoCostos === '3' && !costoReferenciaItemId) errors.costoReferenciaItemId = 'Selecciona el ítem de referencia'
+    if (manejoCostos === '3' && !costoReferenciaItemId) errors.costoReferenciaItemId = 'Selecciona el item de referencia'
+    if (!isEditing && manejoCostos === '2') {
+      if (!fechaCostoNuevo) errors.fechaCosto = 'Requerido'
+      if (costoNuevo == null || costoNuevo <= 0) errors.costo = 'El costo debe ser mayor que 0'
+      if (costoDifNuevo != null && costoDifNuevo < 0) errors.costoDiferenciado = 'El costo diferenciado no puede ser negativo'
+    }
+    if (!isEditing && manejoCostos === '3') {
+      if (!fechaPctNuevo) errors.fechaPct = 'Requerido'
+      if (pctNuevo == null || pctNuevo <= 0) errors.pct = 'El porcentaje debe ser mayor que 0'
+    }
     if (fieldErrors.codigoErp) errors.codigoErp = fieldErrors.codigoErp
 
     setFieldErrors(errors)
@@ -523,7 +585,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
         {trigger && <DialogTrigger render={trigger as React.ReactElement} />}
-        <DialogContent className={!isEditing && step === 'busqueda' ? UI_THEME.modal.contentStandard : UI_THEME.modal.contentWide}>
+        <DialogContent className={`${!isEditing && step === 'busqueda' ? UI_THEME.modal.contentStandard : UI_THEME.modal.contentWide} bg-muted`}>
           <ModalHeading
             accent={MODULE_ACCENT.items}
             icon={Package}
@@ -541,8 +603,9 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
               PASO 1 — BÚSQUEDA (solo para ítems nuevos)
           ══════════════════════════════════════════════════════ */}
           {!isEditing && step === 'busqueda' && (
-            <div className="flex flex-col gap-4 pt-1">
+            <div className="flex flex-1 min-h-0 flex-col gap-4 pt-1">
 
+              <div className="shrink-0 flex flex-col gap-4">
               {/* Empresa */}
               <div className="flex flex-col gap-1.5">
                 <Label>Empresa <span className="text-red-500">*</span></Label>
@@ -581,27 +644,29 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                 />
                 <FieldError message={fieldErrors.descripcion} />
               </div>
+              </div>
 
               {/* Resultados */}
               {busquedaRealizada && (
-                resultadosBusqueda.length === 0 ? (
+                <div className="flex min-h-0 flex-1 flex-col gap-2">
+                {resultadosBusqueda.length === 0 ? (
                   <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-md p-3">
-                    ✅ No se encontraron registros similares. Puede crear el ítem.
+                    No se encontraron registros similares. Puede crear el item.
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <>
                     {has100EnCosteos && (
-                      <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-                        ⚠️ Se encontró al menos un ítem idéntico en Costeos. Puedes igualmente crear uno nuevo — el sistema lo validará al guardar.
+                      <div className="shrink-0 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                        Se encontro al menos un item identico en Costeos. Puede crear uno nuevo. El sistema lo valida al guardar.
                       </div>
                     )}
-                    <div className="border border-slate-200 rounded-md overflow-hidden">
+                    <div className="min-h-0 flex-1 overflow-y-auto border border-slate-200 rounded-md">
                       <table className="w-full text-xs">
-                        <thead className="bg-slate-50 border-b border-slate-200">
+                        <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
                           <tr>
                             <th className="text-left px-2 py-2 font-semibold text-slate-600 w-10">ID</th>
-                            <th className="text-left px-2 py-2 font-semibold text-slate-600">Descripción</th>
-                            <th className="text-left px-2 py-2 font-semibold text-slate-600 w-24">Cód. ERP</th>
+                            <th className="text-left px-2 py-2 font-semibold text-slate-600">Descripcion</th>
+                            <th className="text-left px-2 py-2 font-semibold text-slate-600 w-24">Cod. ERP</th>
                             <th className="text-center px-2 py-2 font-semibold text-slate-600 w-14">Match</th>
                             <th className="text-center px-2 py-2 font-semibold text-slate-600 w-16">Origen</th>
                             <th className="w-28" />
@@ -654,12 +719,13 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                         </tbody>
                       </table>
                     </div>
-                  </div>
-                )
+                  </>
+                )}
+                </div>
               )}
 
               {/* ── Footer Paso 1 ── */}
-              <div className="flex items-center justify-end gap-2 border-t pt-4 mt-1">
+              <div className="shrink-0 flex items-center justify-end gap-2 border-t pt-4">
                 <Button
                   type="button"
                   variant="outline"
@@ -696,27 +762,21 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                     <Settings2 className="w-4 h-4 mr-2" />
                     General
                   </TabsTrigger>
-                  <TabsTrigger value="parametros">
-                    <SlidersHorizontal className="w-4 h-4 mr-2" />
-                    Parametros
+                  <TabsTrigger value="combo">
+                    <Package className="w-4 h-4 mr-2" />
+                    Combo
                   </TabsTrigger>
-                  {isEditing && (
-                    <TabsTrigger value="combo">
-                      <Package className="w-4 h-4 mr-2" />
-                      Combo
-                    </TabsTrigger>
-                  )}
                   <TabsTrigger value="tipos-combo">
                     <Layers className="w-4 h-4 mr-2" />
                     Tipos Combo
                   </TabsTrigger>
-                  {isEditing && manejoCostos === '2' && (
+                  {manejoCostos === '2' && (
                     <TabsTrigger value="costo">
                       <DollarSign className="w-4 h-4 mr-2" />
                       Costo
                     </TabsTrigger>
                   )}
-                  {isEditing && manejoCostos === '3' && (
+                  {manejoCostos === '3' && (
                     <TabsTrigger value="costo-ref">
                       <DollarSign className="w-4 h-4 mr-2" />
                       Costo
@@ -728,9 +788,9 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                   {/* ── PESTAÑA GENERAL ── */}
                   <TabsContent value="general" className="mt-0">
                     <TwoColumns
-                      left={<SegmentCard label="Datos"><div className="contents">
+                      left={<><SegmentCard label="Identificacion" panel="white"><div className="contents">
 
-                      <div className="flex flex-col gap-1.5 col-span-4">
+                      <div className="flex flex-col gap-1.5 col-span-2">
                         <Label className={UI_THEME.forms.labelBase}>Empresa</Label>
                         <Input
                           value={empresaNombre}
@@ -739,10 +799,39 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                         />
                       </div>
 
+                      {currentItem && (
+                        <div className="flex flex-col gap-1.5 col-span-1">
+                          <Label htmlFor="codigo" className={UI_THEME.forms.labelBase}>Codigo</Label>
+                          <Input
+                            id="codigo"
+                            value={String(currentItem.id)}
+                            disabled
+                            className={`${UI_THEME.forms.inputBase} font-mono`}
+                          />
+                        </div>
+                      )}
+
+                      <div className={`flex flex-col gap-1.5 ${isEditing ? 'col-span-1' : 'col-span-2'}`}>
+                        <Label htmlFor="codigoErp" className={UI_THEME.forms.labelBase}>Codigo ERP</Label>
+                        <Input
+                          id="codigoErp"
+                          value={codigoErp}
+                          onChange={e => setCodigoErp(e.target.value)}
+                          disabled={disabledPorERP || !syncItemsHabilitado}
+                          data-view-mode={mode === 'view' && !bloqueadoPorERP && syncItemsHabilitado}
+                          className={`${UI_THEME.forms.inputBase} uppercase font-mono`}
+                          title={!syncItemsHabilitado ? 'El Codigo ERP es asignado automaticamente cuando la empresa tiene sync con ERP habilitado' : undefined}
+                        />
+                        <FieldError message={fieldErrors.codigoErp} />
+                      </div>
+
+                      </div></SegmentCard>
+                      <SegmentCard label="General" panel="white"><div className="contents">
+
                       {/* Descripción */}
-                      <div className="flex flex-col gap-1.5 col-span-4">
+                      <div className="flex flex-col gap-1.5 col-span-2">
                         <Label htmlFor="descripcion">
-                          Descripción <span className="text-red-500">*</span>
+                          Descripcion <span className="text-red-500">*</span>
                         </Label>
                         <Input
                           id="descripcion"
@@ -852,7 +941,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                       {/* Tipo Ítem */}
                       <div className="flex flex-col gap-1.5 col-span-1">
                         <Label htmlFor="tipoItem">
-                          Tipo Ítem
+                          Tipo Item
                         </Label>
                         <SearchableSelect
                           options={TIPOS_ITEM}
@@ -865,12 +954,9 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                         />
                       </div>
 
-                      </div></SegmentCard>}
-                      right={<SegmentCard label="Clasificacion"><div className="contents">
-                      {/* Categoria */}
                       <div className="flex flex-col gap-1.5 col-span-2">
                         <Label htmlFor="categoria">
-                          Categoría <span className="text-red-500">*</span>
+                          Categoria <span className="text-red-500">*</span>
                         </Label>
                         <SearchableSelect
                           options={opcionesCategoria}
@@ -885,24 +971,8 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                         <FieldError message={fieldErrors.categoriaId} />
                       </div>
 
-                      {/* Código ERP */}
-                      <div className="flex flex-col gap-1.5 col-span-4">
-                        <Label htmlFor="codigoErp">Código ERP</Label>
-                        <Input
-                          id="codigoErp"
-                          value={codigoErp}
-                          onChange={e => setCodigoErp(e.target.value)}
-                          disabled={disabledPorERP || !syncItemsHabilitado}
-                          data-view-mode={mode === 'view' && !bloqueadoPorERP && syncItemsHabilitado}
-                          className={`${UI_THEME.forms.inputBase} uppercase font-mono`}
-                          title={!syncItemsHabilitado ? 'El Código ERP es asignado automáticamente cuando la empresa tiene sync con ERP habilitado' : undefined}
-                        />
-                        <FieldError message={fieldErrors.codigoErp} />
-                      </div>
-
-                      {/* Activo (solo en edición) */}
                       {isEditing && (
-                        <div className="flex items-center gap-2 col-span-4 mt-2">
+                        <div className="flex items-center gap-2 col-span-2 mt-1">
                           <Checkbox
                             id="activo"
                             checked={activo}
@@ -914,14 +984,9 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                           </Label>
                         </div>
                       )}
-                    </div></SegmentCard>}
-                    />
-                  </TabsContent>
 
-                  {/* ── PESTAÑA PARÁMETROS ── */}
-                  <TabsContent value="parametros" className="mt-0">
-                    <TwoColumns
-                      left={<SegmentCard label="Costos"><div className="contents">
+                      </div></SegmentCard></>}
+                      right={<SegmentCard label="Parametros" panel="white"><div className="contents">
                       {/* Tipo Producto — siempre visible, editable solo para tipoItem=3 (Servicio) */}
                       {(() => {
                         const tiNum = Number(tipoItem)
@@ -981,6 +1046,8 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                           disabled={mode === 'view' || Number(tipoItem) === 2}
                           viewMode={mode === 'view' && Number(tipoItem) !== 2}
                           searchable={false}
+                          placeholder="Seleccionar..."
+                          error={!!fieldErrors.manejoCostos}
                         />
                         <FieldError message={fieldErrors.manejoCostos} />
                         {Number(tipoItem) === 2 && (
@@ -1008,7 +1075,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                       {/* ─── Scope Cotización — solo visible cuando manejoCostos = Compras (1) ─── */}
                       {manejoCostos === '1' && (
                         <div className="col-span-1 flex flex-col gap-1.5">
-                          <Label className={UI_THEME.forms.labelBase}>Scope Cotización</Label>
+                          <Label className={UI_THEME.forms.labelBase}>Scope Cotizacion</Label>
                           <SearchableSelect
                             options={[
                               { value: 'GENERAL',      label: 'General' },
@@ -1020,57 +1087,6 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                             viewMode={mode === 'view'}
                             searchable={false}
                           />
-                        </div>
-                      )}
-
-                      {/* ─── Panel Ítem de Referencia — solo visible cuando manejoCostos = Referencia ─── */}
-                      {manejoCostos === '3' && (
-                        <div className="col-span-2 rounded-md border border-blue-200 bg-blue-50 p-3 space-y-2">
-                          <p className="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
-                            <Link2 className="h-3.5 w-3.5" />
-                            Ítem de Referencia
-                          </p>
-                          {contadorCostosRef > 0 ? (
-                            /* Ítem de referencia inmutable — ya tiene porcentajes registrados */
-                            <>
-                              <Input
-                                value={
-                                  todosItems.find(i => i.id === parseInt(costoReferenciaItemId, 10))?.descripcion
-                                  ?? currentItem?.costoReferenciaDescripcion
-                                  ?? costoReferenciaItemId
-                                  ?? '—'
-                                }
-                                disabled
-                                className="bg-white/60 text-blue-900 font-medium"
-                              />
-                              <p className="text-xs text-blue-500 flex items-center gap-1">
-                                🔒 El ítem de referencia no puede modificarse porque ya existen porcentajes registrados.
-                              </p>
-                            </>
-                          ) : (
-                            /* Ítem de referencia editable — aún no hay porcentajes */
-                            <>
-                              <SearchableSelect
-                                options={todosItems
-                                  .filter(i =>
-                                    i.empresaId === parseInt(empresa, 10) &&
-                                    i.id !== currentItem?.id  // excluir el ítem actual
-                                  )
-                                  .map(i => ({ value: i.id.toString(), label: i.descripcion }))
-                                  .sort((a, b) => a.label.localeCompare(b.label))
-                                }
-                                value={costoReferenciaItemId}
-                                onChange={setCostoReferenciaItemId}
-                                disabled={mode === 'view'}
-                                viewMode={mode === 'view'}
-                                placeholder="Buscar ítem de referencia..."
-                              />
-                              <FieldError message={fieldErrors.costoReferenciaItemId} />
-                              <p className="text-xs text-blue-500">
-                                Una vez que registres el primer porcentaje, este campo se bloqueará.
-                              </p>
-                            </>
-                          )}
                         </div>
                       )}
 
@@ -1087,8 +1103,6 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                         />
                       </div>
 
-                      </div></SegmentCard>}
-                      right={<SegmentCard label="Opciones"><div className="contents">
                       {/* Checkboxes */}
                       <div className="col-span-2 flex flex-col gap-3 mt-1">
                         <div className="flex items-center gap-2">
@@ -1177,7 +1191,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                       todosItems={todosItems.filter(i => i.empresaId === parseInt(empresa, 10))}
                       comboItemsMap={comboItemsMap}
                       itemId={item?.id}
-                      isEditing={isEditing}
+                      isEditing={mode !== 'view'}
                       mode={mode}
                     />
                   </TabsContent>
@@ -1192,24 +1206,145 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                     />
                   </TabsContent>
 
-                  {/* ── PESTAÑA COSTO (solo cuando Manejo Costos = Manual) ── */}
-                  {isEditing && manejoCostos === '2' && item && (
+                  {/* ── PESTAÑA COSTO (Manejo Costos = Manual) ── */}
+                  {manejoCostos === '2' && (
                     <TabsContent value="costo" className="mt-0 h-full">
-                      <CostoTab
-                        itemId={item.id}
-                        mode={mode}
-                      />
+                      {isEditing && item ? (
+                        <CostoTab
+                          itemId={item.id}
+                          mode={mode}
+                          diferido={(currentItem ?? item).manejoCostos !== 2}
+                          borrador={costosBorrador}
+                          onBorradorChange={setCostosBorrador}
+                          refresco={costosRevision}
+                          activa={activeTab === 'costo'}
+                        />
+                      ) : (
+                        <div className="rounded-md border border-slate-200 bg-slate-50 p-4 space-y-3">
+                          <p className="text-xs text-slate-500">
+                            Este costo se guarda al grabar el item.
+                          </p>
+                          <div className="grid grid-cols-3 gap-3">
+                            <div className="flex flex-col gap-1.5">
+                              <Label htmlFor="nuevo-fecha-costo">
+                                Fecha Vigencia <span className="text-red-500">*</span>
+                              </Label>
+                              <Input
+                                id="nuevo-fecha-costo"
+                                type="date"
+                                value={fechaCostoNuevo}
+                                onChange={e => setFechaCostoNuevo(e.target.value)}
+                                className="h-8 py-1"
+                              />
+                              <FieldError message={fieldErrors.fechaCosto} />
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                              <Label htmlFor="nuevo-costo">
+                                Costo <span className="text-red-500">*</span>
+                              </Label>
+                              <NumericInput
+                                id="nuevo-costo"
+                                value={costoNuevo ?? undefined}
+                                onChange={v => setCostoNuevo(v ?? null)}
+                                className="h-8"
+                                placeholder="0.00"
+                              />
+                              <FieldError message={fieldErrors.costo} />
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                              <Label htmlFor="nuevo-costo-dif">Costo Diferenciado</Label>
+                              <NumericInput
+                                id="nuevo-costo-dif"
+                                value={costoDifNuevo ?? undefined}
+                                onChange={v => setCostoDifNuevo(v ?? null)}
+                                className="h-8"
+                                placeholder="0.00"
+                              />
+                              <FieldError message={fieldErrors.costoDiferenciado} />
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </TabsContent>
                   )}
 
-                  {/* ── PESTAÑA COSTO REF. (solo cuando Manejo Costos = Referencia) ── */}
-                  {isEditing && manejoCostos === '3' && item && (
+                  {/* ── PESTAÑA COSTO REF. (Manejo Costos = Referencia) ── */}
+                  {manejoCostos === '3' && (
                     <TabsContent value="costo-ref" className="mt-0 h-full">
-                      <CostoReferenciaTab
-                        itemId={item.id}
-                        mode={mode}
-                        referenciaDescripcion={item.costoReferenciaDescripcion}
-                      />
+                      {isEditing && item ? (
+                        <CostoReferenciaTab
+                          itemId={item.id}
+                          mode={mode}
+                          referenciaDescripcion={
+                            todosItems.find(i => i.id === parseInt(costoReferenciaItemId, 10))?.descripcion
+                            ?? currentItem?.costoReferenciaDescripcion
+                            ?? item.costoReferenciaDescripcion
+                          }
+                          itemsReferencia={todosItems
+                            .filter(i => i.empresaId === parseInt(empresa, 10) && i.id !== item.id)
+                            .map(i => ({ value: i.id.toString(), label: i.descripcion }))
+                            .sort((a, b) => a.label.localeCompare(b.label))}
+                          referenciaItemId={costoReferenciaItemId}
+                          onReferenciaChange={setCostoReferenciaItemId}
+                          referenciaBloqueada={(currentItem ?? item).manejoCostos === 3}
+                          referenciaError={fieldErrors.costoReferenciaItemId}
+                        />
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="rounded-md border border-blue-200 bg-blue-50 p-3 space-y-2">
+                            <Label htmlFor="nuevo-item-referencia" className="text-xs font-semibold text-blue-700">
+                              Item Referencia <span className="text-red-500">*</span>
+                            </Label>
+                            <SearchableSelect
+                              id="nuevo-item-referencia"
+                              value={costoReferenciaItemId}
+                              onChange={setCostoReferenciaItemId}
+                              options={todosItems
+                                .filter(i => i.empresaId === parseInt(empresa, 10))
+                                .map(i => ({ value: i.id.toString(), label: i.descripcion }))
+                                .sort((a, b) => a.label.localeCompare(b.label))}
+                              placeholder="Seleccionar item..."
+                            />
+                            <FieldError message={fieldErrors.costoReferenciaItemId} />
+                            <p className="text-xs text-blue-500">
+                              Despues de grabar el registro, el item de referencia no se puede cambiar.
+                            </p>
+                          </div>
+                          <div className="rounded-md border border-slate-200 bg-slate-50 p-4 space-y-3">
+                            <p className="text-xs text-slate-500">
+                              Este porcentaje se guarda al grabar el item.
+                            </p>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="flex flex-col gap-1.5">
+                                <Label htmlFor="nuevo-fecha-pct">
+                                  Fecha Vigencia <span className="text-red-500">*</span>
+                                </Label>
+                                <Input
+                                  id="nuevo-fecha-pct"
+                                  type="date"
+                                  value={fechaPctNuevo}
+                                  onChange={e => setFechaPctNuevo(e.target.value)}
+                                  className="h-8 py-1"
+                                />
+                                <FieldError message={fieldErrors.fechaPct} />
+                              </div>
+                              <div className="flex flex-col gap-1.5">
+                                <Label htmlFor="nuevo-pct">
+                                  Porcentaje (%) <span className="text-red-500">*</span>
+                                </Label>
+                                <NumericInput
+                                  id="nuevo-pct"
+                                  value={pctNuevo ?? undefined}
+                                  onChange={v => setPctNuevo(v ?? null)}
+                                  className="h-8"
+                                  placeholder="0.00"
+                                />
+                                <FieldError message={fieldErrors.pct} />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </TabsContent>
                   )}
                 </div>
@@ -1230,7 +1365,11 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                   </div>
                 ) : isEditing ? (
                   <div className={UI_THEME.modal.buttons.editRow}>
-                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.items.hover} onClick={() => { resetForm(item); setMode('view') }} disabled={loading}>
+                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.items.hover} onClick={() => {
+                      resetForm(item)
+                      if (activeTab === 'costo' || activeTab === 'costo-ref') setActiveTab('general')
+                      setMode('view')
+                    }} disabled={loading}>
                       <X className={UI_THEME.modal.buttons.icon} /> Cancelar
                     </Button>
                     <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.items.hover} disabled={loading}>
