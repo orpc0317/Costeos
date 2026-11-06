@@ -421,13 +421,14 @@ model Item {
 }
 
 model ItemCosto {
-  id          Int      @id @default(autoincrement())
-  itemId      Int      @map("item_id")
-  costo       Decimal  @db.Decimal(18, 4)
-  fecha       DateTime @db.Date
-  fechaAgrego DateTime @default(now()) @map("fecha_agrego")
-  usuarioId   Int      @map("usuario_id")
-  item        Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  id                 Int      @id @default(autoincrement())
+  itemId             Int      @map("item_id")
+  costo              Decimal  @db.Decimal(18, 4)
+  costoDiferenciado  Decimal  @default(0) @map("costo_diferenciado") @db.Decimal(18, 4)
+  fecha              DateTime @db.Date
+  fechaAgrego        DateTime @default(now()) @map("fecha_agrego")
+  usuarioId          Int      @map("usuario_id")
+  item               Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@index([itemId], map: "costeo_item_costo_item_id_fkey")
   @@map("costeo_item_costo")
@@ -462,13 +463,14 @@ model Pais {
 }
 
 model Departamento {
-  id              Int         @id @default(autoincrement())
-  paisId          Int         @default(0) @map("pais_id")
-  codigo          Int         @default(0) @map("departamento_codigo")
-  nombre          String      @map("departamento_nombre") @db.VarChar(100)
-  usuarioCreo     Int         @default(0) @map("usuario_creo")
-  fechaCreo       DateTime    @default(now()) @map("fecha_creo")
-  registroVersion Int         @default(1) @map("registro_version")
+  id                 Int         @id @default(autoincrement())
+  paisId             Int         @default(0) @map("pais_id")
+  codigo             Int         @default(0) @map("departamento_codigo")
+  nombre             String      @map("departamento_nombre") @db.VarChar(100)
+  costoDiferenciado  Int         @default(0) @map("costo_diferenciado") @db.TinyInt
+  usuarioCreo        Int         @default(0) @map("usuario_creo")
+  fechaCreo          DateTime    @default(now()) @map("fecha_creo")
+  registroVersion    Int         @default(1) @map("registro_version")
   pais            Pais        @relation(fields: [paisId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   municipios      Municipio[]
 

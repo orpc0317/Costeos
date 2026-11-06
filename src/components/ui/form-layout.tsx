@@ -28,9 +28,12 @@ export function ViewField({ label, value, locked = false }: { label: string; val
 export function SegmentCard({
   label,
   children,
+  panel = 'muted',
 }: {
   label: string
   children: React.ReactNode
+  /** `white` deja el recuadro en blanco. El resto de modales sigue en gris claro. */
+  panel?: 'muted' | 'white'
 }) {
   return (
     <div className="col-span-2 grid gap-1.5">
@@ -43,7 +46,7 @@ export function SegmentCard({
           {label}
         </span>
       </div>
-      <div className="grid grid-cols-2 gap-2 rounded-lg border border-border/60 bg-muted/20 p-3">
+      <div className={`grid grid-cols-2 gap-2 rounded-lg p-3 ${panel === 'white' ? 'bg-white border-2 border-primary/30' : 'bg-muted/20 border border-border/60'}`}>
         {children}
       </div>
     </div>

@@ -43,6 +43,15 @@ export const itemSchema = z.object({
     tipoComboId:  z.number(),
     obligatorio:  z.boolean(),
   })).optional(),
+  costoInicial: z.object({
+    costo: z.coerce.number().positive('El costo debe ser mayor que 0'),
+    costoDiferenciado: z.coerce.number().min(0).default(0),
+    fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha inválido'),
+  }).optional(),
+  pctInicial: z.object({
+    pct: z.coerce.number().positive('El porcentaje debe ser mayor que 0').max(999.99),
+    fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha inválido'),
+  }).optional(),
 })
 
 export type ItemInput = z.infer<typeof itemSchema>
@@ -101,6 +110,7 @@ export type ItemRow = {
 
 export const itemCostoSchema = z.object({
   costo: z.coerce.number().positive('El costo debe ser mayor que 0'),
+  costoDiferenciado: z.coerce.number().min(0, 'El costo diferenciado no puede ser negativo').default(0),
   fecha: z.string().min(1, 'La fecha es requerida').regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha inválido'),
 })
 
@@ -109,8 +119,9 @@ export type ItemCostoInput = z.infer<typeof itemCostoSchema>
 export type ItemCostoRow = {
   id:           number
   itemId:       number
-  costo:        number
-  fecha:        string   // YYYY-MM-DD (solo fecha, sin hora)
+  costo:               number
+  costoDiferenciado:   number
+  fecha:               string   // YYYY-MM-DD (solo fecha, sin hora)
   fechaAgrego:  Date
   usuarioId:    number
   usuarioNombre?: string

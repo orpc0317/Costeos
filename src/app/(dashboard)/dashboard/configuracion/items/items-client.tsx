@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import { ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/ui/data-table'
 import { Badge } from '@/components/ui/badge'
@@ -33,6 +33,56 @@ export function ItemsClient({ initialData, categorias, permisos }: Props) {
   const [loading, setLoading]   = useState(false)
 
   const debouncedQuery = useDebounce(searchQuery, 400)
+
+  const recargar = useCallback(async () => {
+    const busqueda = debouncedQuery.length >= 2
+    const [lista, todos] = await Promise.all([
+      listarItems({
+        search: busqueda ? debouncedQuery : undefined,
+        limit: busqueda ? LIMIT_BUSQUEDA : LIMIT_INICIAL,
+      }),
+      listarItems(),
+    ])
+    setData(lista)
+    setAllItems(todos)
+  }, [debouncedQuery])
+
+  const allItemsRef = useRef(allItems)
+  allItemsRef.current = allItems
+
+  const pendientesRef = useRef<ItemRow[]>([])
+
+  const guardarEnMemoria = useCallback((saved: ItemRow) => {
+    pendientesRef.current = [
+      ...pendientesRef.current.filter(row => row.id !== saved.id),
+      saved,
+    ]
+  }, [])
+
+  const aplicarPendientes = useCallback(() => {
+    const saved = pendientesRef.current
+    if (saved.length === 0) return
+    pendientesRef.current = []
+    const merge = (row: ItemRow): ItemRow => {
+      const nuevo = saved.find(item => item.id === row.id)
+      if (!nuevo) return row
+      return {
+        ...row,
+        ...nuevo,
+        empresaNombre: row.empresaNombre,
+        categoria: row.categoria,
+        tipoComboNombre: row.tipoComboNombre,
+        costoReferenciaDescripcion: row.costoReferenciaDescripcion,
+      }
+    }
+    setData(prev => prev.map(merge))
+    setAllItems(prev => prev.map(merge))
+  }, [])
+
+  const aplicarRef = useRef(aplicarPendientes)
+  aplicarRef.current = aplicarPendientes
+  const guardarRef = useRef(guardarEnMemoria)
+  guardarRef.current = guardarEnMemoria
 
   // Carga inicial sin límite — para los selectores del modal y el árbol de combos
   useEffect(() => {
@@ -76,7 +126,7 @@ export function ItemsClient({ initialData, categorias, permisos }: Props) {
       },
       {
         accessorKey: 'descripcion',
-        header: 'Descripción',
+        header: 'Descripcion',
         cell: ({ row }) => (
           <span className="text-muted-foreground">{row.original.descripcion}</span>
         ),
@@ -84,7 +134,7 @@ export function ItemsClient({ initialData, categorias, permisos }: Props) {
       {
         id: 'categoria',
         accessorFn: (row) => row.categoria?.nombre ?? String(row.categoriaId),
-        header: 'Categoría',
+        header: 'Categoria',
         cell: ({ row }) => (
           <span className="text-muted-foreground">
             {row.original.categoria?.nombre ?? row.original.categoriaId}
@@ -116,7 +166,9 @@ export function ItemsClient({ initialData, categorias, permisos }: Props) {
           <ItemModal
             item={row.original}
             categorias={categorias}
-            todosItems={allItems}
+            todosItems={allItemsRef.current}
+            onSaved={(saved) => guardarRef.current(saved)}
+            onClosed={() => aplicarRef.current()}
             trigger={
               <button className={UI_THEME.action.viewButton}>
                 <Eye className="h-4 w-4 text-blue-600" />
@@ -126,7 +178,7 @@ export function ItemsClient({ initialData, categorias, permisos }: Props) {
         ),
       },
     ],
-    [categorias, data]
+    [categorias]
   )
 
   const subtitulo = debouncedQuery.length >= 2
@@ -137,7 +189,8 @@ export function ItemsClient({ initialData, categorias, permisos }: Props) {
     <div className="flex items-center gap-2">
       <ItemModal
         categorias={categorias}
-        todosItems={data}
+        todosItems={allItems}
+        onSaved={() => { void recargar() }}
         trigger={
           <Button className="gap-2">
             <Plus className="w-4 h-4" /> Nuevo Ítem

@@ -11,6 +11,8 @@
 
 import { prisma } from '@/lib/prisma'
 import { ItemRepository } from '@/lib/repositories/item.repository'
+import { ItemCostoRepository } from '@/lib/repositories/item-costo.repository'
+import { ItemCostoRefRepository } from '@/lib/repositories/item-costo-ref.repository'
 import { AuditRepository } from '@/lib/repositories/audit.repository'
 import { computeDiff } from '@/lib/utils/audit'
 import { labelTipoItem, labelTipoProducto, labelManejoCostos } from '@/lib/constants/items'
@@ -21,19 +23,19 @@ const TABLA = 'costeos_item'
 
 /** Campos auditables con labels legibles. Solo campos editables por el usuario. */
 const CAMPOS_ITEM = [
-  { key: 'descripcion',           label: 'Descripción' },
+  { key: 'descripcion',           label: 'Descripcion' },
   { key: 'unidadMedida',          label: 'Unidad Medida' },
-  { key: 'categoriaId',           label: 'Categoría' },
+  { key: 'categoriaId',           label: 'Categoria' },
   { key: 'tipoComboId',           label: 'Tipo Combo' },
-  { key: 'tipoItem',              label: 'Tipo Ítem',      transform: labelTipoItem },
+  { key: 'tipoItem',              label: 'Tipo Item',      transform: labelTipoItem },
   { key: 'tipoProducto',          label: 'Tipo Producto',   transform: (val: unknown, row?: any) => labelTipoProducto(val, row?.tipoItem) },
   { key: 'venta',                 label: 'Venta' },
-  { key: 'codigoErp',             label: 'Código ERP' },
+  { key: 'codigoErp',             label: 'Codigo ERP' },
   { key: 'precioVentaCero',       label: 'Permitir Precio Cero' },
   { key: 'recurrente',            label: 'Recurrente' },
   { key: 'recurrenteGasto',       label: 'Recurrente Gasto' },
   { key: 'manejoCostos',          label: 'Manejo Costos',  transform: labelManejoCostos },
-  { key: 'cotizacionScope',       label: 'Scope Cotización' },
+  { key: 'cotizacionScope',       label: 'Scope Cotizacion' },
   { key: 'porCosteo',             label: 'Por Costeo' },
   { key: 'costoReferenciaItemId', label: 'Item Referencia' },
   { key: 'tipo',                  label: 'Tipo' },
@@ -80,6 +82,16 @@ export const ItemService = {
   },
 
   async crear(data: ItemInput, userId: number): Promise<ActionResult<ItemRow>> {
+    if (data.manejoCostos === 2 && !data.costoInicial) {
+      return { ok: false, error: 'Ingrese el costo del item', field: 'costo' }
+    }
+    if (data.manejoCostos === 3 && !data.costoReferenciaItemId) {
+      return { ok: false, error: 'Selecciona el item de referencia', field: 'costoReferenciaItemId' }
+    }
+    if (data.manejoCostos === 3 && !data.pctInicial) {
+      return { ok: false, error: 'Ingrese el porcentaje del item', field: 'pct' }
+    }
+
     const nuevo = await prisma.$transaction(async (tx) => {
       const reg = await ItemRepository.create(
         {
@@ -111,6 +123,39 @@ export const ItemService = {
         tx as any,
       )
       await AuditRepository.logCreate(TABLA, reg.id, userId, reg as any, tx as any)
+
+      if (data.manejoCostos === 2 && data.costoInicial) {
+        const fecha = new Date(data.costoInicial.fecha + 'T00:00:00.000Z')
+        const costo = await ItemCostoRepository.create({
+          itemId: reg.id,
+          costo: data.costoInicial.costo,
+          costoDiferenciado: data.costoInicial.costoDiferenciado ?? 0,
+          fecha,
+          usuarioId: userId,
+        }, tx as any)
+        await AuditRepository.logCreate('costeo_item_costo', costo.id, userId, {
+          itemId: reg.id,
+          costo: data.costoInicial.costo,
+          costoDiferenciado: data.costoInicial.costoDiferenciado ?? 0,
+          fecha: data.costoInicial.fecha,
+        }, tx as any)
+      }
+
+      if (data.manejoCostos === 3 && data.pctInicial) {
+        const fecha = new Date(data.pctInicial.fecha + 'T00:00:00.000Z')
+        const pct = await ItemCostoRefRepository.create({
+          itemId: reg.id,
+          pct: data.pctInicial.pct,
+          fecha,
+          usuarioId: userId,
+        }, tx as any)
+        await AuditRepository.logCreate('costeo_item_costo_ref', pct.id, userId, {
+          itemId: reg.id,
+          pct: data.pctInicial.pct,
+          fecha: data.pctInicial.fecha,
+        }, tx as any)
+      }
+
       return reg
     })
 
@@ -134,9 +179,13 @@ export const ItemService = {
     const tipoComboMap = new Map(tiposCombos.map(t => [t.id, t.nombre]))
     const itemRefMap   = new Map(todosItems.map(i => [i.id, i.descripcion]))
 
-    // Si manejoCostos cambia a ≠ 3, limpiar referencia
-    const esReferencia    = data.manejoCostos === 3
-    const nuevoRefItemId  = esReferencia ? (data.costoReferenciaItemId ?? null) : null
+    // Ya grabado como referencia: el item de referencia no cambia.
+    // Al salir de referencia se limpia. Al entrar, se toma el valor del formulario.
+    const esReferencia = data.manejoCostos === 3
+    const referenciaYaGrabada = anterior.manejoCostos === 3 && esReferencia
+    const nuevoRefItemId = referenciaYaGrabada
+      ? anterior.costoReferenciaItemId
+      : (esReferencia ? (data.costoReferenciaItemId ?? null) : null)
 
     const actualizado = await prisma.$transaction(async (tx) => {
       const reg = await ItemRepository.update(

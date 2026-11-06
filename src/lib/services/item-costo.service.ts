@@ -22,7 +22,8 @@ function toRow(r: any, usuarioNombre?: string): ItemCostoRow {
   return {
     id:           r.id,
     itemId:       r.itemId,
-    costo:        Number(r.costo),
+    costo:               Number(r.costo),
+    costoDiferenciado:   Number(r.costoDiferenciado),
     fecha:        fechaStr,
     fechaAgrego:  r.fechaAgrego,
     usuarioId:    r.usuarioId,
@@ -71,12 +72,13 @@ export const ItemCostoService = {
 
     const nuevo = await prisma.$transaction(async (tx) => {
       const reg = await ItemCostoRepository.create(
-        { itemId, costo: data.costo, fecha: nuevaFecha, usuarioId: userId },
+        { itemId, costo: data.costo, costoDiferenciado: data.costoDiferenciado, fecha: nuevaFecha, usuarioId: userId },
         tx as any,
       )
       await AuditRepository.logCreate(TABLA, reg.id, userId, {
         itemId,
         costo: data.costo,
+        costoDiferenciado: data.costoDiferenciado,
         fecha: data.fecha,
       }, tx as any)
       return reg
@@ -109,6 +111,7 @@ export const ItemCostoService = {
       await AuditRepository.logDelete(TABLA, id, userId, {
         itemId: registro.itemId,
         costo:  Number(registro.costo),
+        costoDiferenciado: Number(registro.costoDiferenciado),
         fecha:  (registro.fecha instanceof Date ? registro.fecha : new Date(registro.fecha))
                   .toISOString().slice(0, 10),
       }, tx as any)

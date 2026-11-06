@@ -9,7 +9,7 @@ import { ItemCostoService } from '@/lib/services/item-costo.service'
 import { ItemCostoRefService } from '@/lib/services/item-costo-ref.service'
 import { ItemCostoRefRepository } from '@/lib/repositories/item-costo-ref.repository'
 import { ItemRepository } from '@/lib/repositories/item.repository'
-import { detectarSimilares, type SimilarItem, type SimilarItemConOrigen, type ErpSimilarData } from '@/lib/utils/similarity'
+import { detectarSimilares, similitud, type SimilarItem, type SimilarItemConOrigen, type ErpSimilarData } from '@/lib/utils/similarity'
 import { erp } from '@/lib/erp'
 import { prisma } from '@/lib/prisma'
 import type { ActionResult } from '@/lib/types/common'
@@ -48,7 +48,6 @@ export async function actualizarItem(
   }
 
   const result = await ItemService.actualizar(id, { ...parsed.data, registroVersion: data.registroVersion }, guard.userId)
-  if (result.ok) revalidatePath(PATH)
   return result
 }
 
@@ -68,13 +67,12 @@ export async function getItemSyncHabilitado(empresaId: number): Promise<boolean>
 /**
  * Búsqueda LIKE (substring) para el Paso 1 del wizard de nuevo ítem.
  *
- * A diferencia de buscarItemsSimilaresConERP, NO aplica umbral de similitud.
- * Devuelve TODOS los registros cuya descripción contenga el texto buscado:
- *  - Costeos: filtro simple .includes() (case-insensitive)
- *  - ERP:     el SP ya hace LIKE; se devuelven todos sus resultados
+ * A diferencia de buscarItemsSimilaresConERP, NO aplica umbral ni el tope de 5.
+ * Devuelve todos los registros cuya descripcion contiene el texto:
+ *  - Costeos: filtro .includes() (sin distinguir mayusculas)
+ *  - ERP:     sp_buscar_items (SQL Server), si la empresa tiene sync de Items
  *
- * El campo `pct` se calcula igual que siempre pero solo es informativo.
- * La validación de 85 % / 100 % se aplica en el momento de GUARDAR.
+ * El campo `pct` solo ordena la lista. No descarta registros.
  *
  * REGLA R18: scope siempre por empresa.
  */
@@ -104,12 +102,16 @@ export async function buscarItemsLIKEConERP(
     if (item.codigoErp) codigosErpEnCosteos.set(item.codigoErp, item.id)
   }
 
-  // Calcular pct con umbral=0 → devuelve todos los LIKE con su similitud
-  const similaresCosteos = detectarSimilares(descripcion, likeMatchesCosteos, 0, excluirId)
-  const resultado: SimilarItemConOrigen[] = similaresCosteos.map(s => {
-    const original = likeMatchesCosteos.find(i => i.id === s.id)
-    return { ...s, source: 'costeos' as const, codigoErp: original?.codigoErp ?? null }
-  })
+  const pctDe = (nombre: string) => Math.round(similitud(descripcion, nombre) * 100)
+
+  // Todos los LIKE de Costeos. El porcentaje solo informa; no descarta.
+  const resultado: SimilarItemConOrigen[] = likeMatchesCosteos.map(item => ({
+    id: item.id,
+    descripcion: item.descripcion,
+    pct: pctDe(item.descripcion),
+    source: 'costeos' as const,
+    codigoErp: item.codigoErp ?? null,
+  }))
 
   // ── 2. ERP (solo si sync habilitado) ──────────────────────────────────────
   try {
@@ -122,54 +124,42 @@ export async function buscarItemsLIKEConERP(
       const codigoErpEmpresa = empresa?.codigoErp ? Number(empresa.codigoErp) : empresaId
       const erpItems = await erp.getServiciosVenta(codigoErpEmpresa, descripcion)
 
-      const erpParaComparar = erpItems.map((e, idx) => ({
-        id: -(idx + 1),
-        descripcion: e.descripcion,
-        _original: e,
-      }))
-
-      // umbral=0 → calcular pct de todos para display
-      const similaresERP = detectarSimilares(descripcion, erpParaComparar, 0)
-
-      for (const simErp of similaresERP) {
-        const erpOriginal = erpParaComparar.find(e => e.id === simErp.id)?._original
-        if (!erpOriginal) continue
-
+      erpItems.forEach((erpOriginal, idx) => {
         if (codigosErpEnCosteos.has(erpOriginal.codigo)) {
-          // Ya existe en Costeos con ese codigoErp → marcar como 'both'
           const itemIdEnCosteos = codigosErpEnCosteos.get(erpOriginal.codigo)!
-          const idx = resultado.findIndex(r => r.id === itemIdEnCosteos)
-          if (idx >= 0) resultado[idx] = { ...resultado[idx], source: 'both' }
-        } else {
-          const erpData: ErpSimilarData = {
-            codigo:          erpOriginal.codigo,
-            descripcion:     erpOriginal.descripcion,
-            unidadMedida:    erpOriginal.unidadMedida,
-            tipoItem:        erpOriginal.tipoItem,
-            tipoProducto:    erpOriginal.tipoProducto,
-            venta:           erpOriginal.venta,
-            recurrente:      erpOriginal.recurrente,
-            precioVentaCero: erpOriginal.precioVentaCero,
-            perfil:          erpOriginal.perfil,
-            manejoCostos:    erpOriginal.manejoCostos,
-            uniforme:        erpOriginal.uniforme,
-          }
-          resultado.push({
-            id:          simErp.id,
-            descripcion: erpOriginal.descripcion,
-            pct:         simErp.pct,
-            source:      'erp',
-            erpData,
-          })
+          const enLista = resultado.findIndex(r => r.id === itemIdEnCosteos)
+          if (enLista >= 0) resultado[enLista] = { ...resultado[enLista], source: 'both' }
+          return
         }
-      }
+
+        const erpData: ErpSimilarData = {
+          codigo:          erpOriginal.codigo,
+          descripcion:     erpOriginal.descripcion,
+          unidadMedida:    erpOriginal.unidadMedida,
+          tipoItem:        erpOriginal.tipoItem,
+          tipoProducto:    erpOriginal.tipoProducto,
+          venta:           erpOriginal.venta,
+          recurrente:      erpOriginal.recurrente,
+          precioVentaCero: erpOriginal.precioVentaCero,
+          perfil:          erpOriginal.perfil,
+          manejoCostos:    erpOriginal.manejoCostos,
+          uniforme:        erpOriginal.uniforme,
+        }
+        resultado.push({
+          id:          -(idx + 1),
+          descripcion: erpOriginal.descripcion,
+          pct:         pctDe(erpOriginal.descripcion),
+          source:      'erp',
+          erpData,
+        })
+      })
     }
   } catch (erpError) {
     console.error('[buscarItemsLIKEConERP] ERP no disponible, se omite:', erpError)
   }
 
-  // Ordenar por pct desc, máximo 20 resultados
-  return resultado.sort((a, b) => b.pct - a.pct).slice(0, 20)
+  // El porcentaje ordena; no recorta. La lista scrollea en el modal.
+  return resultado.sort((a, b) => b.pct - a.pct)
 }
 
 /**

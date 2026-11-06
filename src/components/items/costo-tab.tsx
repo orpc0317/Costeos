@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useLayoutEffect, useCallback } from 'react'
 import { Plus, Trash2, DollarSign, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -8,11 +8,30 @@ import { Input } from '@/components/ui/input'
 import { NumericInput } from '@/components/ui/numeric-input'
 import { FieldError } from '@/components/ui/field-error'
 import { listarCostosItem, agregarCostoItem, eliminarCostoItem } from '@/app/actions/items'
-import type { ItemCostoRow } from '@/lib/types/items'
+import type { ItemCostoInput, ItemCostoRow } from '@/lib/types/items'
+
+export type CostoBorrador = ItemCostoInput & { localId: number }
 
 interface CostoTabProps {
   itemId: number
   mode: 'view' | 'edit'
+  /**
+   * El item guardado aun no es Manual. Agregar y quitar no tocan la base:
+   * se confirman solo cuando el modal guarda el item como Manual.
+   */
+  diferido?: boolean
+  borrador?: CostoBorrador[]
+  onBorradorChange?: (rows: CostoBorrador[]) => void
+  refresco?: number
+  /** La pestaña Costo está visible. Al activarse, Fecha Vigencia vuelve al día local del navegador. */
+  activa?: boolean
+}
+
+export function fechaHoyNavegador(): string {
+  const hoy = new Date()
+  const mes = String(hoy.getMonth() + 1).padStart(2, '0')
+  const dia = String(hoy.getDate()).padStart(2, '0')
+  return `${hoy.getFullYear()}-${mes}-${dia}`
 }
 
 function formatFecha(fechaStr: string): string {
@@ -29,13 +48,28 @@ function formatFechaHora(date: Date | string): string {
   })
 }
 
-export function CostoTab({ itemId, mode }: CostoTabProps) {
+export function CostoTab({
+  itemId,
+  mode,
+  diferido = false,
+  borrador = [],
+  onBorradorChange,
+  refresco = 0,
+  activa = true,
+}: CostoTabProps) {
   const [costos, setCostos] = useState<ItemCostoRow[]>([])
   const [cargando, setCargando] = useState(false)
 
-  // Formulario de nuevo costo
-  const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10))
+  // Formulario de nuevo costo. Vacío hasta que la pestaña se activa en el navegador,
+  // para no heredar la fecha UTC del render del servidor.
+  const [fecha, setFecha] = useState('')
+
+  useLayoutEffect(() => {
+    if (!activa || mode !== 'edit') return
+    setFecha(fechaHoyNavegador())
+  }, [activa, mode])
   const [costo, setCosto] = useState<number | null>(null)
+  const [costoDiferenciado, setCostoDiferenciado] = useState<number | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [globalError, setGlobalError] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
@@ -50,7 +84,7 @@ export function CostoTab({ itemId, mode }: CostoTabProps) {
 
   useEffect(() => {
     cargarCostos()
-  }, [cargarCostos])
+  }, [cargarCostos, refresco])
 
   const handleAgregar = async () => {
     setGlobalError(null)
@@ -58,11 +92,29 @@ export function CostoTab({ itemId, mode }: CostoTabProps) {
     const errors: Record<string, string> = {}
     if (!fecha) errors.fecha = 'Requerido'
     if (!costo || costo <= 0) errors.costo = 'Ingrese un costo mayor que 0'
+    if (costoDiferenciado != null && costoDiferenciado < 0) errors.costoDiferenciado = 'El costo diferenciado no puede ser negativo'
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) return
+    const diferenciado = costoDiferenciado ?? 0
+
+    if (diferido) {
+      if (!fechaPosteriorA(fecha)) {
+        setFieldErrors({ fecha: `La fecha debe ser posterior al ultimo costo registrado (${formatFecha(visibles[0].fecha)})` })
+        return
+      }
+      onBorradorChange?.([
+        ...borrador,
+        { fecha, costo: costo!, costoDiferenciado: diferenciado, localId: -Date.now() },
+      ])
+      setFecha(fechaHoyNavegador())
+      setCosto(null)
+      setCostoDiferenciado(null)
+      setFieldErrors({})
+      return
+    }
 
     setGuardando(true)
-    const res = await agregarCostoItem(itemId, { fecha, costo: costo! })
+    const res = await agregarCostoItem(itemId, { fecha, costo: costo!, costoDiferenciado: diferenciado })
     setGuardando(false)
 
     if (!res.ok) {
@@ -73,13 +125,18 @@ export function CostoTab({ itemId, mode }: CostoTabProps) {
       }
     } else {
       setCostos(res.data!)
-      setFecha(new Date().toISOString().slice(0, 10))
+      setFecha(fechaHoyNavegador())
       setCosto(null)
+      setCostoDiferenciado(null)
       setFieldErrors({})
     }
   }
 
   const handleEliminar = async (id: number) => {
+    if (diferido) {
+      if (id < 0) onBorradorChange?.(borrador.filter(b => b.localId !== id))
+      return
+    }
     setEliminando(id)
     setGlobalError(null)
     const res = await eliminarCostoItem(id, itemId)
@@ -91,7 +148,24 @@ export function CostoTab({ itemId, mode }: CostoTabProps) {
     }
   }
 
-  const ultimoId = costos.length > 0 ? costos[0].id : null
+  const pendientes: ItemCostoRow[] = borrador.map(b => ({
+    id: b.localId,
+    itemId,
+    costo: b.costo,
+    costoDiferenciado: b.costoDiferenciado,
+    fecha: b.fecha,
+    fechaAgrego: new Date(0),
+    usuarioId: 0,
+    usuarioNombre: 'Pendiente',
+  }))
+
+  const visibles = [...costos, ...pendientes].sort((a, b) => b.fecha.localeCompare(a.fecha))
+  const ultimoId = visibles.length > 0 ? visibles[0].id : null
+
+  const fechaPosteriorA = (fechaNueva: string) => {
+    if (visibles.length === 0) return true
+    return fechaNueva > visibles[0].fecha
+  }
 
   return (
     <div className="space-y-4">
@@ -110,7 +184,7 @@ export function CostoTab({ itemId, mode }: CostoTabProps) {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             {/* Fecha de vigencia */}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="costo-fecha">
@@ -149,7 +223,31 @@ export function CostoTab({ itemId, mode }: CostoTabProps) {
 
               <FieldError message={fieldErrors.costo} />
             </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="costo-diferenciado">
+                Costo Diferenciado
+              </Label>
+              <NumericInput
+                id="costo-diferenciado"
+                value={costoDiferenciado ?? undefined}
+                onChange={v => {
+                  setCostoDiferenciado(v ?? null)
+                  if (fieldErrors.costoDiferenciado) setFieldErrors(prev => { const n = { ...prev }; delete n.costoDiferenciado; return n })
+                }}
+                className="h-8"
+                placeholder="0.0000"
+                aria-invalid={!!fieldErrors.costoDiferenciado}
+              />
+              <FieldError message={fieldErrors.costoDiferenciado} />
+            </div>
           </div>
+
+          {diferido && (
+            <p className="text-xs text-amber-700">
+              Estos costos se guardan al guardar el item. Cancelar los descarta.
+            </p>
+          )}
 
           <div className="flex justify-end">
             <Button type="button" size="sm" disabled={guardando} onClick={handleAgregar}>
@@ -169,7 +267,7 @@ export function CostoTab({ itemId, mode }: CostoTabProps) {
           <Loader2 className="h-5 w-5 animate-spin mr-2" />
           <span className="text-sm">Cargando costos...</span>
         </div>
-      ) : costos.length === 0 ? (
+      ) : visibles.length === 0 ? (
         <div className="text-center py-8 text-slate-400 text-sm border border-dashed border-slate-200 rounded-md">
           No hay costos registrados para este item.
         </div>
@@ -180,13 +278,14 @@ export function CostoTab({ itemId, mode }: CostoTabProps) {
               <tr>
                 <th className="text-left px-3 py-2 font-semibold text-slate-600 w-28">Fecha Vigencia</th>
                 <th className="text-right px-3 py-2 font-semibold text-slate-600 w-32">Costo</th>
+                <th className="text-right px-3 py-2 font-semibold text-slate-600 w-36">Costo Diferenciado</th>
                 <th className="text-left px-3 py-2 font-semibold text-slate-600">Registrado Por</th>
                 <th className="text-left px-3 py-2 font-semibold text-slate-600 w-36">Fecha Registro</th>
                 {mode === 'edit' && <th className="w-12" />}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {costos.slice(0, 20).map((c) => (
+              {visibles.slice(0, 20).map((c) => (
                 <tr key={c.id} className={c.id === ultimoId ? 'bg-blue-50' : 'hover:bg-slate-50'}>
                   <td className="px-3 py-2 font-mono font-medium text-slate-800">
                     {formatFecha(c.fecha)}
@@ -194,15 +293,18 @@ export function CostoTab({ itemId, mode }: CostoTabProps) {
                   <td className="px-3 py-2 text-right font-mono font-semibold text-slate-900">
                     {Number(c.costo).toLocaleString('es-GT', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}
                   </td>
+                  <td className="px-3 py-2 text-right font-mono font-semibold text-slate-900">
+                    {Number(c.costoDiferenciado).toLocaleString('es-GT', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}
+                  </td>
                   <td className="px-3 py-2 text-slate-600">
                     {c.usuarioNombre ?? `Usuario ${c.usuarioId}`}
                   </td>
                   <td className="px-3 py-2 text-slate-500">
-                    {formatFechaHora(c.fechaAgrego)}
+                    {c.id < 0 ? 'Pendiente' : formatFechaHora(c.fechaAgrego)}
                   </td>
                   {mode === 'edit' && (
                     <td className="px-2 py-1 text-center">
-                      {c.id === ultimoId && (
+                      {c.id === ultimoId && !(diferido && c.id > 0) && (
                         <button
                           type="button"
                           onClick={() => handleEliminar(c.id)}
@@ -225,9 +327,9 @@ export function CostoTab({ itemId, mode }: CostoTabProps) {
         </div>
       )}
 
-      {costos.length > 20 && (
+      {visibles.length > 20 && (
         <p className="text-xs text-slate-400 text-center">
-          Mostrando los ultimos 20 registros de {costos.length} en total.
+          Mostrando los ultimos 20 registros de {visibles.length} en total.
         </p>
       )}
     </div>
