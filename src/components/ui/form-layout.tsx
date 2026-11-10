@@ -46,7 +46,7 @@ export function SegmentCard({
           {label}
         </span>
       </div>
-      <div className={`grid grid-cols-2 gap-2 rounded-lg p-3 ${panel === 'white' ? 'bg-white border-2 border-primary/30' : 'bg-muted/20 border border-border/60'}`}>
+      <div className={`grid grid-cols-2 gap-2 rounded-lg p-3 ${panel === 'white' ? 'bg-white border-4 border-primary/30' : 'bg-muted/20 border border-border/60'}`}>
         {children}
       </div>
     </div>

@@ -810,6 +810,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                         <Input
                           value={empresaNombre}
                           disabled
+                          data-view-mode={mode === 'view'}
                           className={UI_THEME.forms.inputBase}
                         />
                       </div>
@@ -821,6 +822,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                             id="codigo"
                             value={String(currentItem.id)}
                             disabled
+                            data-view-mode={mode === 'view'}
                             className={`${UI_THEME.forms.inputBase} font-mono`}
                           />
                         </div>
@@ -833,7 +835,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                           value={codigoErp}
                           onChange={e => setCodigoErp(e.target.value)}
                           disabled={disabledPorERP || !syncItemsHabilitado}
-                          data-view-mode={mode === 'view' && !bloqueadoPorERP && syncItemsHabilitado}
+                          data-view-mode={mode === 'view'}
                           className={`${UI_THEME.forms.inputBase} uppercase font-mono`}
                           title={!syncItemsHabilitado ? 'El Codigo ERP es asignado automaticamente cuando la empresa tiene sync con ERP habilitado' : undefined}
                         />
@@ -858,7 +860,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                             if (erpVinculado) setErpVinculado(null)
                           }}
                           disabled={disabledDescripcion}
-                          data-view-mode={mode === 'view' && !bloqueadoPorERP}
+                          data-view-mode={mode === 'view'}
                           className={`${UI_THEME.forms.inputBase} uppercase`}
                           aria-invalid={!!fieldErrors.descripcion}
                         />
@@ -946,7 +948,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                           value={unidadMedida}
                           onChange={e => setUnidadMedida(e.target.value)}
                           disabled={disabledPorERP}
-                          data-view-mode={mode === 'view' && !bloqueadoPorERP}
+                          data-view-mode={mode === 'view'}
                           className={`${UI_THEME.forms.inputBase} uppercase`}
                           aria-invalid={!!fieldErrors.unidadMedida}
                         />
@@ -963,7 +965,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                           value={tipoItem}
                           onChange={setTipoItem}
                           disabled={disabledPorERP}
-                          viewMode={mode === 'view' && !bloqueadoPorERP}
+                          viewMode={mode === 'view'}
                           placeholder="Seleccione..."
                           searchable={false}
                         />
@@ -1021,7 +1023,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                               value={tipoProducto}
                               onChange={setTipoProducto}
                               disabled={mode === 'view' || !esEditable}
-                              viewMode={mode === 'view' && esEditable}
+                              viewMode={mode === 'view'}
                               placeholder="—"
                               searchable={false}
                             />
@@ -1059,7 +1061,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                           value={manejoCostos}
                           onChange={setManejoCostos}
                           disabled={mode === 'view' || Number(tipoItem) === 2}
-                          viewMode={mode === 'view' && Number(tipoItem) !== 2}
+                          viewMode={mode === 'view'}
                           searchable={false}
                           placeholder="Seleccionar..."
                           error={!!fieldErrors.manejoCostos}
