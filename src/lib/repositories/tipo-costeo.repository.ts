@@ -52,6 +52,10 @@ export const TipoCosteoRepository = {
     return prisma.tipoCosteo.findUnique({ where: { id } })
   },
 
+  async findDetalle(id: number) {
+    return prisma.tipoCosteo.findUnique({ where: { id }, select: SELECT_COMPLETO })
+  },
+
   async findActivos() {
     return prisma.tipoCosteo.findMany({
       where: { activo: true },

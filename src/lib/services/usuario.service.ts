@@ -46,6 +46,10 @@ export const UsuarioService = {
     return UsuarioRepository.findAll(params)
   },
 
+  async obtener(id: number): Promise<UsuarioRow | null> {
+    return UsuarioRepository.findPublicoById(id)
+  },
+
   async crear(data: CrearUsuarioData, userId: number): Promise<ActionResult<{ id: number }>> {
     // Verificar email único
     const existente = await UsuarioRepository.findByEmail(data.email)

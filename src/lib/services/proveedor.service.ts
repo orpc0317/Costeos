@@ -59,6 +59,19 @@ export const ProveedorService = {
     }))
   },
 
+  async obtener(id: number): Promise<ProveedorRow | null> {
+    const [row, empresas] = await Promise.all([
+      ProveedorRepository.findById(id),
+      prisma.empresa.findMany({ select: { id: true, nombre: true } }),
+    ])
+    if (!row) return null
+    const empresaMap = new Map(empresas.map(e => [e.id, e.nombre]))
+    return {
+      ...row,
+      empresaNombre: empresaMap.get(row.empresaId) ?? `Empresa ${row.empresaId}`,
+    }
+  },
+
   async crear(data: ProveedorInput, userId: number): Promise<ActionResult<ProveedorRow>> {
     const camposAuditables = await buildCamposAuditables()
 

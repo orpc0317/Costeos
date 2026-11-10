@@ -15,6 +15,7 @@ import { MODULE_ACCENT } from '@/lib/ui-accent'
 import type { PermisosPantalla } from '@/lib/permisos'
 import { listarItems } from '@/app/actions/items'
 import { useDebounce } from '@/hooks/use-debounce'
+import { reemplazarFila } from '@/hooks/use-registro-fresco'
 
 interface Props {
   initialData: ItemRow[]
@@ -169,6 +170,16 @@ export function ItemsClient({ initialData, categorias, permisos }: Props) {
             todosItems={allItemsRef.current}
             onSaved={(saved) => guardarRef.current(saved)}
             onClosed={() => aplicarRef.current()}
+            onActualizado={(rowActual) => {
+              setData((prev) => reemplazarFila(prev, rowActual))
+              setAllItems((prev) => {
+                const next = reemplazarFila(prev, rowActual)
+                if (!rowActual.costoReferenciaItemId || !rowActual.costoReferenciaDescripcion) return next
+                return next.map((fila) => fila.id === rowActual.costoReferenciaItemId
+                  ? { ...fila, descripcion: rowActual.costoReferenciaDescripcion! }
+                  : fila)
+              })
+            }}
             trigger={
               <button className={UI_THEME.action.viewButton}>
                 <Eye className="h-4 w-4 text-blue-600" />

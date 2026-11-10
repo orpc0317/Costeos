@@ -32,7 +32,8 @@ import { SearchableSelect } from '@/components/ui/searchable-select'
 import { FieldError } from '@/components/ui/field-error'
 import { IconoEntidad, Check, Pencil, History, X } from 'lucide-react' // ← cambiar IconoEntidad
 import { HistorialDrawer } from '@/components/shared/historial-drawer'
-import { crearEntidad, actualizarEntidad } from '@/app/actions/entidades' // ← ajustar import
+import { crearEntidad, actualizarEntidad, obtenerEntidad } from '@/app/actions/entidades' // ← ajustar import
+import { useRegistroFresco } from '@/hooks/use-registro-fresco'
 import { getEmpresasForUser } from '@/app/actions/erp'
 import { normalizeText } from '@/lib/utils/text'
 import { UI_THEME } from '@/lib/theme'
@@ -48,6 +49,7 @@ interface EntidadModalProps {
   open?: boolean
   onOpenChange?: (open: boolean) => void
   onSuccess?: () => void
+  onActualizado?: (row: EntidadRow) => void
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -59,6 +61,7 @@ export function EntidadModal({
   open: controlledOpen,
   onOpenChange,
   onSuccess,
+  onActualizado,
 }: EntidadModalProps) {
   // ── Estado de apertura (controlado o interno) ──────────────────────────────
   const [internalOpen, setInternalOpen] = useState(false)
@@ -75,6 +78,19 @@ export function EntidadModal({
   const [empresaId, setEmpresaId] = useState('')
   const [nombre, setNombre]       = useState('')
   // TODO: agregar más campos según la entidad
+  // Ver: releer solo este registro. No tocar `mode`. Editar deshabilitado mientras cargandoFicha.
+  const { ficha, cargando: cargandoFicha } = useRegistroFresco({
+    open,
+    mode,
+    registro: entidad,
+    obtener: obtenerEntidad,
+    onActualizado, // TODO: prop (row) => reemplazarFila en el client
+    aplicar: (row) => {
+      setEmpresaId(row.empresaId?.toString() ?? '')
+      setNombre(row.nombre ?? '')
+      // TODO: demás campos. Guardar con ficha.registroVersion.
+    },
+  })
 
   // ── Datos externos ────────────────────────────────────────────────────────
   const [empresas, setEmpresas]               = useState<{ value: string; label: string }[]>([])

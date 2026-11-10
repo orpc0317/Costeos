@@ -13,6 +13,7 @@ import type { PermisosPantalla } from '@/lib/permisos'
 import type { TipoComboRow } from '@/lib/types/tipos-combo'
 import { listarTiposCombo } from '@/app/actions/tipos-combo'
 import { useDebounce } from '@/hooks/use-debounce'
+import { reemplazarFila } from '@/hooks/use-registro-fresco'
 
 interface Props { initialData: TipoComboRow[]; permisos?: PermisosPantalla }
 
@@ -66,6 +67,7 @@ export function TiposComboClient({ initialData, permisos }: Props) {
       cell: ({ row }) => (
         <TipoComboModal
           tipoCombo={row.original}
+          onActualizado={(rowActual) => setData((prev) => reemplazarFila(prev, rowActual))}
           trigger={<button className={UI_THEME.action.viewButton} title="Ver / Editar"><Eye className="h-3.5 w-3.5 text-blue-600" /></button>}
         />
       ),

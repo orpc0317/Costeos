@@ -66,6 +66,21 @@ export const TipoCosteoService = {
     }))
   },
 
+  async obtener(id: number): Promise<TipoCosteoRow | null> {
+    const row = await TipoCosteoRepository.findDetalle(id)
+    if (!row) return null
+    const empresa = await prisma.empresa.findUnique({
+      where: { id: row.empresaId },
+      select: { nombre: true },
+    })
+    return {
+      ...row,
+      manejoPlazo: row.manejoPlazo as 'LIBRE' | 'FIJO' | 'NO_APLICA',
+      empresaNombre: empresa?.nombre ?? `Empresa ${row.empresaId}`,
+      enUso: row._count.costeos > 0,
+    }
+  },
+
   async crear(data: TipoCosteoInput, userId: number): Promise<ActionResult<{ id: number }>> {
     const nuevo = await prisma.$transaction(async (tx) => {
       const reg = await TipoCosteoRepository.create(data, tx as any)

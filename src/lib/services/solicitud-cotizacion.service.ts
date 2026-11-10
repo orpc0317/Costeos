@@ -99,8 +99,15 @@ export const SolicitudCotizacionService = {
    * Lista todas las solicitudes con datos enriquecidos para la pantalla de Compras.
    */
   async listar(empresaId?: number): Promise<SolicitudRow[]> {
-    const where = empresaId ? { empresaId } : {}
+    return this._leer(empresaId ? { empresaId } : {})
+  },
 
+  async obtener(id: number): Promise<SolicitudRow | null> {
+    const rows = await this._leer({ id })
+    return rows[0] ?? null
+  },
+
+  async _leer(where: Record<string, unknown>): Promise<SolicitudRow[]> {
     const solicitudes = await (prisma as any).solicitudCotizacion.findMany({
       where,
       orderBy: { fechaCreo: 'desc' },

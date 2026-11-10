@@ -60,6 +60,15 @@ export async function listarSolicitudes(empresaId?: number): Promise<SolicitudRo
   }
 }
 
+export async function obtenerSolicitud(id: number): Promise<SolicitudRow | null> {
+  if (!(await puedeConsultar(PERMISOS.SOL_COM))) return null
+  try {
+    return await SolicitudCotizacionService.obtener(id)
+  } catch {
+    return null
+  }
+}
+
 // ─── Listar cotizaciones de una solicitud ─────────────────────────────────────
 
 export async function listarCotizaciones(solicitudId: number): Promise<CotizacionItemRow[]> {
@@ -215,9 +224,20 @@ export async function eliminarSolicitud(id: number): Promise<ActionResult<void>>
 const PATH_COTIZACIONES = '/dashboard/compras/cotizaciones'
 
 export async function listarTodasCotizaciones(): Promise<CotizacionRow[]> {
+  const rows = await leerCotizaciones()
+  return rows
+}
+
+export async function obtenerCotizacion(id: number): Promise<CotizacionRow | null> {
+  const rows = await leerCotizaciones(id)
+  return rows[0] ?? null
+}
+
+async function leerCotizaciones(id?: number): Promise<CotizacionRow[]> {
   if (!(await puedeConsultar(PERMISOS.COT_COM))) return []
   try {
     const rows: any[] = await (prisma as any).cotizacionItem.findMany({
+      where: id ? { id } : undefined,
       orderBy: { fechaCreo: 'desc' },
     })
     if (rows.length === 0) return []

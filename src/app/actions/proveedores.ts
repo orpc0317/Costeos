@@ -19,6 +19,11 @@ export async function listarProveedores(params?: { search?: string; limit?: numb
   return ProveedorService.listar(params)
 }
 
+export async function obtenerProveedor(id: number): Promise<ProveedorRow | null> {
+  if (!(await puedeConsultar(PERMISOS.PRV_CAT))) return null
+  return ProveedorService.obtener(id)
+}
+
 export async function crearProveedor(data: ProveedorInput): Promise<ActionResult<ProveedorRow>> {
   const guard = await requirePermiso(PERMISOS.PRV_CAT, 'agregar')
   if (!guard.ok) return guard

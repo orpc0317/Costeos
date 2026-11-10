@@ -43,6 +43,17 @@ function toRow(r: Awaited<ReturnType<typeof TipoComboRepository.findById>>, empr
 
 export const TipoComboService = {
 
+  async obtener(id: number): Promise<TipoComboRow | null> {
+    const [row, empresas] = await Promise.all([
+      TipoComboRepository.findById(id),
+      prisma.empresa.findMany({ select: { id: true, nombre: true } }),
+    ])
+    if (!row) return null
+    const empresaMap = new Map(empresas.map(e => [e.id, e.nombre]))
+    return toRow(row, empresaMap)
+  },
+
+
   async listar(params?: { search?: string }): Promise<TipoComboRow[]> {
     const [rows, empresas] = await Promise.all([
       TipoComboRepository.findAll(params),

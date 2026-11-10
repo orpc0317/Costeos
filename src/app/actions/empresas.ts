@@ -15,6 +15,11 @@ export async function getEmpresas(): Promise<EmpresaRow[]> {
   return EmpresaService.listar()
 }
 
+export async function obtenerEmpresa(id: number): Promise<EmpresaRow | null> {
+  if (!(await puedeConsultar(PERMISOS.EMP_CAT))) return null
+  return EmpresaService.obtener(id)
+}
+
 export async function crearEmpresa(data: EmpresaInput): Promise<ActionResult<EmpresaRow>> {
   const guard = await requirePermiso(PERMISOS.EMP_CAT, 'agregar')
   if (!guard.ok) return guard

@@ -50,7 +50,9 @@ import {
   actualizarCotizacion,
   marcarCotizacionVigente,
   getItemsByEmpresa,
+  obtenerCotizacion,
 } from '@/app/actions/solicitudes'
+import { useRegistroFresco } from '@/hooks/use-registro-fresco'
 import { getEmpresasForUser } from '@/app/actions/erp'
 import { listarProveedores } from '@/app/actions/proveedores'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/utils/format'
@@ -63,6 +65,7 @@ interface CotizacionModalProps {
   open?: boolean
   onOpenChange?: (open: boolean) => void
   onSuccess?: () => void
+  onActualizado?: (row: CotizacionRow) => void
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -76,18 +79,19 @@ const estadoSolicitudCfg: Record<number, string> = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function CotizacionModal({
-  cotizacion,
+  cotizacion: cotizacionInicial,
   trigger,
   open: controlledOpen,
   onOpenChange,
   onSuccess,
+  onActualizado,
 }: CotizacionModalProps) {
   const [internalOpen, setInternalOpen] = useState(false)
   const isControlled = controlledOpen !== undefined
   const open    = isControlled ? controlledOpen  : internalOpen
   const setOpen = isControlled ? onOpenChange!    : setInternalOpen
 
-  const isEditing = !!cotizacion
+  const isEditing = !!cotizacionInicial
   const [mode, setMode]             = useState<'view' | 'edit'>('view')
   const { onEditMouseDown, onEditClick, blockAccidentalSubmit } = useEditClick(setMode)
   const [historialOpen, setHistorialOpen] = useState(false)
@@ -112,14 +116,34 @@ export function CotizacionModal({
   const [proveedores, setProveedores] = useState<{ value: string; label: string }[]>([])
 
   // ── Estados locales para reflect inmediato en vista ───────────────────────
-  const [vigenteLocal, setVigenteLocal]               = useState(cotizacion?.vigente ?? 0)
-  const [solicitudEstadoLocal, setSolicitudEstadoLocal] = useState(cotizacion?.solicitudEstado ?? 1)
+  const [vigenteLocal, setVigenteLocal]               = useState(cotizacionInicial?.vigente ?? 0)
+  const [solicitudEstadoLocal, setSolicitudEstadoLocal] = useState(cotizacionInicial?.solicitudEstado ?? 1)
 
   // ── UI ─────────────────────────────────────────────────────────────────────
   const [loading, setLoading]         = useState(false)
   const [globalError, setGlobalError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submittingVigente, setSubmittingVigente] = useState(false)
+  const { ficha, cargando: cargandoFicha } = useRegistroFresco({
+    open,
+    mode,
+    registro: cotizacionInicial,
+    obtener: obtenerCotizacion,
+    onActualizado,
+    aplicar: (row) => {
+      setEmpresaId(row.empresaId?.toString() ?? '')
+      setProveedorId(row.proveedorId?.toString() ?? '')
+      setReferencia(row.referencia ?? '')
+      setFecha(row.fecha ?? new Date().toISOString().split('T')[0])
+      setCantidad(row.cantidad)
+      setTotal(row.total)
+      setImpuestos(row.impuestos === 1)
+      setComentario(row.comentario ?? '')
+      setVigenteLocal(row.vigente)
+      setSolicitudEstadoLocal(row.solicitudEstado ?? 1)
+    },
+  })
+  const cotizacion = ficha ?? cotizacionInicial
 
   // ── Costo unitario calculado (solo display en crear/editar) ────────────────
   const costoUnitarioCalc = (cantidad && total && cantidad > 0) ? total / cantidad : 0
@@ -804,7 +828,7 @@ export function CotizacionModal({
                       {submittingVigente ? 'Procesando...' : 'Marcar Vigente'}
                     </Button>
                   )}
-                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.cotizaciones.hover} onMouseDown={onEditMouseDown} onClick={onEditClick}>
+                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.cotizaciones.hover} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
                     <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
                   </Button>
                 </div>

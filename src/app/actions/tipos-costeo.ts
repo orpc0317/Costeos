@@ -20,6 +20,11 @@ export async function listarTiposCosteo(params?: { search?: string }): Promise<T
   return TipoCosteoService.listar(params)
 }
 
+export async function obtenerTipoCosteo(id: number): Promise<TipoCosteoRow | null> {
+  if (!(await puedeConsultar(PERMISOS.TCO_CAT))) return null
+  return TipoCosteoService.obtener(id)
+}
+
 export async function crearTipoCosteo(
   _prev: unknown,
   formData: FormData,

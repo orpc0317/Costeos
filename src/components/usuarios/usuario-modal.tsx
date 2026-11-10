@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useEditClick } from '@/lib/use-edit-click'
 import { Users, Power, PowerOff, History, Pencil, Check, ShieldCheck, X } from 'lucide-react'
 import { normalizeText } from '@/lib/utils/text'
@@ -18,7 +18,8 @@ import { Label } from '@/components/ui/label'
 import { FieldError } from '@/components/ui/field-error'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { crearUsuario, editarUsuario, toggleActivo } from '@/app/actions/usuarios'
+import { crearUsuario, editarUsuario, toggleActivo, obtenerUsuario } from '@/app/actions/usuarios'
+import { useRegistroFresco } from '@/hooks/use-registro-fresco'
 import { leerPermisosUsuario } from '@/app/actions/permisos'
 import { UI_THEME } from '@/lib/theme'
 import { MENUS, ROLES, presetDeRol, type PermisoFlags, type PermisosPantalla } from '@/lib/permisos'
@@ -43,6 +44,7 @@ interface UsuarioModalProps {
   usuario?: UsuarioRow
   trigger?: React.ReactNode
   onSuccess?: () => void
+  onActualizado?: (row: UsuarioRow) => void
   permisos?: PermisosPantalla
 }
 
@@ -53,7 +55,7 @@ const ROLES_OPCIONES = [
   { value: ROLES.VIEWER,   label: 'Viewer' },
 ].sort((a, b) => a.label.localeCompare(b.label))
 
-export function UsuarioModal({ usuario, trigger, onSuccess, permisos }: UsuarioModalProps) {
+export function UsuarioModal({ usuario, trigger, onSuccess, onActualizado, permisos }: UsuarioModalProps) {
   const puedeEditar = permisos?.modificar !== false
   const isEditing = !!usuario
   const [open, setOpen] = useState(false)
@@ -71,6 +73,27 @@ export function UsuarioModal({ usuario, trigger, onSuccess, permisos }: UsuarioM
   const [rol, setRol] = useState<string>(ROLES.ANALISTA)
   const [flags, setFlags] = useState<PermisoFlags[]>(() => grillaDe(ROLES.ANALISTA))
   const [snapUsuario, setSnapUsuario] = useState<UsuarioRow | null>(null)
+  const modeRef = useRef(mode)
+  modeRef.current = mode
+  const { ficha, cargando: cargandoFicha } = useRegistroFresco({
+    open,
+    mode,
+    registro: usuario,
+    obtener: obtenerUsuario,
+    onActualizado,
+    aplicar: (row) => {
+      setSnapUsuario(row)
+      setNombre(row.nombre)
+      setEmail(row.email)
+      setUsuarioErp(row.usuarioErp ?? '')
+      setRol(row.rol)
+      leerPermisosUsuario(row.id).then((rows) => {
+        if (modeRef.current !== 'view') return
+        const restringido = rows.some((f) => !f.consultar || !f.agregar || !f.modificar || !f.eliminar)
+        setFlags(restringido ? rows : grillaDe(row.rol, rows))
+      })
+    },
+  })
 
   function resetFields(data?: UsuarioRow | null) {
     setNombre(data?.nombre ?? '')
@@ -109,7 +132,7 @@ export function UsuarioModal({ usuario, trigger, onSuccess, permisos }: UsuarioM
     if (!usuario) return
     setIsPendingToggle(true)
     try {
-      const result = await toggleActivo(usuario.id, snapUsuario!.registroVersion)
+      const result = await toggleActivo(usuario.id, (ficha ?? snapUsuario)!.registroVersion)
       if (result.ok) {
         setOpen(false)
         onSuccess?.()
@@ -148,7 +171,7 @@ export function UsuarioModal({ usuario, trigger, onSuccess, permisos }: UsuarioM
     const todoActivo = flags.every((f) => f.consultar && f.agregar && f.modificar && f.eliminar)
     formData.append('permisos', JSON.stringify(rol === ROLES.ADMIN && todoActivo ? [] : flags))
     if (isEditing && snapUsuario) {
-      formData.append('registroVersion', String(snapUsuario.registroVersion))
+      formData.append('registroVersion', String((ficha ?? snapUsuario).registroVersion))
     }
 
     try {
@@ -365,7 +388,7 @@ export function UsuarioModal({ usuario, trigger, onSuccess, permisos }: UsuarioM
                     </Button>
                   )}
                   {puedeEditar && (
-                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.usuarios.hover} onMouseDown={onEditMouseDown} onClick={onEditClick}>
+                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.usuarios.hover} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
                       <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
                     </Button>
                   )}

@@ -19,6 +19,11 @@ export async function listarClientes(params?: { search?: string; limit?: number 
   return ClienteService.listar(params)
 }
 
+export async function obtenerCliente(id: number): Promise<ClienteRow | null> {
+  if (!(await puedeConsultar(PERMISOS.CLI_CAT))) return null
+  return ClienteService.obtener(id)
+}
+
 export async function crearCliente(data: ClienteInput): Promise<ActionResult<ClienteRow>> {
   const guard = await requirePermiso(PERMISOS.CLI_CAT, 'agregar')
   if (!guard.ok) return guard

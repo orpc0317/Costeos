@@ -41,6 +41,10 @@ export const UsuarioRepository = {
     return prisma.usuario.findUnique({ where: { id } })
   },
 
+  async findPublicoById(id: number) {
+    return prisma.usuario.findUnique({ where: { id }, select: SELECT_PUBLICO })
+  },
+
   async findByEmail(email: string) {
     return prisma.usuario.findUnique({ where: { email } })
   },

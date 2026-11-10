@@ -24,7 +24,9 @@ import {
   editarTipoCombo,
   eliminarTipoCombo,
   buscarTipoComboSimilares,
+  obtenerTipoCombo,
 } from '@/app/actions/tipos-combo'
+import { useRegistroFresco } from '@/hooks/use-registro-fresco'
 import { normalizeText } from '@/lib/utils/text'
 import { cn } from '@/lib/utils'
 import { UI_THEME } from '@/lib/theme'
@@ -38,11 +40,12 @@ import type { SimilarItem } from '@/lib/utils/similarity'
 interface TipoComboModalProps {
   tipoCombo?: TipoComboRow | null
   trigger: React.ReactNode
+  onActualizado?: (row: TipoComboRow) => void
 }
 
 // ─── Componente ───────────────────────────────────────────────────────────────
 
-export function TipoComboModal({ tipoCombo, trigger }: TipoComboModalProps) {
+export function TipoComboModal({ tipoCombo, trigger, onActualizado }: TipoComboModalProps) {
   const isEditing = !!tipoCombo
 
   const [open, setOpen]               = useState(false)
@@ -58,6 +61,19 @@ export function TipoComboModal({ tipoCombo, trigger }: TipoComboModalProps) {
   const [empresaId, setEmpresaId] = useState('')
   const [nombre, setNombre]       = useState('')
   const [icono, setIcono]         = useState('')
+  const { cargando: cargandoFicha } = useRegistroFresco({
+    open,
+    mode,
+    registro: tipoCombo ?? undefined,
+    obtener: obtenerTipoCombo,
+    onActualizado,
+    aplicar: (row) => {
+      setInitialTipoCombo(row)
+      setEmpresaId(row.empresaId.toString())
+      setNombre(row.nombre)
+      setIcono(row.icono ?? '')
+    },
+  })
 
   // Estado UI
   const [empresas, setEmpresas]               = useState<{ value: string; label: string }[]>([])
@@ -385,7 +401,7 @@ export function TipoComboModal({ tipoCombo, trigger }: TipoComboModalProps) {
                       Eliminar
                     </Button>
                   )}
-                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.tiposCombo.hover} onMouseDown={onEditMouseDown} onClick={onEditClick}>
+                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.tiposCombo.hover} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
                     <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
                   </Button>
                 </div>

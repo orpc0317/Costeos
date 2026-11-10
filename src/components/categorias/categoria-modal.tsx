@@ -11,7 +11,8 @@ import { FieldError } from '@/components/ui/field-error'
 import { Tags, Check, Pencil, History, ArrowUpDown, X } from 'lucide-react'
 import { HistorialDrawer } from '@/components/shared/historial-drawer'
 import { PrioridadModal } from '@/components/categorias/prioridad-modal'
-import { crearCategoria, actualizarCategoria, buscarCategoriasSimilares } from '@/app/actions/categorias'
+import { crearCategoria, actualizarCategoria, buscarCategoriasSimilares, obtenerCategoria } from '@/app/actions/categorias'
+import { useRegistroFresco } from '@/hooks/use-registro-fresco'
 import type { SimilarItem } from '@/lib/utils/similarity'
 import { getEmpresasForUser } from '@/app/actions/erp'
 import { normalizeText } from '@/lib/utils/text'
@@ -29,6 +30,7 @@ interface CategoriaModalProps {
   open?: boolean
   onOpenChange?: (open: boolean) => void
   onSuccess?: () => void
+  onActualizado?: (row: CategoriaRow) => void
   permisos?: PermisosPantalla
 }
 
@@ -38,6 +40,7 @@ export function CategoriaModal({
   open: controlledOpen,
   onOpenChange,
   onSuccess,
+  onActualizado,
   permisos,
 }: CategoriaModalProps) {
   const puedeEditar = permisos?.modificar !== false
@@ -55,6 +58,17 @@ export function CategoriaModal({
   // Campos del formulario
   const [empresa, setEmpresa] = useState<string>('')
   const [nombre, setNombre] = useState('')
+  const { cargando: cargandoFicha } = useRegistroFresco({
+    open,
+    mode,
+    registro: categoria,
+    obtener: obtenerCategoria,
+    onActualizado,
+    aplicar: (row) => {
+      setEmpresa(row.empresaId.toString())
+      setNombre(row.nombre)
+    },
+  })
 
   // Datos externos
   const [empresas, setEmpresas] = useState<{ value: string; label: string }[]>([])
@@ -317,7 +331,7 @@ export function CategoriaModal({
                     </Button>
                   )}
                   {puedeEditar && (
-                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.categorias.hover} onMouseDown={onEditMouseDown} onClick={onEditClick}>
+                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.categorias.hover} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
                       <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
                     </Button>
                   )}

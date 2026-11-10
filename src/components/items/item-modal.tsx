@@ -13,7 +13,8 @@ import { SearchableSelect } from '@/components/ui/searchable-select'
 import { FieldError } from '@/components/ui/field-error'
 import { Package, Settings2, Check, Pencil, History, Search, ArrowLeft, DollarSign, Layers, X } from 'lucide-react'
 import { HistorialDrawer } from '@/components/shared/historial-drawer'
-import { crearItem, actualizarItem, buscarItemsSimilaresConERP, buscarItemsLIKEConERP, getItemSyncHabilitado, agregarCostoItem } from '@/app/actions/items'
+import { crearItem, actualizarItem, buscarItemsSimilaresConERP, buscarItemsLIKEConERP, getItemSyncHabilitado, agregarCostoItem, obtenerItem } from '@/app/actions/items'
+import { useRegistroFresco } from '@/hooks/use-registro-fresco'
 import { listarTiposCombosPorEmpresa } from '@/app/actions/tipos-combo'
 import type { SimilarItemConOrigen, ErpSimilarData } from '@/lib/utils/similarity'
 import { getEmpresasForUser } from '@/app/actions/erp'
@@ -42,13 +43,14 @@ interface ItemModalProps {
   onOpenChange?: (open: boolean) => void
   onSaved?: (item: ItemRow) => void
   onClosed?: () => void
+  onActualizado?: (row: ItemRow) => void
 }
 
 const MIN_BUSQUEDA_CHARS = 3
 
 type ItemModalStep = 'busqueda' | 'formulario'
 
-export function ItemModal({ item, categorias, todosItems = [], trigger, open: controlledOpen, onOpenChange, onSaved, onClosed }: ItemModalProps) {
+export function ItemModal({ item, categorias, todosItems = [], trigger, open: controlledOpen, onOpenChange, onSaved, onClosed, onActualizado }: ItemModalProps) {
   const router = useRouter()
   const [internalOpen, setInternalOpen] = useState(false)
   const isControlled = controlledOpen !== undefined
@@ -216,7 +218,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
     .map(c => ({ value: c.id.toString(), label: c.nombre }))
     .sort((a, b) => a.label.localeCompare(b.label))
 
-  const resetForm = (data?: ItemRow) => {
+  const resetForm = (data?: ItemRow, conservarNavegacion = false) => {
     setEmpresa(data?.empresaId.toString() ?? '')
     setDescripcion(data?.descripcion ?? '')
     setUnidadMedida(data?.unidadMedida ?? 'UND')
@@ -233,6 +235,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
     setRecurrente(data ? Boolean(data.recurrente) : false)
     setRecurrenteGasto(data ? Boolean(data.recurrenteGasto) : false)
     setManejoCostos(data ? String(data.manejoCostos) : '99')
+    setCostoReferenciaItemId(data?.costoReferenciaItemId ? data.costoReferenciaItemId.toString() : '')
     setFechaCostoNuevo('')
     setCostoNuevo(null)
     setCostoDifNuevo(null)
@@ -283,15 +286,27 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
 
     setGlobalError(null)
     setFieldErrors({})
-    setActiveTab('general')
     setSimilares([])
     setErpVinculado(null)
-    // Wizard state
+    if (conservarNavegacion) return
+    setActiveTab('general')
     setStep('busqueda')
     setResultadosBusqueda([])
     setBusquedaRealizada(false)
     setBuscando(false)
   }
+
+  const { cargando: cargandoFicha } = useRegistroFresco({
+    open,
+    mode,
+    registro: item,
+    obtener: obtenerItem,
+    onActualizado,
+    aplicar: (row) => {
+      setCurrentItem(row)
+      resetForm(row, true)
+    },
+  })
 
   // CRÍTICO: inicializar formulario y mode dentro de handleOpenChange, nunca en useEffect
   const handleOpenChange = (newOpen: boolean) => {
@@ -1276,9 +1291,9 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                           itemId={item.id}
                           mode={mode}
                           referenciaDescripcion={
-                            todosItems.find(i => i.id === parseInt(costoReferenciaItemId, 10))?.descripcion
-                            ?? currentItem?.costoReferenciaDescripcion
+                            currentItem?.costoReferenciaDescripcion
                             ?? item.costoReferenciaDescripcion
+                            ?? todosItems.find(i => i.id === parseInt(costoReferenciaItemId, 10))?.descripcion
                           }
                           itemsReferencia={todosItems
                             .filter(i => i.empresaId === parseInt(empresa, 10) && i.id !== item.id)
@@ -1359,7 +1374,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                     <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.items.hover} onClick={() => setHistorialOpen(true)}>
                       <History className={UI_THEME.modal.buttons.icon} /> Historial
                     </Button>
-                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.items.hover} onMouseDown={onEditMouseDown} onClick={onEditClick}>
+                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.items.hover} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
                       <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
                     </Button>
                   </div>

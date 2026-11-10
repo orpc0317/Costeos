@@ -63,7 +63,7 @@ Se dejan en el repo. No borrar en esta fase.
 | Tarea | Leer |
 |---|---|
 | CRUD catálogo | Skill `crud-screen` → Categorías → templates → `crud-lista` + `crud-modal` + `permisos` |
-| Modal | `categoria-modal.tsx`; si hay dos grupos, también `usuario-modal.tsx` |
+| Modal | `categoria-modal.tsx`; si hay dos grupos, también `usuario-modal.tsx`. Ver relee el registro: `docs/conventions.md` §3.1.1 |
 | Action / service / repo | `categorias.ts` + `server-actions.mdc` + `permisos.mdc` |
 | Wizard / builder | `builder-costeo.mdc` + `docs/flujo-costeo.md` — **no** el template de catálogo |
 | ERP | `erp.mdc` + `src/lib/erp/index.ts` |

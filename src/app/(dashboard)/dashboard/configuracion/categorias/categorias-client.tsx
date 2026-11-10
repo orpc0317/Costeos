@@ -12,6 +12,7 @@ import { MODULE_ACCENT } from '@/lib/ui-accent'
 import type { PermisosPantalla } from '@/lib/permisos'
 import type { CategoriaRow } from '@/lib/types/categorias'
 import { listarCategorias } from '@/app/actions/categorias'
+import { reemplazarFila } from '@/hooks/use-registro-fresco'
 import { useDebounce } from '@/hooks/use-debounce'
 
 interface Props { initialData: CategoriaRow[]; permisos?: PermisosPantalla }
@@ -74,6 +75,7 @@ export function CategoriasClient({ initialData, permisos }: Props) {
           categoria={row.original}
           permisos={permisos}
           onSuccess={() => router.refresh()}
+          onActualizado={(rowActual) => setData((prev) => reemplazarFila(prev, rowActual))}
           trigger={<button className={UI_THEME.action.viewButton}><Eye className="h-4 w-4 text-blue-600" /></button>}
         />
       ),

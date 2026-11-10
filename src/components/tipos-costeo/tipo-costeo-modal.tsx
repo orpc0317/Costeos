@@ -25,7 +25,8 @@ import { NumericInput } from '@/components/ui/numeric-input'
 import { FieldError } from '@/components/ui/field-error'
 import { SegmentCard, SingleColumn } from '@/components/ui/form-layout'
 import { getEmpresasForUser } from '@/app/actions/erp'
-import { crearTipoCosteo, editarTipoCosteo, toggleActivo, buscarTipoCosteoSimilares } from '@/app/actions/tipos-costeo'
+import { crearTipoCosteo, editarTipoCosteo, toggleActivo, buscarTipoCosteoSimilares, obtenerTipoCosteo } from '@/app/actions/tipos-costeo'
+import { useRegistroFresco } from '@/hooks/use-registro-fresco'
 import type { TipoCosteoRow } from '@/lib/types/tipos-costeo'
 import type { SimilarItem } from '@/lib/utils/similarity'
 import { UI_THEME } from '@/lib/theme'
@@ -59,9 +60,10 @@ interface TipoCosteoModalProps {
   tipoCosteo?: TipoCosteoRow | null
   trigger?: React.ReactNode
   onSuccess?: () => void
+  onActualizado?: (row: TipoCosteoRow) => void
 }
 
-export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess }: TipoCosteoModalProps) {
+export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess, onActualizado }: TipoCosteoModalProps) {
   const [open, setOpen] = useState(false)
   const [historialOpen, setHistorialOpen] = useState(false)
 
@@ -103,6 +105,17 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess }: TipoCosteoMo
   const [baseEvaluacion, setBaseEvaluacion] = useState<'GLOBAL'|'MENSUAL'>('GLOBAL')
   const [manejoPlazo, setManejoPlazo] = useState<'LIBRE'|'FIJO'|'NO_APLICA'>('NO_APLICA')
   const [fijarPlazo, setFijarPlazo] = useState<number>(0)
+  const { cargando: cargandoFicha } = useRegistroFresco({
+    open,
+    mode,
+    registro: tipoCosteo ?? undefined,
+    obtener: obtenerTipoCosteo,
+    onActualizado,
+    aplicar: (row) => {
+      setInitialTipoCosteo(row)
+      resetFields(row)
+    },
+  })
 
   function resetFields(tc: TipoCosteoRow | null) {
     setEmpresaId(tc?.empresaId?.toString() ?? '')
@@ -741,7 +754,7 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess }: TipoCosteoMo
                       : <><Power className={UI_THEME.modal.buttons.icon} /> Activar</>}
                   </Button>
                 )}
-                <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.tiposCosteo.hover} onMouseDown={onEditMouseDown} onClick={onEditClick}>
+                <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.tiposCosteo.hover} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
                   <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
                 </Button>
               </div>

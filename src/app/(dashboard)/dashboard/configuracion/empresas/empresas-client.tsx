@@ -1,5 +1,5 @@
 'use client'
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/ui/data-table'
@@ -11,12 +11,15 @@ import { UI_THEME } from '@/lib/theme'
 import { MODULE_ACCENT } from '@/lib/ui-accent'
 import type { PermisosPantalla } from '@/lib/permisos'
 import type { EmpresaRow } from '@/lib/types/empresas'
+import { reemplazarFila } from '@/hooks/use-registro-fresco'
 
 interface Props { initialData: EmpresaRow[]; permisos?: PermisosPantalla }
 
 export function EmpresasClient({ initialData, permisos }: Props) {
   const puedeAgregar = permisos?.agregar !== false
   const router = useRouter()
+  const [data, setData] = useState(initialData)
+  useEffect(() => { setData(initialData) }, [initialData])
 
   const columns: ColumnDef<EmpresaRow>[] = useMemo(() => [
     {
@@ -56,6 +59,7 @@ export function EmpresasClient({ initialData, permisos }: Props) {
         <EmpresaModal
           empresa={row.original}
           onSuccess={() => router.refresh()}
+          onActualizado={(rowActual) => setData((prev) => reemplazarFila(prev, rowActual))}
           trigger={<button className={UI_THEME.action.viewButton}><Eye className="h-4 w-4 text-blue-600" /></button>}
         />
       ),
@@ -71,7 +75,7 @@ export function EmpresasClient({ initialData, permisos }: Props) {
       <PageHeader icon={Building2} title="Empresas" subtitle={subtitulo} accent={MODULE_ACCENT.empresas} actions={puedeAgregar ? <EmpresaModal onSuccess={() => router.refresh()} trigger={<Button className="gap-2"><Plus className="w-4 h-4" />Nueva Empresa</Button>} /> : null} />
       <DataTable
         columns={columns}
-        data={initialData}
+        data={data}
         tableId="empresas-table"
         searchPlaceholder="Buscar empresa..."
         rowAccent={MODULE_ACCENT.empresas.row}
