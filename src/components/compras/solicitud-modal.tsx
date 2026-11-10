@@ -52,11 +52,13 @@ import {
   actualizarSolicitud,
   eliminarSolicitud,
   listarCotizaciones,
+  obtenerSolicitud,
   marcarCotizacionVigente,
   eliminarCotizacion,
   getItemsByEmpresa,
 } from '@/app/actions/solicitudes'
 import { getEmpresasForUser } from '@/app/actions/erp'
+import { useRegistroFresco } from '@/hooks/use-registro-fresco'
 import { CotizacionForm } from './cotizacion-form'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/utils/format'
 
@@ -66,21 +68,23 @@ interface SolicitudModalProps {
   open?: boolean
   onOpenChange?: (open: boolean) => void
   onSuccess?: () => void
+  onActualizado?: (row: SolicitudRow) => void
 }
 
 export function SolicitudModal({
-  solicitud,
+  solicitud: solicitudInicial,
   trigger,
   open: controlledOpen,
   onOpenChange,
   onSuccess,
+  onActualizado,
 }: SolicitudModalProps) {
   const [internalOpen, setInternalOpen] = useState(false)
   const isControlled = controlledOpen !== undefined
   const open = isControlled ? controlledOpen : internalOpen
   const setOpen = isControlled ? onOpenChange! : setInternalOpen
 
-  const isEditing = !!solicitud
+  const isEditing = !!solicitudInicial
   const [mode, setMode] = useState<'view' | 'edit'>('view')
   const { onEditMouseDown, onEditClick, blockAccidentalSubmit } = useEditClick(setMode)
   const [historialOpen, setHistorialOpen] = useState(false)
@@ -102,12 +106,25 @@ export function SolicitudModal({
   const [mostrarFormNueva, setMostrarFormNueva] = useState(false)
   const [submittingCot, setSubmittingCot]       = useState<number | null>(null)
   const [pendingDeleteCot, setPendingDeleteCot] = useState<number | null>(null)
-  const [estadoLocal, setEstadoLocal]           = useState(solicitud?.estado ?? 1)
+  const [estadoLocal, setEstadoLocal]           = useState(solicitudInicial?.estado ?? 1)
 
   // ── UI ─────────────────────────────────────────────────────────────────────
   const [loading, setLoading]           = useState(false)
   const [globalError, setGlobalError]   = useState<string | null>(null)
   const [fieldErrors, setFieldErrors]   = useState<Record<string, string>>({})
+  const { ficha, cargando: cargandoFicha } = useRegistroFresco({
+    open,
+    mode,
+    registro: solicitudInicial,
+    obtener: obtenerSolicitud,
+    onActualizado,
+    aplicar: (row) => {
+      setScope(row.scope ?? 'GENERAL')
+      setCantidad(row.cantidad ?? 0)
+      setEstadoLocal(row.estado ?? 1)
+    },
+  })
+  const solicitud = ficha ?? solicitudInicial
 
   // ── Cotizaciones helpers ───────────────────────────────────────────────────
   const cargarCotizaciones = useCallback(async () => {
@@ -671,7 +688,7 @@ export function SolicitudModal({
                   <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.eliminar} onClick={handleEliminar}>
                     <Trash2 className={UI_THEME.modal.buttons.icon} /> Eliminar
                   </Button>
-                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.solicitudes.hover} onMouseDown={onEditMouseDown} onClick={onEditClick}>
+                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.solicitudes.hover} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
                     <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
                   </Button>
                 </div>

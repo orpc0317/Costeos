@@ -44,29 +44,43 @@ const CAMPOS_ITEM = [
   { key: 'activo',                label: 'Activo' },
 ] as const
 
+async function conReferencias(
+  rows: NonNullable<Awaited<ReturnType<typeof ItemRepository.findDetalle>>>[],
+): Promise<ItemRow[]> {
+  if (rows.length === 0) return []
+  const [empresas, categorias, tiposCombos, todosItems] = await Promise.all([
+    prisma.empresa.findMany({ select: { id: true, nombre: true } }),
+    prisma.categoriaItem.findMany({ select: { id: true, nombre: true } }),
+    prisma.tipoCombo.findMany({ select: { id: true, nombre: true } }),
+    prisma.item.findMany({ select: { id: true, descripcion: true } }),
+  ])
+  const empresaMap   = new Map(empresas.map(e  => [e.id, e.nombre]))
+  const categoriaMap = new Map(categorias.map(c => [c.id, c.nombre]))
+  const tipoComboMap = new Map(tiposCombos.map(t => [t.id, t.nombre]))
+  const itemRefMap   = new Map(todosItems.map(i => [i.id, i.descripcion]))
+  return rows.map(r => ItemService._serializarItem({
+    ...r,
+    empresaNombre:              empresaMap.get(r.empresaId) ?? `Empresa ${r.empresaId}`,
+    categoria:                  { nombre: categoriaMap.get(r.categoriaId) ?? String(r.categoriaId) },
+    tipoComboNombre:            r.tipoComboId ? (tipoComboMap.get(r.tipoComboId) ?? null) : null,
+    costoReferenciaDescripcion: r.costoReferenciaItemId
+      ? (itemRefMap.get(r.costoReferenciaItemId) ?? null)
+      : null,
+  }))
+}
+
 export const ItemService = {
 
   async listar(params?: { search?: string; limit?: number }): Promise<ItemRow[]> {
-    const [rows, empresas, categorias, tiposCombos, todosItems] = await Promise.all([
-      ItemRepository.findAll(params),
-      prisma.empresa.findMany({ select: { id: true, nombre: true } }),
-      prisma.categoriaItem.findMany({ select: { id: true, nombre: true } }),
-      prisma.tipoCombo.findMany({ select: { id: true, nombre: true } }),
-      prisma.item.findMany({ select: { id: true, descripcion: true } }),
-    ])
-    const empresaMap   = new Map(empresas.map(e  => [e.id, e.nombre]))
-    const categoriaMap = new Map(categorias.map(c => [c.id, c.nombre]))
-    const tipoComboMap = new Map(tiposCombos.map(t => [t.id, t.nombre]))
-    const itemRefMap   = new Map(todosItems.map(i => [i.id, i.descripcion]))
-    return rows.map(r => this._serializarItem({
-      ...r,
-      empresaNombre:              empresaMap.get(r.empresaId) ?? `Empresa ${r.empresaId}`,
-      categoria:                  { nombre: categoriaMap.get(r.categoriaId) ?? String(r.categoriaId) },
-      tipoComboNombre:            r.tipoComboId ? (tipoComboMap.get(r.tipoComboId) ?? null) : null,
-      costoReferenciaDescripcion: r.costoReferenciaItemId
-        ? (itemRefMap.get(r.costoReferenciaItemId) ?? null)
-        : null,
-    }))
+    const rows = await ItemRepository.findAll(params)
+    return conReferencias(rows)
+  },
+
+  async obtener(id: number): Promise<ItemRow | null> {
+    const row = await ItemRepository.findDetalle(id)
+    if (!row) return null
+    const [item] = await conReferencias([row])
+    return item ?? null
   },
 
   /** Convierte los campos Decimal de combosPrincipal a number plano. */

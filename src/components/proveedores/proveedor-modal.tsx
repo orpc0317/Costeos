@@ -11,7 +11,8 @@ import { SearchableSelect } from '@/components/ui/searchable-select'
 import { FieldError } from '@/components/ui/field-error'
 import { Truck, Check, Pencil, History, Search, ArrowLeft, X } from 'lucide-react'
 import { HistorialDrawer } from '@/components/shared/historial-drawer'
-import { crearProveedor, actualizarProveedor, buscarProveedoresSimilares } from '@/app/actions/proveedores'
+import { crearProveedor, actualizarProveedor, buscarProveedoresSimilares, obtenerProveedor } from '@/app/actions/proveedores'
+import { useRegistroFresco } from '@/hooks/use-registro-fresco'
 import type { ProveedorSimilarConOrigen } from '@/app/actions/proveedores'
 import { getEmpresasForUser } from '@/app/actions/erp'
 import { normalizeText } from '@/lib/utils/text'
@@ -30,13 +31,14 @@ interface ProveedorModalProps {
   trigger?: React.ReactNode
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  onActualizado?: (row: ProveedorRow) => void
 }
 
 const MIN_BUSQUEDA_CHARS = 3
 type ProveedorModalStep = 'busqueda' | 'formulario'
 type TipoBusqueda = 'nombre' | 'nit'
 
-export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpenChange }: ProveedorModalProps) {
+export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpenChange, onActualizado }: ProveedorModalProps) {
   const router = useRouter()
   const [internalOpen, setInternalOpen] = useState(false)
   const isControlled = controlledOpen !== undefined
@@ -64,6 +66,23 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
   const [telefono, setTelefono] = useState('')
   const [email, setEmail] = useState('')
   const [codigoErp, setCodigoErp] = useState<string | null>(null)
+  const { ficha, cargando: cargandoFicha } = useRegistroFresco({
+    open,
+    mode,
+    registro: proveedor,
+    obtener: obtenerProveedor,
+    onActualizado,
+    aplicar: (row) => {
+      setEmpresaId(row.empresaId.toString())
+      setNit(row.nit ?? '')
+      setNombre(row.nombre ?? '')
+      setContacto(row.contacto ?? '')
+      setTelefono(row.telefono ?? '')
+      setEmail(row.email ?? '')
+      const rawCodigo = row.codigoErp ?? null
+      setCodigoErp(rawCodigo && rawCodigo !== 'NULL' ? rawCodigo : null)
+    },
+  })
 
   // ERP vinculado (campos pre-poblados, read-only)
   const [erpVinculado, setErpVinculado] = useState<ErpProveedor | null>(null)
@@ -249,7 +268,7 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
 
       let res
       if (isEditing && proveedor) {
-        res = await actualizarProveedor(proveedor.id, { ...data, registroVersion: proveedor.registroVersion })
+        res = await actualizarProveedor(proveedor.id, { ...data, registroVersion: (ficha ?? proveedor).registroVersion })
       } else {
         res = await crearProveedor(data)
       }
@@ -710,7 +729,7 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
                     <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.proveedores.hover} onClick={() => setHistorialOpen(true)}>
                       <History className={UI_THEME.modal.buttons.icon} /> Historial
                     </Button>
-                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.proveedores.hover} onMouseDown={onEditMouseDown} onClick={onEditClick}>
+                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.proveedores.hover} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
                       <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
                     </Button>
                   </div>

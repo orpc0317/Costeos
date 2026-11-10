@@ -234,6 +234,17 @@ export function MiEntidadModal({ entidad, trigger, open: controlledOpen, onOpenC
 
 > **CRÍTICO — Bug de "Flash":** La inicialización del formulario SIEMPRE ocurre dentro de `handleOpenChange` cuando `newOpen === true`. **NUNCA** usar un `useEffect` con dependencias en los datos del registro o en el `mode`, ya que esto causa que el modal regrese a modo Vista inmediatamente después de dar click en Editar. Si se necesita cargar datos externos (ej: lista de empresas), ese `useEffect` solo puede depender de `[open]` y no tocar el `mode`.
 
+### 3.1.1 Lectura al abrir Ver
+
+En multiusuario la fila de la lista puede estar vieja. Al abrir **Ver** de un registro que ya existe, el modal vuelve a leer **solo ese registro** y sus referencias (nombres de FK y colecciones que viajan en la fila). No se recarga el catálogo completo ni la página.
+
+- Action `obtenerEntidad(id)`, con `puedeConsultar`. El service arma la misma forma que una fila de `listar`.
+- El modal usa `useRegistroFresco` (`src/hooks/use-registro-fresco.ts`). El efecto depende solo de `open` y no toca `mode`.
+- La respuesta se aplica a los campos solo si el modal sigue en Ver. Editar queda deshabilitado hasta que esa lectura termina, para guardar el `registroVersion` nuevo.
+- `onActualizado` sustituye esa fila en la lista (`reemplazarFila`). No dispara un refresh de toda la tabla.
+- Pestañas que ya consultan su detalle por id al montarse (costos, cotizaciones de una solicitud) siguen así. El nombre de una referencia se toma del registro recién leído, no de un catálogo cargado al entrar a la pantalla.
+- Alta (sin id) no llama `obtener`. El diálogo de prioridades y el lienzo del Costeador no son este caso.
+
 ### 3.2 Estructura JSX del Modal
 
 ```tsx

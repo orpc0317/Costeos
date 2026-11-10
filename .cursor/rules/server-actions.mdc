@@ -9,6 +9,7 @@ alwaysApply: false
 Patron: `src/app/actions/categorias.ts` → service → repository.
 
 - Escritura: `requirePermiso` primero. Lectura de lista: `puedeConsultar`.
+- Ver de un registro: `obtenerEntidad(id)` con `puedeConsultar`. Devuelve la misma forma que una fila de `listar`, con nombres de FK y los detalles que viajan en la fila. Una sola fila, no el catalogo.
 - No usar `requireAdmin` / `requireManagerOrAdmin` para pantallas del menu.
 - Validar con Zod del tipo en `src/lib/types/`.
 - Repo plano. Nombres de FK en el service, no `include` de Prisma para labels.

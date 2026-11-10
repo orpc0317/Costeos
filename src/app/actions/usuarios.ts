@@ -15,6 +15,11 @@ export async function listarUsuarios(params?: { search?: string }): Promise<Usua
   return UsuarioService.listar(params)
 }
 
+export async function obtenerUsuario(id: number): Promise<UsuarioRow | null> {
+  if (!(await puedeConsultar(PERMISOS.USU_CAT))) return null
+  return UsuarioService.obtener(id)
+}
+
 export async function crearUsuario(
   _prev: unknown,
   formData: FormData,

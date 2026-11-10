@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { HistorialDrawer } from '@/components/shared/historial-drawer'
 import { normalizeText } from '@/lib/utils/text'
-import { crearEmpresa, actualizarEmpresaCompleto, buscarEmpresasSimilares } from '@/app/actions/empresas'
+import { crearEmpresa, actualizarEmpresaCompleto, buscarEmpresasSimilares, obtenerEmpresa } from '@/app/actions/empresas'
+import { useRegistroFresco } from '@/hooks/use-registro-fresco'
 import { buscarEmpresaErp } from '@/app/actions/erp'
 import { CATALOGOS_ERP, type CatalogoSyncRow } from '@/lib/types/empresas'
 import type { EmpresaRow } from '@/lib/types/empresas'
@@ -31,6 +32,7 @@ interface EmpresaModalProps {
   open?: boolean
   onOpenChange?: (open: boolean) => void
   onSuccess?: () => void
+  onActualizado?: (row: EmpresaRow) => void
 }
 
 // ─── Componente ───────────────────────────────────────────────────────────────
@@ -41,6 +43,7 @@ export function EmpresaModal({
   open: controlledOpen,
   onOpenChange,
   onSuccess,
+  onActualizado,
 }: EmpresaModalProps) {
   // Soporta modo controlado (open/onOpenChange) y modo autónomo (trigger)
   const [internalOpen, setInternalOpen] = useState(false)
@@ -63,6 +66,25 @@ export function EmpresaModal({
 
   // ── Estado pestaña ERP ──────────────────────────────────────────────────────
   const [catalogosSync, setCatalogosSync] = useState<CatalogoSyncRow[]>([])
+  const { ficha, cargando: cargandoFicha } = useRegistroFresco({
+    open,
+    mode,
+    registro: empresa,
+    obtener: obtenerEmpresa,
+    onActualizado,
+    aplicar: (row) => {
+      setNombre(row.nombre ?? '')
+      setRazonSocial(row.razonSocial ?? '')
+      setNit(row.nit ?? '')
+      setCodigoErp(row.codigoErp ?? '')
+      setCatalogosSync(row.catalogosSync ?? [])
+      if (row.codigoErp) {
+        buscarEmpresaErp(row.codigoErp).then((resultado) => {
+          if (resultado) setNombreErp(resultado.nombre)
+        })
+      }
+    },
+  })
 
   // ── Estado del lookup ERP ───────────────────────────────────────────────────
   const [nombreErp, setNombreErp]       = useState<string | null>(null)
@@ -164,7 +186,7 @@ export function EmpresaModal({
       const res = isExisting
         ? await actualizarEmpresaCompleto(
             empresa!.id,
-            { ...data, registroVersion: empresa!.registroVersion },
+            { ...data, registroVersion: (ficha ?? empresa)!.registroVersion },
             catalogosSync,
           )
         : await crearEmpresa(data)
@@ -496,7 +518,7 @@ export function EmpresaModal({
                   <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.empresas.hover} onClick={() => setHistorialOpen(true)}>
                     <History className={UI_THEME.modal.buttons.icon} /> Historial
                   </Button>
-                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.empresas.hover} onMouseDown={onEditMouseDown} onClick={onEditClick}>
+                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.empresas.hover} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
                     <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
                   </Button>
                 </div>

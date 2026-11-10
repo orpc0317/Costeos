@@ -13,7 +13,8 @@ import { FieldError } from '@/components/ui/field-error'
 import { NumericInput } from '@/components/ui/numeric-input'
 import { Building2, Settings2, Check, Pencil, History, Search, ArrowLeft, UserRound, X } from 'lucide-react'
 import { HistorialDrawer } from '@/components/shared/historial-drawer'
-import { crearCliente, actualizarCliente, buscarClientesSimilares } from '@/app/actions/clientes'
+import { crearCliente, actualizarCliente, buscarClientesSimilares, obtenerCliente } from '@/app/actions/clientes'
+import { useRegistroFresco } from '@/hooks/use-registro-fresco'
 import type { ClienteSimilarConOrigen } from '@/app/actions/clientes'
 import { getEmpresasForUser, getDepartamentosERP, getMunicipiosERP } from '@/app/actions/erp'
 import { normalizeText } from '@/lib/utils/text'
@@ -31,13 +32,14 @@ interface ClienteModalProps {
   trigger?: React.ReactNode
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  onActualizado?: (row: ClienteRow) => void
 }
 
 const MIN_BUSQUEDA_CHARS = 3
 type ClienteModalStep = 'busqueda' | 'formulario'
 type TipoBusqueda = 'nombre' | 'nit'
 
-export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenChange }: ClienteModalProps) {
+export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenChange, onActualizado }: ClienteModalProps) {
   const router = useRouter()
   const [internalOpen, setInternalOpen] = useState(false)
   const isControlled = controlledOpen !== undefined
@@ -66,6 +68,24 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
   const [municipio, setMunicipio] = useState<string>('')
   const [diasCredito, setDiasCredito] = useState<number | undefined>(0)
   const [codigoErp, setCodigoErp] = useState<string | null>(null)
+  const { ficha, cargando: cargandoFicha } = useRegistroFresco({
+    open,
+    mode,
+    registro: cliente,
+    obtener: obtenerCliente,
+    onActualizado,
+    aplicar: (row) => {
+      setEmpresaId(row.empresaId.toString())
+      setNit(row.nit ?? '')
+      setRazonSocial(row.razonSocial ?? '')
+      setDireccionFiscal(row.direccionFiscal ?? '')
+      setDepartamento(row.direccionDepartamentoId ? String(row.direccionDepartamentoId) : '')
+      setMunicipio(row.direccionMunicipioId ? String(row.direccionMunicipioId) : '')
+      setDiasCredito(row.diasCredito ?? 0)
+      const rawCodigo = row.codigoErp ?? null
+      setCodigoErp(rawCodigo && rawCodigo !== 'NULL' ? rawCodigo : null)
+    },
+  })
 
   // ERP vinculado (campos pre-poblados, read-only)
   const [erpVinculado, setErpVinculado] = useState<ErpCliente | null>(null)
@@ -292,7 +312,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
 
       let res
       if (isEditing && cliente) {
-        res = await actualizarCliente(cliente.id, { ...data, registroVersion: cliente.registroVersion })
+        res = await actualizarCliente(cliente.id, { ...data, registroVersion: (ficha ?? cliente).registroVersion })
       } else {
         res = await crearCliente(data)
       }
@@ -824,7 +844,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                     <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.clientes.hover} onClick={() => setHistorialOpen(true)}>
                       <History className={UI_THEME.modal.buttons.icon} /> Historial
                     </Button>
-                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.clientes.hover} onMouseDown={onEditMouseDown} onClick={onEditClick}>
+                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.clientes.hover} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
                       <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
                     </Button>
                   </div>

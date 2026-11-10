@@ -15,6 +15,11 @@ export async function listarCategorias(params?: { search?: string }): Promise<Ca
   return CategoriaService.listar(params)
 }
 
+export async function obtenerCategoria(id: number): Promise<CategoriaRow | null> {
+  if (!(await puedeConsultar(PERMISOS.CAT_CAT))) return null
+  return CategoriaService.obtener(id)
+}
+
 export async function listarCategoriasPorEmpresa(empresaId: number): Promise<CategoriaRow[]> {
   if (!(await puedeConsultar(PERMISOS.CAT_CAT))) return []
   return CategoriaService.listarPorEmpresa(empresaId)

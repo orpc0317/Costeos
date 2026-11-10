@@ -45,6 +45,22 @@ export const ItemRepository = {
     return prisma.item.findUnique({ where: { id } })
   },
 
+  /** Misma forma que findAll, para reabrir Ver con combos y pivotes. */
+  async findDetalle(id: number) {
+    return prisma.item.findUnique({
+      where: { id },
+      include: {
+        combosPrincipal: {
+          include: {
+            productoSecundario: { select: { id: true, descripcion: true, codigoErp: true } },
+          },
+        },
+        tiposComboRH: { select: { tipoComboRHId: true, rol: true } },
+        tiposCombo: { select: { tipoComboId: true, obligatorio: true } },
+      },
+    })
+  },
+
   async create(
     data: {
       empresaId:             number

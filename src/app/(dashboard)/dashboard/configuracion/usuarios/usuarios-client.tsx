@@ -13,6 +13,7 @@ import { MODULE_ACCENT } from '@/lib/ui-accent'
 import type { PermisosPantalla } from '@/lib/permisos'
 import { listarUsuarios } from '@/app/actions/usuarios'
 import { useDebounce } from '@/hooks/use-debounce'
+import { reemplazarFila } from '@/hooks/use-registro-fresco'
 import { useRouter } from 'next/navigation'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -91,6 +92,7 @@ export function UsuariosClient({ initialData, permisos }: Props) {
         <UsuarioModal
           usuario={row.original}
           onSuccess={() => router.refresh()}
+          onActualizado={(rowActual) => setData((prev) => reemplazarFila(prev, rowActual))}
           trigger={<button className={UI_THEME.action.viewButton}><Eye className="h-4 w-4 text-blue-600" /></button>}
         />
       ),

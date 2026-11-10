@@ -13,6 +13,7 @@ import type { PermisosPantalla } from '@/lib/permisos'
 import type { ClienteRow } from '@/lib/types/clientes'
 import { listarClientes } from '@/app/actions/clientes'
 import { useDebounce } from '@/hooks/use-debounce'
+import { reemplazarFila } from '@/hooks/use-registro-fresco'
 
 interface Props { initialData: ClienteRow[]; permisos?: PermisosPantalla }
 
@@ -73,6 +74,7 @@ export function ClientesClient({ initialData, permisos }: Props) {
       cell: ({ row }) => (
         <ClienteModal
           cliente={row.original}
+          onActualizado={(rowActual) => setData((prev) => reemplazarFila(prev, rowActual))}
           trigger={<button className={UI_THEME.action.viewButton}><Eye className="h-4 w-4 text-blue-600" /></button>}
         />
       ),

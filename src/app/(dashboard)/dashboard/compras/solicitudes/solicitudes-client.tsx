@@ -4,7 +4,7 @@
  * Pantalla de Solicitudes de Compra — lista con DataTable.
  * El modal unificado SolicitudModal maneja create, view y edit.
  */
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/ui/data-table'
@@ -17,11 +17,14 @@ import type { PermisosPantalla } from '@/lib/permisos'
 import type { SolicitudRow } from '@/lib/types/cotizaciones'
 import { labelEstadoSolicitud } from '@/lib/constants/cotizaciones'
 import { SolicitudModal } from '@/components/compras/solicitud-modal'
+import { reemplazarFila } from '@/hooks/use-registro-fresco'
 import { formatCurrency } from '@/lib/utils/format'
 
 export function SolicitudesClient({ solicitudes, permisos }: { solicitudes: SolicitudRow[]; permisos?: PermisosPantalla }) {
   const puedeAgregar = permisos?.agregar !== false
   const router = useRouter()
+  const [data, setData] = useState(solicitudes)
+  useEffect(() => { setData(solicitudes) }, [solicitudes])
 
   const columns: ColumnDef<SolicitudRow>[] = useMemo(() => [
     // 1 — ID
@@ -125,6 +128,7 @@ export function SolicitudesClient({ solicitudes, permisos }: { solicitudes: Soli
         <SolicitudModal
           solicitud={row.original}
           onSuccess={() => router.refresh()}
+          onActualizado={(rowActual) => setData((prev) => reemplazarFila(prev, rowActual))}
           trigger={
             <button className={UI_THEME.action.viewButton}>
               <Eye className="h-4 w-4 text-blue-600" />
@@ -151,7 +155,7 @@ export function SolicitudesClient({ solicitudes, permisos }: { solicitudes: Soli
       />
       <DataTable
         columns={columns}
-        data={solicitudes}
+        data={data}
         tableId="solicitudes-compras-v3"
         searchPlaceholder="Buscar por item, empresa, cliente..."
         rowAccent={MODULE_ACCENT.solicitudes.row}

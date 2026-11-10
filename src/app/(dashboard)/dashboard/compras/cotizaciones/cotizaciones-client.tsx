@@ -8,7 +8,7 @@
  * Columnas: id, empresa, item, proveedor, fecha, cantidad, total,
  *           costoUnitario, vigente (badge), actions
  */
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/ui/data-table'
@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/ui/page-header'
 import { FileText, Plus, Eye, CheckCircle2 } from 'lucide-react'
 import { CotizacionModal } from '@/components/compras/cotizacion-modal'
+import { reemplazarFila } from '@/hooks/use-registro-fresco'
 import { UI_THEME } from '@/lib/theme'
 import { MODULE_ACCENT } from '@/lib/ui-accent'
 import type { PermisosPantalla } from '@/lib/permisos'
@@ -30,6 +31,8 @@ interface CotizacionesClientProps {
 export function CotizacionesClient({ cotizaciones, permisos }: CotizacionesClientProps) {
   const puedeAgregar = permisos?.agregar !== false
   const router = useRouter()
+  const [data, setData] = useState(cotizaciones)
+  useEffect(() => { setData(cotizaciones) }, [cotizaciones])
 
   const columns: ColumnDef<CotizacionRow>[] = useMemo(() => [
     {
@@ -132,6 +135,7 @@ export function CotizacionesClient({ cotizaciones, permisos }: CotizacionesClien
         <CotizacionModal
           cotizacion={row.original}
           onSuccess={() => router.refresh()}
+          onActualizado={(rowActual) => setData((prev) => reemplazarFila(prev, rowActual))}
           trigger={
             <button className={UI_THEME.action.viewButton}>
               <Eye className="h-4 w-4 text-blue-600" />
@@ -162,7 +166,7 @@ export function CotizacionesClient({ cotizaciones, permisos }: CotizacionesClien
       />
       <DataTable
         columns={columns}
-        data={cotizaciones}
+        data={data}
         tableId="cotizaciones-v2"
         searchPlaceholder="Buscar por empresa, item, proveedor..."
         rowAccent={MODULE_ACCENT.cotizaciones.row}

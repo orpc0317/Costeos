@@ -39,6 +39,15 @@ export const EmpresaService = {
     return EmpresaRepository.findAll()
   },
 
+  async obtener(id: number): Promise<EmpresaRow | null> {
+    const emp = await EmpresaRepository.findById(id)
+    if (!emp) return null
+    return toRow(emp, emp.configuracionesSync.map(c => ({
+      catalogo: c.catalogo,
+      sincronizar: c.sincronizar,
+    })))
+  },
+
   async crear(data: EmpresaInput, userId: number): Promise<ActionResult<EmpresaRow>> {
     const nueva = await prisma.$transaction(async (tx) => {
       const emp = await EmpresaRepository.create(

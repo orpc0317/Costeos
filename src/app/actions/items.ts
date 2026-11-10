@@ -21,6 +21,11 @@ export async function listarItems(params?: { search?: string; limit?: number }):
   return ItemService.listar(params)
 }
 
+export async function obtenerItem(id: number): Promise<ItemRow | null> {
+  if (!(await puedeConsultar(PERMISOS.ITE_CAT))) return null
+  return ItemService.obtener(id)
+}
+
 export async function crearItem(data: ItemInput): Promise<ActionResult<ItemRow>> {
   const guard = await requirePermiso(PERMISOS.ITE_CAT, 'agregar')
   if (!guard.ok) return guard

@@ -44,6 +44,19 @@ export const CategoriaService = {
     }))
   },
 
+  async obtener(id: number): Promise<CategoriaRow | null> {
+    const [row, empresas] = await Promise.all([
+      CategoriaRepository.findById(id),
+      prisma.empresa.findMany({ select: { id: true, nombre: true } }),
+    ])
+    if (!row) return null
+    const empresaMap = new Map(empresas.map(e => [e.id, e.nombre]))
+    return {
+      ...row,
+      empresaNombre: empresaMap.get(row.empresaId) ?? `Empresa ${row.empresaId}`,
+    }
+  },
+
   async listarPorEmpresa(empresaId: number): Promise<CategoriaRow[]> {
     const rows = await CategoriaRepository.findByEmpresa(empresaId)
     return rows.map(r => ({ ...r, empresaNombre: undefined }))

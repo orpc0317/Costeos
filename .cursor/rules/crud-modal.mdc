@@ -16,5 +16,6 @@ Antes de editar: leer `src/components/categorias/categoria-modal.tsx` y `src/com
 - Numeros: `NumericInput`.
 - `HistorialDrawer` fuera del `Dialog`.
 - Init de campos en `handleOpenChange(true)`. El `useEffect([open])` no toca `mode`.
+- Al abrir Ver, `useRegistroFresco` + `obtenerEntidad(id)` releen solo ese registro y sus referencias. Editar queda deshabilitado hasta que llega. `onActualizado` sustituye la fila con `reemplazarFila`. No recargar la lista entera. Ver `docs/conventions.md` §3.1.1.
 - Update con `registroVersion`. Si el error incluye `modificado`, al cerrar refrescar.
 - Footer como Cartera. Vista: ghost `size="sm"` en `buttons.viewRow` (Historial, extra, Eliminar, Editar) y `accent.hover`. Edicion: Cancelar y Guardar ghost `size="sm"` en `buttons.editRow`, con icono X y Check y el mismo hover. Alta: Guardar ghost con Check. Editar solo si `permisos.modificar !== false`.

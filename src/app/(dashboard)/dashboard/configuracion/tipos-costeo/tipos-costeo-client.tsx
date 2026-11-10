@@ -14,6 +14,7 @@ import type { PermisosPantalla } from '@/lib/permisos'
 import type { TipoCosteoRow } from '@/lib/types/tipos-costeo'
 import { listarTiposCosteo } from '@/app/actions/tipos-costeo'
 import { useDebounce } from '@/hooks/use-debounce'
+import { reemplazarFila } from '@/hooks/use-registro-fresco'
 import { useRouter } from 'next/navigation'
 
 interface Props { initialData: TipoCosteoRow[]; permisos?: PermisosPantalla }
@@ -79,6 +80,7 @@ export function TiposCosteoClient({ initialData, permisos }: Props) {
         <TipoCosteoModal
           tipoCosteo={row.original}
           onSuccess={() => router.refresh()}
+          onActualizado={(rowActual) => setData((prev) => reemplazarFila(prev, rowActual))}
           trigger={<button className={UI_THEME.action.viewButton}><Eye className="h-4 w-4 text-blue-600" /></button>}
         />
       ),

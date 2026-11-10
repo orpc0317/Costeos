@@ -91,6 +91,19 @@ export const ClienteService = {
     }))
   },
 
+  async obtener(id: number): Promise<ClienteRow | null> {
+    const [row, empresas] = await Promise.all([
+      ClienteRepository.findById(id),
+      prisma.empresa.findMany({ select: { id: true, nombre: true } }),
+    ])
+    if (!row) return null
+    const empresaMap = new Map(empresas.map(e => [e.id, e.nombre]))
+    return {
+      ...row,
+      empresaNombre: empresaMap.get(row.empresaId) ?? `Empresa ${row.empresaId}`,
+    }
+  },
+
   async crear(data: ClienteInput, userId: number): Promise<ActionResult<ClienteRow>> {
     // Resolver nombres de empresa, departamento y municipio ANTES de la transacción
     // para que el log de auditoría muestre nombres legibles, no códigos numéricos.

@@ -150,6 +150,7 @@ Para todo lo demás: **decidir, ejecutar, verificar, reportar resultado**.
 ### Comportamiento
 - [ ] `handleOpenChange(true)` inicializa `mode` + todos los campos + llama `resetFields()`
 - [ ] `useEffect([open])` tiene **reset defensivo de campos** al inicio (R22) — sin tocar `mode`
+- [ ] Al abrir Ver, `useRegistroFresco` + `obtenerEntidad(id)` releen solo ese registro y sus referencias. Editar deshabilitado hasta que llega. La lista sustituye esa fila con `reemplazarFila`. Ver `docs/conventions.md` §3.1.1
 - [ ] Anti-similares R18: verificar al guardar, error rojo si 100%, panel amarillo si ≥85%
 - [ ] OCC: el `update` pasa `registroVersion` y maneja el caso `count === 0`
 

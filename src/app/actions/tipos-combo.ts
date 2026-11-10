@@ -20,6 +20,11 @@ export async function listarTiposCombo(params?: { search?: string }): Promise<Ti
   return TipoComboService.listar(params)
 }
 
+export async function obtenerTipoCombo(id: number): Promise<TipoComboRow | null> {
+  if (!(await puedeConsultar(PERMISOS.TCB_CAT))) return null
+  return TipoComboService.obtener(id)
+}
+
 /** Lista solo los TiposCombos activos de una empresa — para selects en el modal de Item. */
 export async function listarTiposCombosPorEmpresa(
   empresaId: number,
