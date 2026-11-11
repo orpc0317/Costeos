@@ -618,12 +618,13 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
               PASO 1 — BÚSQUEDA (solo para ítems nuevos)
           ══════════════════════════════════════════════════════ */}
           {!isEditing && step === 'busqueda' && (
-            <div className="flex flex-1 min-h-0 flex-col gap-4 pt-1">
+            <div className="flex flex-1 min-h-0 flex-col gap-4 pt-2">
 
-              <div className="shrink-0 flex flex-col gap-4">
+              <div className="shrink-0">
+              <SegmentCard label="Busqueda">
               {/* Empresa */}
-              <div className="flex flex-col gap-1.5">
-                <Label>Empresa <span className="text-red-500">*</span></Label>
+              <div className="col-span-2 flex flex-col gap-1.5">
+                <Label className={UI_THEME.forms.labelBase}>Empresa <span className="text-red-500">*</span></Label>
                 <SearchableSelect
                   options={empresas}
                   value={empresa}
@@ -640,8 +641,8 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
               </div>
 
               {/* Nombre */}
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="busq-nombre">
+              <div className="col-span-2 flex flex-col gap-1.5">
+                <Label htmlFor="busq-nombre" className={UI_THEME.forms.labelBase}>
                   Nombre <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -659,6 +660,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                 />
                 <FieldError message={fieldErrors.descripcion} />
               </div>
+              </SegmentCard>
               </div>
 
               {/* Resultados */}
@@ -743,7 +745,6 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
               <div className="shrink-0 flex items-center justify-end gap-2 border-t pt-4">
                 <Button
                   type="button"
-                  variant="outline"
                   onClick={handleBuscar}
                   disabled={buscando}
                 >

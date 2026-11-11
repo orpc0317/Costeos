@@ -111,9 +111,26 @@ export const UI_THEME = {
     cellText: "text-foreground font-normal",
 
     /**
-     * Hover sobre filas de datos.
+     * Fila par de datos. Blanco opaco, tambien en las columnas sticky.
      */
-    rowHover: "group hover:bg-muted/40",
+    rowBase: "bg-card",
+
+    /**
+     * Fila impar de datos. Gris opaco (no transparente) para que las
+     * columnas sticky no dejen ver el contenido que pasa por debajo.
+     */
+    rowStripe: "bg-[color-mix(in_oklch,var(--muted)_70%,var(--card))]",
+
+    /**
+     * Hover sobre filas de datos. Mas oscuro que la fila gris para que
+     * se note tanto en blanco como en gris.
+     */
+    rowHover: "group hover:bg-[color-mix(in_oklch,var(--muted)_88%,var(--foreground)_8%)]",
+
+    /**
+     * Hover de las celdas sticky. Mismo tono que rowHover.
+     */
+    stickyHover: "group-hover:bg-[color-mix(in_oklch,var(--muted)_88%,var(--foreground)_8%)]",
 
     /**
      * Color del borde entre filas y del contenedor.

@@ -11,7 +11,7 @@ El aspecto es el de Cartera, sobre el stack de Costeos.
 - Tokens: `src/lib/theme.ts` y variables `--ui-*` en `src/app/globals.css`. Acentos: `src/lib/ui-accent.ts`.
 - Campos: label semibold tracking-wider, control `l-border` (`UI_THEME.forms.inputBase`). Vista con `ViewField`, no un input deshabilitado cuando el campo es solo lectura.
 - Modal de catalogo: fondo gris (`contentWide` / `contentStandard`). Cabecera `ModalHeading` con borde inferior de 3px. Barra de pestañas blanca de lado a lado (`tabs.modalListClass`, borde 3px; el form lleva `pt-2` y `data-form-mode={mode}`). En Ver el dato es negro, tambien si no se edita; en Editar lo bloqueado es gris `#b4bec9`. Grupos `SegmentCard` en blanco con borde de 3px. Footer blanco con borde superior de 3px. Dos lados: `TwoColumns`. Catalogo chico: `SingleColumn`. El Costeador no usa `modalListClass`.
-- Lista: `PageHeader` con `accent`. Boton Nuevo solo en el encabezado. `DataTable` con `rowAccent`. Columna `id` sticky izquierda, `actions` sticky derecha.
+- Lista: `PageHeader` con `accent`. Boton Nuevo solo en el encabezado. `DataTable` con `rowAccent`. Filas alternas blanco y gris (`table.rowBase` / `table.rowStripe`); la fila activa usa `rowAccent`. Columna `id` sticky izquierda, `actions` sticky derecha, con el mismo fondo de su fila.
 - Permisos: codigo de pantalla y flags consultar/agregar/modificar/eliminar. `requirePermiso` es la primera instruccion de cada escritura. Cero filas del usuario = acceso total. Ver `.cursor/rules/permisos.mdc`.
 - Bloqueo optimista: entero `registroVersion` (`WHERE id AND registroVersion`, luego increment). No usar `modifico_fecha` como candado. Mensaje: `Este registro fue modificado por otro usuario. Cierra el formulario, recarga los datos y vuelve a intentarlo.`
 - Se conservan Prisma/MySQL, NextAuth, ERP, `SearchableSelect`, `NumericInput`, `FieldError`, `HistorialDrawer`, anti-similares y un modal por fila via `trigger`.
@@ -160,6 +160,7 @@ Para todo lo demás: **decidir, ejecutar, verificar, reportar resultado**.
 - [ ] Modal de fila usa **instancia por fila** vía prop `trigger` — NUNCA estado compartido
 - [ ] Columnas de FK usan `accessorFn` (no `accessorKey`) para que el buscador funcione
 - [ ] NO se pasa `searchKey` al `<DataTable>`
+- [ ] Las filas alternan blanco y gris. Eso sale de `DataTable` (`table.rowBase` / `table.rowStripe`). No pintar las filas de un solo color. La activa usa `rowAccent`. Las columnas sticky usan el mismo fondo de la fila.
 - [ ] Encabezado de página está en `*-client.tsx`, NO en `page.tsx`
 
 ---

@@ -503,8 +503,10 @@ export function DataTable<TData, TValue>({
             </TableHeader>
             <TableBody>
               {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => {
+                table.getRowModel().rows.map((row, visualIndex) => {
                   const isActive = cursorId === row.id
+                  const zebra = visualIndex % 2 === 1 ? UI_THEME.table.rowStripe : UI_THEME.table.rowBase
+                  const rowBg = isActive ? (rowAccent ?? 'bg-muted') : zebra
                   return (
                   <TableRow
                     key={row.id}
@@ -517,7 +519,7 @@ export function DataTable<TData, TValue>({
                       const btn = (e.currentTarget as HTMLElement).querySelector('button')
                       btn?.click()
                     }}
-                    className={`${UI_THEME.table.rowHover} ${UI_THEME.table.border} cursor-pointer ${isActive ? `${rowAccent ?? 'bg-muted'} [&_button]:opacity-100` : ''}`}
+                    className={`${UI_THEME.table.rowHover} ${UI_THEME.table.border} cursor-pointer ${rowBg} ${isActive ? '[&_button]:opacity-100' : ''}`}
                   >
                     {row.getVisibleCells().map((cell) => {
                       const sticky =
@@ -527,7 +529,7 @@ export function DataTable<TData, TValue>({
                           ? UI_THEME.table.stickyRight
                           : ''
                       const stickyBg = sticky
-                        ? (isActive ? (rowAccent ?? 'bg-muted') : 'bg-card group-hover:bg-muted/40')
+                        ? `${rowBg}${isActive ? '' : ` ${UI_THEME.table.stickyHover}`}`
                         : ''
                       return (
                       <TableCell 

@@ -90,6 +90,7 @@ Siempre usar `src/components/ui/data-table.tsx`. Nunca implementar tablas HTML m
 - Las columnas **SIEMPRE** se definen con `useMemo(() => [...], [])`.
 - La columna **`id`** es **siempre la primera**: inamovible e inocultable (`enableHiding: false`).
 - La columna de **acciones** debe ser **siempre la última**: `id: 'actions'` (nombre canónico), `enableHiding: false`. El DataTable usa este id para fijarla al extremo derecho automáticamente. **Nunca usar `'acciones'` ni otro nombre.**
+- Las filas de datos alternan blanco y gris. La par usa `UI_THEME.table.rowBase` y la impar `UI_THEME.table.rowStripe`. El orden es el visual de la página, no el índice original del registro. La fila activa reemplaza el cebra con `rowAccent`. Las columnas `id` y `actions` repiten ese mismo fondo: un gris transparente deja ver las celdas que pasan por debajo. Una tabla nueva no pinta todas las filas del mismo color.
 
 ```tsx
 const columns: ColumnDef<MiEntidad>[] = useMemo(() => [
@@ -1384,7 +1385,10 @@ Cambiar un token en `theme.ts` lo propaga automáticamente a todos los component
 | `table.headerBg` | Fondo del `<thead>` | `DataTable`, `DraggableTableHead` |
 | `table.headerText` | Tipografía de encabezados de columna | `TableHead` |
 | `table.cellText` | Tipografía de celdas de datos | `TableCell` |
+| `table.rowBase` | Fila par, blanco opaco | `DataTable` |
+| `table.rowStripe` | Fila impar, gris opaco | `DataTable` |
 | `table.rowHover` | Hover sobre filas | `DataTable` |
+| `table.stickyHover` | Hover de columnas sticky | `DataTable` |
 | `table.border` | Color de borde entre filas | `DataTable` |
 | `table.emptyState` | Estado vacío (sin resultados) | `DataTable` |
 | `table.container` | Contenedor de la tabla | `DataTable` |
