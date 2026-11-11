@@ -49,6 +49,8 @@ Sin tildes. Title Case. Preposiciones cortas en minuscula: `Codigo`, `Razon Soci
 
 Densidad por las variables CSS. Columna `id` sticky a la izquierda, `actions` sticky a la derecha. Clic marca la fila; doble clic abre el ojo. Flechas mueven el cursor.
 
+Las filas alternan blanco y gris: par `table.rowBase`, impar `table.rowStripe`. La fila activa usa `rowAccent` y tapa el cebra. Las columnas sticky llevan el mismo fondo que su fila (`rowBase`, `rowStripe` o `rowAccent`) porque un fondo transparente deja ver lo que se desplaza debajo. El cebra vive en `DataTable`; una tabla nueva no pinta las filas de un solo color.
+
 ## No cambiar
 
 `SearchableSelect` (portal), `NumericInput`, `FieldError`, error global sin toast, modal de fila por `trigger`.

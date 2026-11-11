@@ -22,6 +22,7 @@ Al utilizar `DataTable`, heredas automáticamente:
 - **Exportación a CSV**: Botón de descarga integrado que exporta automáticamente solo las columnas visibles a un archivo CSV compatible con Excel.
 - **Persistencia**: La visibilidad y orden de columnas se guarda en el `localStorage` del navegador bajo las claves `${tableId}-visibility` y `${tableId}-order`.
 - **Theming parametrizado**: Colores, tamaños de fuente y estilos unificados.
+- **Filas cebra**: blanco y gris alternados (`table.rowBase` / `table.rowStripe`). La fila marcada usa `rowAccent`. No hace falta pintarlo en cada pantalla.
 
 ### ⚠️ Regla: Columnas Foreign Key → usar `accessorFn`
 
