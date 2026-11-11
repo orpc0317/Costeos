@@ -18,6 +18,6 @@ Pedido de una pantalla de catalogo (lista y modal). No usar este layout para el 
 5. Tipos en `src/lib/types/`. Action con `requirePermiso` / `puedeConsultar`. Service y repositorio Prisma. Update con `registroVersion`. Incluir `obtenerEntidad(id)` para el modal Ver (`docs/conventions.md` §3.1.1).
 6. `page.tsx` servidor: datos y `getPermisosDetalle` en `Promise.all`.
 7. Client: `PageHeader`, `DataTable` con `rowAccent`, Nuevo solo en el encabezado.
-8. Modal: `ModalHeading`, pestañas, `SegmentCard`. `HistorialDrawer` afuera. Errores con `FieldError`. Color del dato: gris claro `#b4bec9` si no se edita en Editar; `data-view-mode` / `viewMode` solo en Ver cuando el campo se habilita al editar. Al abrir Ver, `useRegistroFresco` llama `obtenerEntidad(id)` y `onActualizado` reemplaza esa fila (`reemplazarFila`). Editar deshabilitado mientras carga.
+8. Modal: `ModalHeading`, pestañas con `UI_THEME.tabs.modalListClass`, `SegmentCard`. El fondo gris, la barra blanca de pestañas, el borde de 3px y el footer salen de `UI_THEME`: no hardcodear. `HistorialDrawer` afuera. Errores con `FieldError`. Color del dato: gris claro `#b4bec9` si no se edita en Editar; `data-view-mode` / `viewMode` solo en Ver cuando el campo se habilita al editar. Al abrir Ver, `useRegistroFresco` llama `obtenerEntidad(id)` y `onActualizado` reemplaza esa fila (`reemplazarFila`). Editar deshabilitado mientras carga.
 
 No copiar Supabase, `getCuentaActiva` ni el candado `modifico_fecha`.

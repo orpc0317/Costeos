@@ -10,7 +10,7 @@ El aspecto es el de Cartera, sobre el stack de Costeos.
 
 - Tokens: `src/lib/theme.ts` y variables `--ui-*` en `src/app/globals.css`. Acentos: `src/lib/ui-accent.ts`.
 - Campos: label semibold tracking-wider, control `l-border` (`UI_THEME.forms.inputBase`). Vista con `ViewField`, no un input deshabilitado cuando el campo es solo lectura.
-- Modal ancho: `ModalHeading` (degradado + badge). Pesta?as. Dentro de la pesta?a, `TwoColumns` + `SegmentCard` si hay dos grupos. Catalogo chico: `SingleColumn`. Componentes en `src/components/ui/form-layout.tsx` y `modal-heading.tsx`.
+- Modal de catalogo: fondo gris (`contentWide` / `contentStandard`). Cabecera `ModalHeading` con borde inferior de 3px. Barra de pestañas blanca de lado a lado (`tabs.modalListClass`, borde 3px; el form lleva `pt-2`). Grupos `SegmentCard` en blanco con borde de 3px. Footer blanco con borde superior de 3px. Dos lados: `TwoColumns`. Catalogo chico: `SingleColumn`. El Costeador no usa `modalListClass`.
 - Lista: `PageHeader` con `accent`. Boton Nuevo solo en el encabezado. `DataTable` con `rowAccent`. Columna `id` sticky izquierda, `actions` sticky derecha.
 - Permisos: codigo de pantalla y flags consultar/agregar/modificar/eliminar. `requirePermiso` es la primera instruccion de cada escritura. Cero filas del usuario = acceso total. Ver `.cursor/rules/permisos.mdc`.
 - Bloqueo optimista: entero `registroVersion` (`WHERE id AND registroVersion`, luego increment). No usar `modifico_fecha` como candado. Mensaje: `Este registro fue modificado por otro usuario. Cierra el formulario, recarga los datos y vuelve a intentarlo.`
@@ -106,9 +106,9 @@ Para todo lo demás: **decidir, ejecutar, verificar, reportar resultado**.
 ### Estructura y Layout
 - [ ] `DialogContent` tiene altura fija: `h-[85vh] sm:h-[altura]` + `flex flex-col p-4 sm:p-6 overflow-hidden`
 - [ ] `DialogTitle` incluye el **ícono canónico de la entidad** (el mismo del sidebar)
-- [ ] El modal usa **pestañas** (`<Tabs>` + `<TabsList variant="line" className={UI_THEME.tabs.listClass}>`) aunque solo tenga una pestaña "General" — el scroll horizontal es automático (R23), no limitar por espacio
+- [ ] El modal usa **pestañas** (`<Tabs>` + `<TabsList variant="line" className={UI_THEME.tabs.modalListClass}>`) aunque solo tenga una pestaña "General" — el scroll horizontal es automático (R23), no limitar por espacio. El `<form>` lleva `pt-2`
 - [ ] Cada `<TabsTrigger>` tiene el ícono canónico de la entidad a la izquierda del texto
-- [ ] El área de campos está dentro de `<div className={UI_THEME.modal.scrollArea}>` + `<TabsContent>`. Ese contenedor es el panel blanco con borde; las pesta�as quedan sobre el fondo del modal
+- [ ] El área de campos está dentro de `<div className={UI_THEME.modal.scrollArea}>` + `<TabsContent>`. El fondo del modal es gris. Cada grupo es un `SegmentCard` blanco con borde de 3px. La barra de pestañas es blanca y llega a los dos bordes
 
 ### Campos y Datos
 - [ ] **Empresa** se muestra en los TRES modos: `create` → `<SearchableSelect>` | `view/edit` → `<Input disabled className={UI_THEME.forms.inputBase}>` (sin `data-view-mode`: Empresa no se edita y el valor va en gris claro)
@@ -236,7 +236,7 @@ Para todo lo demás: **decidir, ejecutar, verificar, reportar resultado**.
 
 - **Estructura de Modales (Acciones):** En modo vista, botones ("Historial" y "Editar") van agrupados a la derecha. En modo edición, el botón "Cancelar" debe resetear el estado a modo vista (sin cerrar el modal si es un registro existente).
 - **⚠︝ Footer de Modal:** Los botones de acción del modal (Historial, Editar, Cancelar, Guardar) se colocan **SIEMPRE en un footer fijo al fondo** del `DialogContent`. Usar **SIEMPRE** `className={UI_THEME.modal.footer}` para el contenedor y `UI_THEME.modal.buttons.*` para los colores de botones. **NUNCA** hardcodear clases Tailwind de color, **NUNCA** poner los botones en el header ni en el área scrolleable del formulario.
-- **⚠︝ Pestañas en Modales — OBLIGATORIAS SIEMPRE:** TODO modal DEBE usar pestañas (`<Tabs>`), **aunque el formulario sea tan simple que solo tenga una pestaña "General"**. NUNCA construir un modal sin la estructura de tabs. El `<TabsList>` debe usar `variant="line"` y `className={UI_THEME.tabs.listClass}` (sin margen inferior). Los campos van dentro de `UI_THEME.modal.scrollArea`: panel blanco con borde, pegado a la l�nea de las pesta�as. Las pesta�as quedan sobre el fondo del modal. Cada `<TabsTrigger>` DEBE incluir el **ícono canónico de la entidad** a la izquierda del texto. Referencia obligatoria: `src/components/categorias/categoria-modal.tsx`.
+- **⚠︝ Pestañas en Modales — OBLIGATORIAS SIEMPRE:** TODO modal DEBE usar pestañas (`<Tabs>`), **aunque el formulario sea tan simple que solo tenga una pestaña "General"**. NUNCA construir un modal sin la estructura de tabs. El `<TabsList>` debe usar `variant="line"` y `className={UI_THEME.tabs.modalListClass}` (barra blanca, borde inferior de 3px, de lado a lado; no agregar borde ni margen). El `<form>` lleva `pt-2`. Los campos van dentro de `UI_THEME.modal.scrollArea`. Cada grupo es un `SegmentCard` (blanco, borde 3px). Cada `<TabsTrigger>` DEBE incluir el **ícono canónico de la entidad** a la izquierda del texto. Referencia obligatoria: `src/components/categorias/categoria-modal.tsx`.
 - **Scroll Horizontal de Pestañas (R23):** El componente `<TabsList variant="line">` implementa scroll horizontal con **botones de flecha `‹` / `›`** que aparecen y desaparecen dinámicamente según el contenido. Internamente usa `ScrollableTabsList` con `ResizeObserver`. **NUNCA limitar el número de pestañas de un modal por miedo a que no quepan.** Agregar todas las que la entidad necesite. No se necesita ningún wrapper extra ni clase adicional en el código del modal. Ver detalles en `docs/conventions.md §5.0`.
 - **Campos Autogenerados:** Códigos/IDs autogenerados deben ocultarse al crear, y deshabilitarse *permanentemente* (`disabled={true}`, sin `data-view-mode`) al editar un registro. El valor se ve en gris claro.
 - **Historial de Auditoría:** Utilizar SIEMPRE el componente `<HistorialDrawer tabla="nombre_tabla_db" />`. El nombre de la tabla debe coincidir exactamente con el esquema de Prisma para que cargue la bitácora.
@@ -393,10 +393,10 @@ Para más detalle, consultar `docs/conventions.md`.
   **Para FKs del ERP** (departamento, municipio, turno, etc.): llamar `erp.getDepartamentos()` / `erp.getMunicipios()` ANTES de la transacción Prisma y pasar los mapas como closures al `transform`.
   **Para FKs locales de BD** (empresaId, categoriaId, etc.): usar `prisma.entidad.findMany()` ANTES de la transacción para construir el Map.
 
-- **B�squeda por ID en Repositorios (R25) � OBLIGATORIO en todo `findAll` con `search`:**
-  Todo m�todo `findAll` que acepte un par�metro `search` DEBE incluir el campo `id` (num�rico, b�squeda exacta) como condici�n adicional en su cl�usula `OR`. El ID solo se agrega cuando el texto ingresado es un entero v�lido (`!isNaN(parseInt(search, 10))`).
+- **B�squeda por ID en Repositorios (R25) � OBLIGATORIO en todo `findAll` con `search`:**
+  Todo m�todo `findAll` que acepte un par�metro `search` DEBE incluir el campo `id` (num�rico, b�squeda exacta) como condici�n adicional en su cl�usula `OR`. El ID solo se agrega cuando el texto ingresado es un entero v�lido (`!isNaN(parseInt(search, 10))`).
 
-  **Patr�n obligatorio:**
+  **Patr�n obligatorio:**
   ```ts
   const searchId = search ? parseInt(search, 10) : NaN
   const where = search
@@ -411,7 +411,7 @@ Para más detalle, consultar `docs/conventions.md`.
   ```
 
   **Reglas:**
-  - La b�squeda por `id` es **exacta** (`{ id: searchId }`), no `contains` � el ID es un n�mero �nico.
-  - Si el texto no es entero v�lido, `NaN` hace que el spread sea `...[]` (vac�o), sin afectar el query.
+  - La b�squeda por `id` es **exacta** (`{ id: searchId }`), no `contains` � el ID es un n�mero �nico.
+  - Si el texto no es entero v�lido, `NaN` hace que el spread sea `...[]` (vac�o), sin afectar el query.
   - Aplica a **todos los repositorios actuales y futuros**: `categoria`, `cliente`, `empresa`, `item`, `proveedor`, `tipo-combo`, `tipo-costeo`, `usuario`, y cualquier repositorio nuevo.
-  - Si el `findAll` no tiene par�metro `search` (carga total sin filtro), esta regla no aplica.
+  - Si el `findAll` no tiene par�metro `search` (carga total sin filtro), esta regla no aplica.

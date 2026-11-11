@@ -597,7 +597,7 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
                 onValueChange={setActiveTab}
                 className="w-full flex-1 flex flex-col min-h-0"
               >
-                <TabsList variant="line" className={UI_THEME.tabs.listClass}>
+                <TabsList variant="line" className={UI_THEME.tabs.modalListClass}>
                   <TabsTrigger value="general">
                     <Truck className="w-4 h-4 mr-2" />
                     General

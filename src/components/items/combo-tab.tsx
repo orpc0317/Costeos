@@ -11,6 +11,7 @@ import { NumericInput } from '@/components/ui/numeric-input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { FieldError } from '@/components/ui/field-error'
+import { SegmentCard, TwoColumns } from '@/components/ui/form-layout'
 import { cn } from '@/lib/utils'
 import type { ItemRow, DetalleComboInput } from '@/lib/types/items'
 
@@ -317,9 +318,8 @@ export function ComboTab({
       <React.Fragment key={`row-${depth}-${node.productoSecundarioId}`}>
         <tr
           className={cn(
-            'border-t transition-colors hover:bg-slate-50',
-            isEditingThisRow && 'bg-blue-50/50',
-            depth > 0 && 'bg-slate-50/20',
+            'border-t transition-colors',
+            isEditingThisRow && '!bg-amber-50',
           )}
         >
           {/* Columna ID — solo en filas raíz */}
@@ -434,11 +434,8 @@ export function ComboTab({
             <FieldError message={fieldErrors.productoSecundarioId} />
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            {/* Bloque Nuevo */}
-            <div className="flex flex-col bg-white p-3 rounded-md border shadow-sm gap-2">
-              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nuevo</h4>
-              <div className="flex flex-row items-start gap-6">
+          <TwoColumns
+            left={<SegmentCard label="Nuevo" ><div className="col-span-2 flex flex-row items-start gap-6">
                 <div className="flex flex-col gap-1.5 w-28 shrink-0">
                   <Label>Cantidad</Label>
                   <NumericInput
@@ -470,13 +467,8 @@ export function ComboTab({
                     <span className="text-sm font-normal">Requerido</span>
                   </label>
                 </div>
-              </div>
-            </div>
-
-            {/* Bloque Renovacion */}
-            <div className="flex flex-col bg-white p-3 rounded-md border shadow-sm gap-2">
-              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Renovacion</h4>
-              <div className="flex flex-row items-start gap-6">
+              </div></SegmentCard>}
+            right={<SegmentCard label="Renovacion" ><div className="col-span-2 flex flex-row items-start gap-6">
                 <div className="flex flex-col gap-1.5 w-28 shrink-0">
                   <Label>Cantidad</Label>
                   <NumericInput
@@ -508,9 +500,8 @@ export function ComboTab({
                     <span className="text-sm font-normal">Requerido</span>
                   </label>
                 </div>
-              </div>
-            </div>
-          </div>
+              </div></SegmentCard>}
+          />
 
           <div className="flex items-center justify-end gap-2 pt-1">
             {editingIndex !== null && (
@@ -528,7 +519,7 @@ export function ComboTab({
       )}
 
       {/* Tabla de sub-items con árbol expandible */}
-      <div className="flex-1 overflow-auto border rounded-md min-h-[250px] shadow-sm">
+      <div className="mb-8 flex-1 overflow-auto border rounded-md min-h-[250px] shadow-sm">
         {combos.length === 0 ? (
           <div className="h-full flex items-center justify-center text-sm text-muted-foreground p-8 text-center bg-slate-50/50">
             No hay items agregados al combo. Utiliza el formulario superior para agregar.
@@ -578,7 +569,7 @@ export function ComboTab({
                 <th className="font-medium p-2 text-center w-[90px] text-xs">Requerido</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="[&>tr:nth-child(odd)]:bg-white [&>tr:nth-child(even)]:bg-slate-100 [&>tr:hover]:bg-muted/40">
               {comboTree.map((node, idx) => renderComboRow(node, 0, idx))}
             </tbody>
           </table>

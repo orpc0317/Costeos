@@ -144,29 +144,32 @@ export const UI_THEME = {
      */
     title: "text-base font-semibold leading-tight truncate",
     contentWide:
-      "flex flex-col w-[90vw] sm:max-w-[64rem] h-[700px] max-h-[90vh] overflow-hidden gap-3",
+      "flex flex-col w-[90vw] sm:max-w-[64rem] h-[700px] max-h-[90vh] overflow-hidden gap-3 bg-muted",
     contentStandard:
-      "flex flex-col w-full sm:max-w-[36rem] h-[85vh] sm:h-[520px] max-h-[90vh] overflow-hidden gap-3",
+      "flex flex-col w-full sm:max-w-[36rem] h-[85vh] sm:h-[520px] max-h-[90vh] overflow-hidden gap-3 bg-muted",
     header:
-      "-mx-4 -mt-4 px-5 pt-4 pb-2 sm:-mx-6 sm:-mt-6 bg-gradient-to-br to-transparent border-b border-border/50 shrink-0",
+      "-mx-4 -mt-4 px-5 pt-4 pb-2 sm:-mx-6 sm:-mt-6 bg-gradient-to-br to-transparent border-b-[3px] border-border shrink-0",
     iconBadge: "shrink-0 rounded-xl p-2",
     columns: "flex gap-6 items-start",
     column: "flex-1 min-w-0 grid grid-cols-2 gap-2 content-start",
     divider: "w-px self-stretch bg-primary/30",
+    /**
+     * Recuadro de un grupo de campos. Fondo blanco sobre el gris del modal.
+     * Borde de 3px, el mismo peso del encabezado, la barra de pestañas y el footer.
+     */
+    segment: "bg-white border-[3px] border-primary/30",
 
     /**
      * Footer fijo al fondo del modal.
-     * bg-white con borde superior — cuando el modal es gris (bg-slate-50),
-     * el footer blanco crea separación visual clara de los botones de acción.
+     * Fondo blanco (bg-card) y borde superior de 3px, de lado a lado.
      */
     footer:
       "flex flex-row items-center justify-between mt-auto -mx-4 -mb-4 px-4 py-3 sm:-mx-6 sm:-mb-6 " +
-      "border-t border-border/60 bg-card sm:rounded-b-xl shrink-0",
+      "border-t-[3px] border-border bg-card sm:rounded-b-xl shrink-0",
 
     /**
      * Interior de la pestaña, donde van los campos.
-     * Panel blanco con borde sobre el fondo del modal (bg-slate-50).
-     * El borde superior lo aporta la línea de las pestañas: listClass no lleva margen.
+     * El fondo del modal sigue gris. Cada grupo de campos es un SegmentCard blanco.
      * El footer queda fuera de este panel.
      */
     scrollArea:
@@ -195,11 +198,21 @@ export const UI_THEME = {
   // ─── PESTAÑAS (variant="line") ───────────────────────────────────────────
   tabs: {
     /**
-     * TabsList de los modales. Sin margen inferior: el panel de campos
-     * (modal.scrollArea) arranca pegado a la línea de las pestañas.
-     * Las pestañas quedan sobre el fondo del modal.
+     * Pestañas fuera de un modal de catálogo (lienzo del Costeador, portada).
+     * Sin el sangrado ni el fondo blanco del modal.
      */
     listClass: "shrink-0",
+
+    /**
+     * Barra de pestañas de un modal de catálogo.
+     * Fondo blanco, igual que el footer. Borde inferior de 3px de lado a lado.
+     * El margen negativo y el ancho calc cubren el padding del diálogo (p-4 / sm:-mx-6).
+     * -mt-5 + pt-5 tapan el hueco gris bajo el título cuando el form lleva pt-2
+     * y el diálogo tiene gap-3. No usar en el Costeador.
+     */
+    modalListClass:
+      "shrink-0 -mx-4 -mt-5 w-[calc(100%+2rem)] border-b-[3px] border-border bg-card px-4 pt-5 " +
+      "sm:-mx-6 sm:w-[calc(100%+3rem)] sm:px-6",
   },
 
   // ─── BADGES DE ESTADO ─────────────────────────────────────────────────────

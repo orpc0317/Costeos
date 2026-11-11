@@ -408,9 +408,9 @@ export function CotizacionModal({
         <DialogContent className={UI_THEME.modal.contentWide}>
           <ModalHeading accent={MODULE_ACCENT.cotizaciones} icon={FileText} mode={!isEditing ? 'create' : mode === 'edit' ? 'edit' : 'view'} title={titulo} />
 
-          <form onSubmit={handleSave} className="flex flex-col flex-1 min-h-0">
+          <form onSubmit={handleSave} className="flex flex-col flex-1 min-h-0 pt-2">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
-              <TabsList variant="line" className={UI_THEME.tabs.listClass}>
+              <TabsList variant="line" className={UI_THEME.tabs.modalListClass}>
                 <TabsTrigger value="general">
                   <FileText className="h-3.5 w-3.5 mr-1.5" />
                   General

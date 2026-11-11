@@ -600,7 +600,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
         {trigger && <DialogTrigger render={trigger as React.ReactElement} />}
-        <DialogContent className={`${!isEditing && step === 'busqueda' ? UI_THEME.modal.contentStandard : UI_THEME.modal.contentWide} bg-muted`}>
+        <DialogContent className={!isEditing && step === 'busqueda' ? UI_THEME.modal.contentStandard : UI_THEME.modal.contentWide}>
           <ModalHeading
             accent={MODULE_ACCENT.items}
             icon={Package}
@@ -772,7 +772,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                 onValueChange={setActiveTab}
                 className="w-full flex-1 flex flex-col min-h-0"
               >
-                <TabsList variant="line" className={UI_THEME.tabs.listClass}>
+                <TabsList variant="line" className={UI_THEME.tabs.modalListClass}>
                   <TabsTrigger value="general">
                     <Settings2 className="w-4 h-4 mr-2" />
                     General
@@ -803,7 +803,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                   {/* ── PESTAÑA GENERAL ── */}
                   <TabsContent value="general" className="mt-0">
                     <TwoColumns
-                      left={<><SegmentCard label="Identificacion" panel="white"><div className="contents">
+                      left={<><SegmentCard label="Identificacion" ><div className="contents">
 
                       <div className="flex flex-col gap-1.5 col-span-2">
                         <Label className={UI_THEME.forms.labelBase}>Empresa</Label>
@@ -843,7 +843,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                       </div>
 
                       </div></SegmentCard>
-                      <SegmentCard label="General" panel="white"><div className="contents">
+                      <SegmentCard label="General" ><div className="contents">
 
                       {/* Descripción */}
                       <div className="flex flex-col gap-1.5 col-span-2">
@@ -1003,7 +1003,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                       )}
 
                       </div></SegmentCard></>}
-                      right={<SegmentCard label="Parametros" panel="white"><div className="contents">
+                      right={<SegmentCard label="Parametros" ><div className="contents">
                       {/* Tipo Producto — siempre visible, editable solo para tipoItem=3 (Servicio) */}
                       {(() => {
                         const tiNum = Number(tipoItem)
@@ -1237,7 +1237,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                           activa={activeTab === 'costo'}
                         />
                       ) : (
-                        <div className="rounded-md border border-slate-200 bg-slate-50 p-4 space-y-3">
+                        <div className={`rounded-lg p-4 space-y-3 ${UI_THEME.modal.segment}`}>
                           <p className="text-xs text-slate-500">
                             Este costo se guarda al grabar el item.
                           </p>
@@ -1251,7 +1251,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                                 type="date"
                                 value={fechaCostoNuevo}
                                 onChange={e => setFechaCostoNuevo(e.target.value)}
-                                className="h-8 py-1"
+                                className={UI_THEME.forms.inputBase}
                               />
                               <FieldError message={fieldErrors.fechaCosto} />
                             </div>
@@ -1263,7 +1263,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                                 id="nuevo-costo"
                                 value={costoNuevo ?? undefined}
                                 onChange={v => setCostoNuevo(v ?? null)}
-                                className="h-8"
+                                className={UI_THEME.forms.inputBase}
                                 placeholder="0.00"
                               />
                               <FieldError message={fieldErrors.costo} />
@@ -1274,7 +1274,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                                 id="nuevo-costo-dif"
                                 value={costoDifNuevo ?? undefined}
                                 onChange={v => setCostoDifNuevo(v ?? null)}
-                                className="h-8"
+                                className={UI_THEME.forms.inputBase}
                                 placeholder="0.00"
                               />
                               <FieldError message={fieldErrors.costoDiferenciado} />
@@ -1327,7 +1327,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                               Despues de grabar el registro, el item de referencia no se puede cambiar.
                             </p>
                           </div>
-                          <div className="rounded-md border border-slate-200 bg-slate-50 p-4 space-y-3">
+                          <div className={`rounded-lg p-4 space-y-3 ${UI_THEME.modal.segment}`}>
                             <p className="text-xs text-slate-500">
                               Este porcentaje se guarda al grabar el item.
                             </p>
@@ -1341,7 +1341,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                                   type="date"
                                   value={fechaPctNuevo}
                                   onChange={e => setFechaPctNuevo(e.target.value)}
-                                  className="h-8 py-1"
+                                  className={UI_THEME.forms.inputBase}
                                 />
                                 <FieldError message={fieldErrors.fechaPct} />
                               </div>
@@ -1353,7 +1353,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                                   id="nuevo-pct"
                                   value={pctNuevo ?? undefined}
                                   onChange={v => setPctNuevo(v ?? null)}
-                                  className="h-8"
+                                  className={UI_THEME.forms.inputBase}
                                   placeholder="0.00"
                                 />
                                 <FieldError message={fieldErrors.pct} />
@@ -1368,9 +1368,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
               </Tabs>
 
               {/* ── FOOTER FIJO ── */}
-              {/* Nota: sm:-mx-6 sm:-mb-6 sm:px-6 extienden UI_THEME.modal.footer
-                  porque este DialogContent usa sm:p-6 (padding mayor al estándar sm:p-4) */}
-              <div className={`${UI_THEME.modal.footer} sm:-mx-6 sm:-mb-6 sm:px-6`}>
+              <div className={UI_THEME.modal.footer}>
                 {mode === 'view' ? (
                   <div className={UI_THEME.modal.buttons.viewRow}>
                     <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.items.hover} onClick={() => setHistorialOpen(true)}>

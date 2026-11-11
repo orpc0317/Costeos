@@ -20,11 +20,14 @@ El badge de editar es ambar en todos los modulos (`EDIT_BADGE`).
 
 ## Modal
 
-- `DialogContent` usa `UI_THEME.modal.contentWide` si el tab tiene dos grupos, o `contentStandard` si es un catalogo chico (Categorias, Tipos Costeo, Tipos Combo).
-- Cabecera: `ModalHeading`. Plus al crear, Pencil al editar, icono de la entidad al ver.
-- Pestañas `variant="line"` y `UI_THEME.tabs.listClass`.
-- Tab con dos grupos: `TwoColumns` (linea `UI_THEME.modal.divider`). Un grupo: `SingleColumn`.
-- Cada grupo: `SegmentCard`. Campos full ocupan `col-span-2`; half, una celda.
+El look de catalogo es el del modal de Items. Vive en `UI_THEME`. No copiar clases de borde o de fondo en cada pantalla.
+
+- `DialogContent` usa `UI_THEME.modal.contentWide` si el tab tiene dos grupos, o `contentStandard` si es un catalogo chico (Categorias, Tipos Costeo, Tipos Combo). Los dos traen fondo gris `bg-muted`.
+- Cabecera: `ModalHeading`. Plus al crear, Pencil al editar, icono de la entidad al ver. El borde bajo el titulo pesa 3px (`modal.header`).
+- Pestañas `variant="line"` y `UI_THEME.tabs.modalListClass`. Esa barra es blanca, de lado a lado, con borde inferior de 3px. El form del modal lleva `pt-2` para que el blanco tape el hueco bajo el titulo. `tabs.listClass` queda para el Costeador y la portada.
+- Footer: `UI_THEME.modal.footer`. Fondo blanco y borde superior de 3px, de lado a lado.
+- Tab con dos grupos: `TwoColumns` (linea `UI_THEME.modal.divider`, 1px). Un grupo: `SingleColumn`.
+- Cada grupo: `SegmentCard`. Fondo blanco y borde de 3px (`modal.segment`). Campos full ocupan `col-span-2`; half, una celda.
 - Vista: `ViewField` o el mismo control deshabilitado. Edicion: `Label` con `UI_THEME.forms.labelBase` e `Input` / `SearchableSelect` / `NumericInput` con `inputBase`.
 
 ## Color del dato

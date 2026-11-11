@@ -2,6 +2,7 @@ import React from 'react'
 import { Pencil, Plus, type LucideIcon } from 'lucide-react'
 import { DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { UI_THEME } from '@/lib/theme'
+import { cn } from '@/lib/utils'
 import { EDIT_BADGE, type ModuleAccent } from '@/lib/ui-accent'
 
 type Mode = 'create' | 'edit' | 'view'
@@ -12,12 +13,14 @@ export function ModalHeading({
   mode,
   title,
   subtitle,
+  className,
 }: {
   accent: ModuleAccent
   icon: LucideIcon
   mode: Mode
   title: string
   subtitle?: string | null
+  className?: string
 }) {
   const creating = mode === 'create'
   const editing = mode === 'edit'
@@ -26,7 +29,7 @@ export function ModalHeading({
   const Shown = creating ? Plus : editing ? Pencil : Icon
 
   return (
-    <DialogHeader className={`${UI_THEME.modal.header} ${accent.gradient}`}>
+    <DialogHeader className={cn(UI_THEME.modal.header, accent.gradient, className)}>
       <div className="flex items-center gap-3 pr-8">
         <div className={`${UI_THEME.modal.iconBadge} ${badge}`}>
           <Shown className={`h-5 w-5 ${iconColor}`} />

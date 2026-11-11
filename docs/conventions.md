@@ -268,7 +268,7 @@ return (
           )}
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
-            <TabsList variant="line" className={UI_THEME.tabs.listClass}>
+            <TabsList variant="line" className={UI_THEME.tabs.modalListClass}>
               <TabsTrigger value="general">
                 <Settings2 className="w-4 h-4 mr-2" /> General
               </TabsTrigger>
@@ -452,7 +452,7 @@ import { UI_THEME } from '@/lib/theme'
 ## 5. PESTAÑAS EN MODALES
 
 ```tsx
-<TabsList variant="line" className={UI_THEME.tabs.listClass}>
+<TabsList variant="line" className={UI_THEME.tabs.modalListClass}>
   <TabsTrigger value="general">
     <Settings2 className="w-4 h-4 mr-2" /> General
   </TabsTrigger>
@@ -470,9 +470,9 @@ import { UI_THEME } from '@/lib/theme'
 
 **Reglas:**
 - `variant="line"` siempre. Sin excepciones.
-- `className={UI_THEME.tabs.listClass}` siempre. No agregar margen inferior: el panel de campos va pegado a la línea de las pestañas.
-- Las pestañas quedan sobre el fondo del modal (`bg-slate-50` del `DialogContent`).
-- Los campos van dentro de `UI_THEME.modal.scrollArea`: panel blanco (`bg-white`) con borde `slate-200`. El borde superior lo da la línea de las pestañas (`border-t-0` en el panel). El footer queda fuera.
+- `className={UI_THEME.tabs.modalListClass}` en modales de catálogo. No agregar margen ni borde extra: la barra ya es blanca, de lado a lado, con borde inferior de 3px. El `<form>` lleva `pt-2`.
+- El modal es gris (`bg-muted` en `contentWide` y `contentStandard`). La barra de pestañas y el footer son blancos. El borde bajo el título, el de la barra y el del footer pesan 3px.
+- Los campos van dentro de `UI_THEME.modal.scrollArea`. Cada grupo es un `SegmentCard`: fondo blanco y borde de 3px (`UI_THEME.modal.segment`). El footer queda fuera.
 - Cada `TabsTrigger` lleva ícono de `lucide-react` (`w-4 h-4 mr-2`) a la izquierda del texto.
 - Siempre existe la pestaña `"general"` como pestaña inicial.
 
@@ -1390,8 +1390,10 @@ Cambiar un token en `theme.ts` lo propaga automáticamente a todos los component
 | `table.container` | Contenedor de la tabla | `DataTable` |
 | `modal.title` | Título del modal (`DialogTitle`) | `dialog.tsx` → todos los modales |
 | `modal.footer` | Footer fijo al fondo del modal | Todos los modales |
-| `modal.scrollArea` | Interior de la pestaña: panel blanco con borde | Todos los modales |
-| `tabs.listClass` | Pestañas sobre el fondo del modal, sin margen inferior | `TabsList variant="line"` |
+| `modal.segment` | Grupo de campos: fondo blanco, borde 3px | `SegmentCard` |
+| `modal.scrollArea` | Interior de la pestaña, sobre el gris del modal | Todos los modales |
+| `tabs.modalListClass` | Barra blanca de pestañas, borde inferior 3px, de lado a lado | `TabsList variant="line"` en modales de catálogo |
+| `tabs.listClass` | Pestañas sin el sangrado del modal | Costeador y portada |
 | `badge.active` | Badge "Activo" | `*-client.tsx` con columna Estado |
 | `badge.inactive` | Badge "Inactivo" | `*-client.tsx` con columna Estado |
 | `badge.danger` | Badge anulado / rechazado | Estados cancelados |

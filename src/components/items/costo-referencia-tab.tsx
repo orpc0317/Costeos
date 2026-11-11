@@ -11,6 +11,7 @@ import { listarCostosRefItem, agregarCostoRefItem, eliminarCostoRefItem } from '
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import type { ItemCostoRefRow } from '@/lib/types/items'
 import { fechaHoyNavegador } from './costo-tab'
+import { UI_THEME } from '@/lib/theme'
 
 interface CostoReferenciaTabProps {
   itemId: number
@@ -143,7 +144,7 @@ export function CostoReferenciaTab({
 
       {/* ─── Panel de nuevo registro (solo en modo edición) ─── */}
       {mode === 'edit' && (
-        <div className="rounded-md border border-slate-200 bg-slate-50 p-4 space-y-3">
+        <div className={`rounded-lg p-4 space-y-3 ${UI_THEME.modal.segment}`}>
           <p className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
             <Link2 className="h-3.5 w-3.5" />
             Registrar Nuevo Porcentaje
@@ -169,7 +170,7 @@ export function CostoReferenciaTab({
                   setFecha(e.target.value)
                   if (fieldErrors.fecha) setFieldErrors(prev => { const n = { ...prev }; delete n.fecha; return n })
                 }}
-                className="h-8 py-1"
+                className={UI_THEME.forms.inputBase}
                 aria-invalid={!!fieldErrors.fecha}
               />
               <FieldError message={fieldErrors.fecha} />
@@ -187,7 +188,7 @@ export function CostoReferenciaTab({
                   setPct(v ?? null)
                   if (fieldErrors.pct) setFieldErrors(prev => { const n = { ...prev }; delete n.pct; return n })
                 }}
-                className="h-8"
+                className={UI_THEME.forms.inputBase}
                 placeholder="0.00"
                 aria-invalid={!!fieldErrors.pct}
               />

@@ -331,7 +331,7 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess, onActualizado 
         <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col pt-2" noValidate>
           {error && <div className={UI_THEME.forms.globalError}>{error}</div>}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
-            <TabsList variant="line" className={UI_THEME.tabs.listClass}>
+            <TabsList variant="line" className={UI_THEME.tabs.modalListClass}>
               <TabsTrigger value="general">
                 <Network className="w-4 h-4 mr-2" />
                 General

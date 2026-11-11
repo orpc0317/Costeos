@@ -251,7 +251,7 @@ export function EntidadModal({
       <Dialog open={open} onOpenChange={handleOpenChange}>
         {trigger && <DialogTrigger render={trigger as React.ReactElement} />}
 
-        <DialogContent className="h-[85vh] sm:h-[580px] flex flex-col p-4 sm:p-6 overflow-hidden sm:max-w-[560px]">
+        <DialogContent className={UI_THEME.modal.contentStandard}>
           <DialogHeader className="shrink-0">
             <DialogTitle className={UI_THEME.modal.title}>
               <IconoEntidad className="h-5 w-5 text-indigo-600" /> {/* ← ícono canónico */}
@@ -261,9 +261,9 @@ export function EntidadModal({
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSave} noValidate className="flex-1 min-h-0 flex flex-col">
+          <form onSubmit={handleSave} noValidate className="flex-1 min-h-0 flex flex-col pt-2">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
-              <TabsList variant="line" className={UI_THEME.tabs.listClass}>
+              <TabsList variant="line" className={UI_THEME.tabs.modalListClass}>
                 <TabsTrigger value="general">
                   <IconoEntidad className="h-3.5 w-3.5 mr-1.5" /> {/* ← ícono canónico */}
                   General

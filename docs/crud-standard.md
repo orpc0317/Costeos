@@ -124,8 +124,8 @@ Para mantener una apariencia corporativa ("ERP state of the art"):
     - Para que las pestañas (`TabsList`) no se pierdan al hacer scroll y los botones de acción (`Footer`) queden fijos abajo, el formulario debe utilizar Flexbox:
       - `<form className="flex-1 overflow-hidden flex flex-col pt-2">`
       - El contenedor principal de Tabs: `<Tabs className="w-full flex-1 flex flex-col min-h-0">`
-      - El Listado de Tabs: `<TabsList variant="line" className={UI_THEME.tabs.listClass}>` (sin margen inferior; las pestañas quedan sobre el fondo del modal)
-      - El contenedor de campos: `<div className={UI_THEME.modal.scrollArea}>` — panel blanco con borde, pegado a la línea de las pestañas. `<TabsContent ...>` va adentro. El footer queda fuera.
+      - El Listado de Tabs: `<TabsList variant="line" className={UI_THEME.tabs.modalListClass}>` (barra blanca, borde inferior de 3px, de lado a lado; el form lleva `pt-2`)
+      - El contenedor de campos: `<div className={UI_THEME.modal.scrollArea}>`. Cada grupo es un `SegmentCard` blanco con borde de 3px, pegado a la línea de las pestañas. `<TabsContent ...>` va adentro. El footer queda fuera.
       - El Footer: `<div className="flex flex-row items-center justify-between mt-6 -mx-4 -mb-4 px-4 py-4 border-t bg-slate-50 sm:rounded-b-xl shrink-0">`
 11. **Mensajes de Campos Bloqueados**: Si un registro "en uso" bloquea ciertos campos (modo de edición restringido), evita mostrar cajas de alerta (blocks amarillos) en el formulario que rompen la estética. En su lugar, agrega un "foot note" pequeño (ej. `<p className="text-[11px] text-amber-700">`) del lado izquierdo del footer para mantener el diseño limpio.
 12. **Flujo de Edición (Editar -> Guardar -> Ver)**:
@@ -146,7 +146,7 @@ Para mantener una apariencia corporativa ("ERP state of the art"):
 Para garantizar un estilo visual uniforme (estilo "Premium" con fondo transparente y borde inferior azul/índigo) en los formularios y pantallas que utilicen pestañas, se debe utilizar siempre la variante `line` provista por nuestro sistema de diseño:
 
 - **Configuración del Componente**:
-  - Utilizar `<TabsList variant="line" className={UI_THEME.tabs.listClass}>`. En modales no agregar margen inferior: el panel `UI_THEME.modal.scrollArea` arranca en la línea de las pestañas.
+  - Utilizar `<TabsList variant="line" className={UI_THEME.tabs.modalListClass}>`. En modales no agregar borde ni margen: el token ya pinta la barra blanca de lado a lado. El panel `UI_THEME.modal.scrollArea` arranca en esa línea.
   - Los `<TabsTrigger>` no necesitan ninguna clase personalizada manual; el componente central `ui/tabs.tsx` se encargará de estilizarlos automáticamente.
 
 Ejemplo correcto:

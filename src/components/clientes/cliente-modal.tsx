@@ -663,7 +663,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                 onValueChange={setActiveTab}
                 className="w-full flex-1 flex flex-col min-h-0"
               >
-                <TabsList variant="line" className={UI_THEME.tabs.listClass}>
+                <TabsList variant="line" className={UI_THEME.tabs.modalListClass}>
                   <TabsTrigger value="general">
                     <Settings2 className="w-4 h-4 mr-2" />
                     General

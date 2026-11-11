@@ -9,6 +9,7 @@ import { NumericInput } from '@/components/ui/numeric-input'
 import { FieldError } from '@/components/ui/field-error'
 import { listarCostosItem, agregarCostoItem, eliminarCostoItem } from '@/app/actions/items'
 import type { ItemCostoInput, ItemCostoRow } from '@/lib/types/items'
+import { UI_THEME } from '@/lib/theme'
 
 export type CostoBorrador = ItemCostoInput & { localId: number }
 
@@ -172,7 +173,7 @@ export function CostoTab({
 
       {/* ─── Panel de nuevo costo (solo en modo edicion) ─── */}
       {mode === 'edit' && (
-        <div className="rounded-md border border-slate-200 bg-slate-50 p-4 space-y-3">
+        <div className={`rounded-lg p-4 space-y-3 ${UI_THEME.modal.segment}`}>
           <p className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
             <DollarSign className="h-3.5 w-3.5" />
             Registrar Nuevo Costo
@@ -187,7 +188,7 @@ export function CostoTab({
           <div className="grid grid-cols-3 gap-3">
             {/* Fecha de vigencia */}
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="costo-fecha">
+              <Label htmlFor="costo-fecha" className={UI_THEME.forms.labelBase}>
                 Fecha Vigencia <span className="text-red-500">*</span>
               </Label>
               <Input
@@ -198,7 +199,7 @@ export function CostoTab({
                   setFecha(e.target.value)
                   if (fieldErrors.fecha) setFieldErrors(prev => { const n = { ...prev }; delete n.fecha; return n })
                 }}
-                className="h-8 py-1"
+                className={UI_THEME.forms.inputBase}
                 aria-invalid={!!fieldErrors.fecha}
               />
               <FieldError message={fieldErrors.fecha} />
@@ -206,7 +207,7 @@ export function CostoTab({
 
             {/* Costo */}
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="costo-valor">
+              <Label htmlFor="costo-valor" className={UI_THEME.forms.labelBase}>
                 Costo <span className="text-red-500">*</span>
               </Label>
               <NumericInput
@@ -216,7 +217,7 @@ export function CostoTab({
                   setCosto(v ?? null)
                   if (fieldErrors.costo) setFieldErrors(prev => { const n = { ...prev }; delete n.costo; return n })
                 }}
-                className="h-8"
+                className={UI_THEME.forms.inputBase}
                 placeholder="0.0000"
                 aria-invalid={!!fieldErrors.costo}
               />
@@ -225,7 +226,7 @@ export function CostoTab({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="costo-diferenciado">
+              <Label htmlFor="costo-diferenciado" className={UI_THEME.forms.labelBase}>
                 Costo Diferenciado
               </Label>
               <NumericInput
@@ -235,7 +236,7 @@ export function CostoTab({
                   setCostoDiferenciado(v ?? null)
                   if (fieldErrors.costoDiferenciado) setFieldErrors(prev => { const n = { ...prev }; delete n.costoDiferenciado; return n })
                 }}
-                className="h-8"
+                className={UI_THEME.forms.inputBase}
                 placeholder="0.0000"
                 aria-invalid={!!fieldErrors.costoDiferenciado}
               />
@@ -273,8 +274,8 @@ export function CostoTab({
         </div>
       ) : (
         <div className="border border-slate-200 rounded-md overflow-hidden">
-          <table className="w-full text-xs">
-            <thead className="bg-slate-50 border-b border-slate-200">
+          <table className="w-full text-xs border-collapse text-left">
+            <thead className="bg-slate-100 border-b border-slate-200">
               <tr>
                 <th className="text-left px-3 py-2 font-semibold text-slate-600 w-28">Fecha Vigencia</th>
                 <th className="text-right px-3 py-2 font-semibold text-slate-600 w-32">Costo</th>
@@ -284,9 +285,9 @@ export function CostoTab({
                 {mode === 'edit' && <th className="w-12" />}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="[&>tr:nth-child(odd)]:bg-white [&>tr:nth-child(even)]:bg-slate-100 [&>tr:hover]:bg-muted/40">
               {visibles.slice(0, 20).map((c) => (
-                <tr key={c.id} className={c.id === ultimoId ? 'bg-blue-50' : 'hover:bg-slate-50'}>
+                <tr key={c.id} className={`border-t transition-colors ${c.id === ultimoId ? '!bg-blue-50' : ''}`}>
                   <td className="px-3 py-2 font-mono font-medium text-slate-800">
                     {formatFecha(c.fecha)}
                   </td>
