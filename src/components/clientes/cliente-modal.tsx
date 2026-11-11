@@ -657,7 +657,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
               PASO 2 — FORMULARIO
           ══════════════════════════════════════════════════════ */}
           {(isEditing || step === 'formulario') && (
-            <form onSubmit={handleSave} noValidate className="flex-1 min-h-0 flex flex-col pt-2">
+            <form onSubmit={handleSave} noValidate data-form-mode={mode} className="flex-1 min-h-0 flex flex-col pt-2">
               <Tabs
                 value={activeTab}
                 onValueChange={setActiveTab}

@@ -261,7 +261,7 @@ export function EntidadModal({
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSave} noValidate className="flex-1 min-h-0 flex flex-col pt-2">
+          <form onSubmit={handleSave} noValidate data-form-mode={mode} className="flex-1 min-h-0 flex flex-col pt-2">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
               <TabsList variant="line" className={UI_THEME.tabs.modalListClass}>
                 <TabsTrigger value="general">
@@ -285,7 +285,8 @@ export function EntidadModal({
 
                     {/* Empresa — tres modos obligatorios (R: AGENTS.md §Campos y Datos)
                         SIEMPRE usar UI_THEME.forms.labelBase en Label.
-                        Vista/Edicion → Input disabled, sin data-view-mode (Empresa no se edita: gris claro).
+                        Vista → Input disabled. El form lleva data-form-mode="view" y el dato es negro.
+                        Edicion → el mismo Input disabled, en gris claro. Empresa no se cambia.
                         inputBase conserva el subrayado inferior (igual que en nuevo/editar).
                         Creación      → SearchableSelect activo. */}
                     <div className="flex flex-col gap-1.5 col-span-2">
@@ -294,7 +295,7 @@ export function EntidadModal({
                         // Vista: Input deshabilitado — inputBase ya aplica estilos disabled
                         <Input value={empresaNombre} disabled className={UI_THEME.forms.inputBase} />
                       ) : isEditing ? (
-                        // Edición: empresa no se cambia — igual deshabilitado, sin data-view-mode
+                        // Edición: empresa no se cambia. Sigue disabled y el valor pasa a gris.
                         <Input value={empresaNombre} disabled className={UI_THEME.forms.inputBase} />
                       ) : (
                         // Creación: SearchableSelect activo

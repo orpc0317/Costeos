@@ -328,7 +328,7 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess, onActualizado 
           title={mode === 'create' ? 'Nuevo Tipo Costeo' : mode === 'edit' ? 'Editar Tipo Costeo' : 'Detalle Tipo Costeo'}
         />
 
-        <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col pt-2" noValidate>
+        <form onSubmit={handleSubmit} data-form-mode={mode} className="flex-1 min-h-0 flex flex-col pt-2" noValidate>
           {error && <div className={UI_THEME.forms.globalError}>{error}</div>}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
             <TabsList variant="line" className={UI_THEME.tabs.modalListClass}>

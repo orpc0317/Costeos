@@ -581,10 +581,10 @@ Clases estándar: contenedor `flex flex-col gap-1.5`, inputs `h-8 py-1`, grid `g
 
 El color del valor dice si el campo se puede editar. El subrayado inferior se conserva (`border-b-2 border-slate-200`), el mismo de nuevo y editar. No usar opacidad: el borde no se apaga.
 
-- Editable, tambien en Ver si al pasar a Editar se habilita: casi negro (`--foreground`). El control lleva `disabled={mode === 'view'}` y `data-view-mode={mode === 'view'}`. En `SearchableSelect`, la prop es `viewMode={mode === 'view'}`.
-- No editable (Empresa ya asignada, codigo, calculado, bloqueado por ERP): gris claro `#b4bec9`. Va `disabled` o `readOnly` **sin** `data-view-mode`.
+- En Ver, todo dato se lee en negro (`--foreground`), tambien Empresa, codigos y lo bloqueado por ERP.
+- En Editar, el campo que sigue deshabilitado pasa a gris claro `#b4bec9`. El que se puede cambiar sigue en negro.
 
-La regla esta en `src/app/globals.css`. `data-view-mode="true"` excluye el gris.
+El `<form>` lleva `data-form-mode={mode}`. La regla esta en `src/app/globals.css`: con `view`, los controles deshabilitados se pintan en negro. Al salir de Ver, el gris vuelve solo en lo deshabilitado. El subrayado no cambia. No usar opacidad.
 
 ### 6.2 Campos Autogenerados (Código, ID)
 

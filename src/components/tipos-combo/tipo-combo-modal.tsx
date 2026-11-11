@@ -263,7 +263,7 @@ export function TipoComboModal({ tipoCombo, trigger, onActualizado }: TipoComboM
           )}
 
           {/* Formulario con pestañas */}
-          <form onSubmit={handleSubmit} noValidate className="flex-1 min-h-0 flex flex-col pt-2">
+          <form onSubmit={handleSubmit} noValidate data-form-mode={mode} className="flex-1 min-h-0 flex flex-col pt-2">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
               <TabsList variant="line" className={UI_THEME.tabs.modalListClass}>
                 <TabsTrigger value="general">

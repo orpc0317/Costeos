@@ -30,13 +30,10 @@ export const UI_THEME = {
      * ── Opción A (ERP micro-ajustes) ──────────────────────────────────────────
      * • bg-white        → el campo se distingue claramente del fondo del form
      * • border-slate-300 → borde más visible que el border-input (gris muy claro)
-     * • text-foreground → valor de un campo que sí se edita (casi negro)
-     * • disabled:text-slate-400 → valor de un campo que no se edita (gris claro)
-     * • modo vista (`data-view-mode="true"`) se usa solo si ese campo
-     *   sí se puede cambiar en Editar: el texto vuelve a text-foreground.
+     * • text-foreground → valor que se puede editar (casi negro)
+     * • En Ver, el form lleva data-form-mode="view" y el dato deshabilitado
+     *   tambien es negro. En Editar, lo bloqueado vuelve a #b4bec9.
      *   El subrayado no cambia. No se baja la opacidad del control.
-     *   -webkit-text-fill-color evita que el navegador pinte igual
-     *   todos los inputs deshabilitados.
      * ──────────────────────────────────────────────────────────────────────────
      * Usado en: Input, Textarea, SearchableSelect (trigger), NumericInput (hereda de Input).
      */

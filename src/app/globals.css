@@ -181,9 +181,8 @@
   }
 
   /*
-   * Dato que no se puede editar: gris claro.
-   * Dato que sí se puede editar: --foreground (casi negro), también en Ver
-   * cuando el campo lleva data-view-mode="true".
+   * En Editar, el dato que no se puede cambiar va en gris claro.
+   * En Ver, data-form-mode="view" (al final de este archivo) lo deja en negro.
    */
   [data-slot="input"]:disabled:not([data-view-mode="true"]),
   [data-slot="input"][readonly]:not([data-view-mode="true"]),
@@ -253,4 +252,16 @@
   .scrollbar-none::-webkit-scrollbar {
     display: none;               /* Chrome / Safari / Opera */
   }
+}
+
+/*
+ * Modal Ver: el dato se lee en negro, también si el campo no se puede editar.
+ * En Editar, el gris #b4bec9 de arriba vuelve solo en los controles deshabilitados.
+ * El form del modal lleva data-form-mode="view". No pinta los botones del footer.
+ */
+[data-form-mode="view"] [data-slot="input"]:is(:disabled, [readonly]),
+[data-form-mode="view"] [data-slot="textarea"]:is(:disabled, [readonly]),
+[data-form-mode="view"] button[aria-disabled="true"]:not([data-slot="button"]) {
+  color: var(--foreground) !important;
+  -webkit-text-fill-color: var(--foreground) !important;
 }

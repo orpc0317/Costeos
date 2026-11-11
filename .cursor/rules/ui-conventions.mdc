@@ -32,14 +32,12 @@ El look de catalogo es el del modal de Items. Vive en `UI_THEME`. No copiar clas
 
 ## Color del dato
 
-El color del valor dice si el campo se puede editar. El subrayado no cambia. No usar opacidad.
+El subrayado no cambia. No usar opacidad.
 
-- Editable, tambien en Ver si al pasar a Editar se habilita: casi negro (`--foreground`).
-- No editable (nunca, o bloqueado en Editar): gris claro `#b4bec9`.
+- En Ver, todo dato se lee en negro (`--foreground`), tambien el que no se puede editar.
+- En Editar, el campo que sigue bloqueado pasa a gris claro `#b4bec9`. El que si se edita sigue en negro.
 
-`data-view-mode="true"` (y `viewMode` en `SearchableSelect`) solo cuando el control esta deshabilitado porque la pantalla esta en Ver y el campo si se edita en Editar. Un campo siempre bloqueado (Empresa ya asignada, Codigo ERP, calculado) va `disabled` o `readOnly` sin esa marca. `ViewField` de un dato que no se edita lleva `locked`.
-
-La regla de color vive en `src/app/globals.css`.
+El `<form>` del modal lleva `data-form-mode={mode}`. Con `view`, `globals.css` pinta en negro los inputs, textareas y selects deshabilitados. Al pasar a Editar, el atributo deja de ser `view` y el gris vuelve solo en lo deshabilitado. `ViewField` se usa en Ver y es negro.
 - Footer: vista en una fila ghost `size="sm"` (Historial, extra, Eliminar, Editar) con `accent.hover`. Editar un registro: Cancelar y Guardar ghost `size="sm"` a la derecha, con icono (X y Check) y el mismo hover. Alta: solo Guardar ghost con icono Check.
 - `HistorialDrawer` fuera del `Dialog`.
 

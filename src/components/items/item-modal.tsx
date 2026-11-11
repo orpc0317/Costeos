@@ -766,7 +766,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
               PASO 2 — FORMULARIO (nuevo en step='formulario' o edición)
           ══════════════════════════════════════════════════════ */}
           {(isEditing || step === 'formulario') && (
-            <form onSubmit={handleSave} noValidate className="flex-1 min-h-0 flex flex-col pt-2">
+            <form onSubmit={handleSave} noValidate data-form-mode={mode} className="flex-1 min-h-0 flex flex-col pt-2">
               <Tabs
                 value={activeTab}
                 onValueChange={setActiveTab}

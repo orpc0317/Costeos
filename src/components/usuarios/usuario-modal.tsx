@@ -224,7 +224,7 @@ export function UsuarioModal({ usuario, trigger, onSuccess, onActualizado, permi
             <div className={UI_THEME.forms.globalError}>{globalError}</div>
           )}
 
-          <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col pt-2" noValidate>
+          <form onSubmit={handleSubmit} data-form-mode={mode} className="flex-1 min-h-0 flex flex-col pt-2" noValidate>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
               <TabsList variant="line" className={UI_THEME.tabs.modalListClass}>
                 <TabsTrigger value="general">
