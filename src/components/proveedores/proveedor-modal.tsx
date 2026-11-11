@@ -615,6 +615,7 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
                         <Input
                           value={empresaNombre}
                           disabled
+                          data-view-mode={mode === 'view'}
                           className={UI_THEME.forms.inputBase}
                         />
                       </div>
@@ -632,7 +633,7 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
                             if (fieldErrors.nit) setFieldErrors(prev => { const n = { ...prev }; delete n.nit; return n })
                           }}
                           disabled={disabledPorERP}
-                          data-view-mode={mode === 'view' && !bloqueadoPorERP}
+                          data-view-mode={mode === 'view'}
                           className={UI_THEME.forms.inputBase}
                           aria-invalid={!!fieldErrors.nit}
                         />
@@ -652,7 +653,7 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
                             if (fieldErrors.nombre) setFieldErrors(prev => { const n = { ...prev }; delete n.nombre; return n })
                           }}
                           disabled={disabledPorERP}
-                          data-view-mode={mode === 'view' && !bloqueadoPorERP}
+                          data-view-mode={mode === 'view'}
                           className={`${UI_THEME.forms.inputBase} uppercase`}
                           aria-invalid={!!fieldErrors.nombre}
                         />

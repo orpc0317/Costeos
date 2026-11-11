@@ -504,7 +504,7 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess, onActualizado 
                       min="0"
                       max="10"
                       disabled={mode === 'view' || !!tipoCosteo?.enUso}
-                      data-view-mode={mode === 'view' && !tipoCosteo?.enUso}
+                      data-view-mode={mode === 'view'}
                       aria-invalid={!!fieldErrors.cantidadNiveles}
                     />
                     <FieldError message={fieldErrors.cantidadNiveles} />
@@ -524,7 +524,7 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess, onActualizado 
                       min="0"
                       max={cantidadNiveles.toString()}
                       disabled={mode === 'view' || !!tipoCosteo?.enUso}
-                      data-view-mode={mode === 'view' && !tipoCosteo?.enUso}
+                      data-view-mode={mode === 'view'}
                       aria-invalid={!!fieldErrors.nivelConDireccion}
                     />
                     <p className="text-[11px] text-muted-foreground !mt-0.5 leading-none">0 = Ningún nivel maneja dirección</p>

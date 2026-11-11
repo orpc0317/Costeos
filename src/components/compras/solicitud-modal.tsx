@@ -387,6 +387,7 @@ export function SolicitudModal({
                       <Input
                         value={solicitud!.empresaNombre ?? ''}
                         disabled
+                        data-view-mode={mode === 'view'}
                         className={UI_THEME.forms.inputBase}
                       />
                     )}
@@ -414,6 +415,7 @@ export function SolicitudModal({
                       <Input
                         value={solicitud!.itemDescripcion}
                         disabled
+                        data-view-mode={mode === 'view'}
                         className={UI_THEME.forms.inputBase}
                       />
                     )}

@@ -457,6 +457,7 @@ export function CotizacionModal({
                         <Input
                           value={cotizacion!.empresaNombre ?? ''}
                           disabled
+                          data-view-mode={mode === 'view'}
                           className={UI_THEME.forms.inputBase}
                         />
                       )}
@@ -488,6 +489,7 @@ export function CotizacionModal({
                         <Input
                           value={cotizacion!.itemDescripcion ?? ''}
                           disabled
+                          data-view-mode={mode === 'view'}
                           className={UI_THEME.forms.inputBase}
                         />
                       )}
@@ -746,6 +748,7 @@ export function CotizacionModal({
                         <Input
                           value={cotizacion!.empresaNombre ?? ''}
                           disabled
+                          data-view-mode={mode === 'view'}
                           className={UI_THEME.forms.inputBase}
                         />
                       </div>
@@ -756,6 +759,7 @@ export function CotizacionModal({
                         <Input
                           value={cotizacion!.itemDescripcion ?? ''}
                           disabled
+                          data-view-mode={mode === 'view'}
                           className={UI_THEME.forms.inputBase}
                         />
                       </div>

@@ -46,9 +46,9 @@ export const UI_THEME = {
       "data-[view-mode=true]:border-b data-[view-mode=true]:border-primary/50 data-[view-mode=true]:bg-transparent " +
       "data-[view-mode=true]:!text-foreground data-[view-mode=true]:shadow-none " +
       "data-[view-mode=true]:pointer-events-none data-[view-mode=true]:opacity-100 " +
-      "data-[view-mode=true]:[-webkit-text-fill-color:var(--foreground)] " +
+      "data-[view-mode=true]:![-webkit-text-fill-color:var(--foreground)] " +
       "disabled:data-[view-mode=true]:!text-foreground " +
-      "disabled:data-[view-mode=true]:[-webkit-text-fill-color:var(--foreground)]",
+      "disabled:data-[view-mode=true]:![-webkit-text-fill-color:var(--foreground)]",
 
     /**
      * Label de campo en formularios y modales.

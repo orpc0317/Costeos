@@ -680,6 +680,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                         <Input
                           value={empresaNombre}
                           disabled
+                          data-view-mode={mode === 'view'}
                           className={UI_THEME.forms.inputBase}
                         />
                       </div>
@@ -697,7 +698,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                             if (fieldErrors.nit) setFieldErrors(prev => { const n = { ...prev }; delete n.nit; return n })
                           }}
                           disabled={disabledPorERP}
-                          data-view-mode={mode === 'view' && !bloqueadoPorERP}
+                          data-view-mode={mode === 'view'}
                           className={UI_THEME.forms.inputBase}
                           aria-invalid={!!fieldErrors.nit}
                         />
@@ -718,7 +719,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                             if (fieldErrors.razonSocial) setFieldErrors(prev => { const n = { ...prev }; delete n.razonSocial; return n })
                           }}
                           disabled={disabledPorERP}
-                          data-view-mode={mode === 'view' && !bloqueadoPorERP}
+                          data-view-mode={mode === 'view'}
                           className={`${UI_THEME.forms.inputBase} uppercase`}
                           aria-invalid={!!fieldErrors.razonSocial}
                         />
@@ -766,7 +767,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                                 if (fieldErrors.direccionFiscal) setFieldErrors(prev => { const n = { ...prev }; delete n.direccionFiscal; return n })
                               }}
                               disabled={mode === 'view' || direccionBloqueada}
-                              data-view-mode={mode === 'view' && !direccionBloqueada}
+                              data-view-mode={mode === 'view'}
                               className={`${UI_THEME.forms.inputBase} uppercase`}
                               aria-invalid={!!fieldErrors.direccionFiscal}
                               placeholder="Ej. ZONA 10, CIUDAD CAPITAL"
@@ -802,7 +803,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                                 if (fieldErrors.departamento) setFieldErrors(prev => { const n = { ...prev }; delete n.departamento; return n })
                               }}
                               disabled={mode === 'view' || loadingDeptos || departamentoBloqueado}
-                              viewMode={mode === 'view' && !departamentoBloqueado}
+                              viewMode={mode === 'view'}
                               placeholder={loadingDeptos ? 'Cargando...' : 'Seleccione...'}
                             />
                             <FieldError message={fieldErrors.departamento} />
@@ -823,7 +824,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                                 if (fieldErrors.municipio) setFieldErrors(prev => { const n = { ...prev }; delete n.municipio; return n })
                               }}
                               disabled={mode === 'view' || loadingMunis || !departamento || municipioBloqueado}
-                              viewMode={mode === 'view' && !municipioBloqueado && !!departamento}
+                              viewMode={mode === 'view'}
                               placeholder={loadingMunis ? 'Cargando...' : !departamento ? 'Seleccione departamento' : 'Seleccione...'}
                             />
                             <FieldError message={fieldErrors.municipio} />

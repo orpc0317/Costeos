@@ -192,6 +192,16 @@
     color: #b4bec9 !important;
     -webkit-text-fill-color: #b4bec9 !important;
   }
+  /* Misma capa y después: en Ver gana el negro, también sin data-view-mode. */
+  [data-form-mode="view"] [data-slot="input"]:disabled,
+  [data-form-mode="view"] [data-slot="input"][readonly],
+  [data-form-mode="view"] [data-slot="textarea"]:disabled,
+  [data-form-mode="view"] [data-slot="textarea"][readonly],
+  [data-form-mode="view"] button[aria-disabled="true"]:not([data-slot="button"]) {
+    color: var(--foreground) !important;
+    -webkit-text-fill-color: var(--foreground) !important;
+    opacity: 1 !important;
+  }
   [data-slot="table"] {
     font-size: var(--ui-table-font);
   }

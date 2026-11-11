@@ -247,6 +247,7 @@ export function CategoriaModal({
                           id="cat-empresa"
                           value={empresaNombreActual}
                           disabled
+                          data-view-mode={mode === 'view'}
                           className={UI_THEME.forms.inputBase}
                         />
                       )}
