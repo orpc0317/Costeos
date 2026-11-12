@@ -212,14 +212,16 @@ export function ItemsClient({ initialData, categorias, permisos }: Props) {
   )
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        icon={Package}
-        title="Items"
-        subtitle={subtitulo}
-        accent={MODULE_ACCENT.items}
-        actions={puedeAgregar ? toolbarActions : null}
-      />
+    <div className={UI_THEME.page.listShell}>
+      <div className={UI_THEME.page.listHeader}>
+        <PageHeader
+          icon={Package}
+          title="Items"
+          subtitle={subtitulo}
+          accent={MODULE_ACCENT.items}
+          actions={puedeAgregar ? toolbarActions : null}
+        />
+      </div>
 
       <DataTable
         columns={columns}

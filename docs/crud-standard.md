@@ -23,6 +23,7 @@ Al utilizar `DataTable`, heredas automáticamente:
 - **Persistencia**: La visibilidad y orden de columnas se guarda en el `localStorage` del navegador bajo las claves `${tableId}-visibility` y `${tableId}-order`.
 - **Theming parametrizado**: Colores, tamaños de fuente y estilos unificados.
 - **Filas cebra**: blanco y gris alternados (`table.rowBase` / `table.rowStripe`). La fila marcada usa `rowAccent`. No hace falta pintarlo en cada pantalla.
+- **Titulos de columna fijos**: el scroll vertical es de la tabla. La pantalla usa `UI_THEME.page.listShell` y el `PageHeader` va en `page.listHeader`. `pinHeader` viene activo; no pasarlo. `pinHeader={false}` solo si la tabla scrollea junto con otro bloque.
 
 ### ⚠️ Regla: Columnas Foreign Key → usar `accessorFn`
 

@@ -92,8 +92,10 @@ export function TiposCosteoClient({ initialData, permisos }: Props) {
     : `${data.length} ${data.length === 1 ? 'tipo costeo registrado' : 'tipos costeos registrados'}`
 
   return (
-    <div className="space-y-6">
+    <div className={UI_THEME.page.listShell}>
+      <div className={UI_THEME.page.listHeader}>
       <PageHeader icon={Network} title="Tipos Costeos" subtitle={subtitulo} accent={MODULE_ACCENT.tiposCosteo} actions={puedeAgregar ? <TipoCosteoModal onSuccess={() => router.refresh()} trigger={<Button className="gap-2"><Plus className="w-4 h-4" />Nuevo Tipo</Button>} /> : null} />
+      </div>
       <DataTable
         columns={columns}
         data={data}

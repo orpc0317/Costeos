@@ -7,8 +7,9 @@
  * 1. Busca y reemplaza TODO "Entidad" / "entidad" / "ENTIDAD" por el nombre real.
  * 2. Reemplaza "IconoEntidad" por el ícono canónico del sidebar.
  * 3. Agrega / elimina columnas según los campos de la entidad.
- * 4. El boton Nuevo va en PageHeader actions, no en la barra de la tabla.
- * 5. Al terminar, ejecuta la PRE-FLIGHT CHECKLIST de AGENTS.md punto a punto.
+ * 4. La raiz es UI_THEME.page.listShell. PageHeader va en page.listHeader. No pasar pinHeader.
+ * 5. El boton Nuevo va en PageHeader actions, no en la barra de la tabla.
+ * 6. Al terminar, ejecuta la PRE-FLIGHT CHECKLIST de AGENTS.md punto a punto.
  *
  * GOLD STANDARD DE REFERENCIA (leer antes de modificar):
  *   src/app/(dashboard)/dashboard/configuracion/categorias/categorias-client.tsx
@@ -91,7 +92,8 @@ export function EntidadesClient({ data }: { data: EntidadRow[] }) {
   // Render
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6">
+    <div className={UI_THEME.page.listShell}>
+      <div className={UI_THEME.page.listHeader}>
       <PageHeader
         icon={IconoEntidad}
         title="Entidades"
@@ -107,6 +109,7 @@ export function EntidadesClient({ data }: { data: EntidadRow[] }) {
           />
         }
       />
+      </div>
 
       <DataTable
         columns={columns}

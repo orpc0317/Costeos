@@ -21,7 +21,7 @@ export default async function DashboardLayout({
       {/* Contenido principal */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <AppHeader user={session.user as any} />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6">
           {children}
         </main>
       </div>

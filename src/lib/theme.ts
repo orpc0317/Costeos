@@ -99,6 +99,12 @@ export const UI_THEME = {
     headerBg: "bg-muted/40",
 
     /**
+     * Mismo tono que headerBg, opaco. El encabezado fijo lo necesita
+     * para que las filas no se vean a traves al hacer scroll.
+     */
+    headerBgSolid: "bg-[color-mix(in_oklch,var(--muted)_40%,var(--card))]",
+
+    /**
      * Estilo del texto en encabezados de columna.
      * Peso medio, no semibold: el encabezado se distingue por tamaño y mayúsculas.
      */
@@ -147,6 +153,11 @@ export const UI_THEME = {
      * rounded-lg + shadow-sm → aspecto de "card" moderno.
      */
     container: "rounded-lg border border-border/60 bg-card overflow-hidden",
+    /**
+     * Misma caja que container, con scroll propio en los dos ejes.
+     * El encabezado fijo se ancla a esta caja, no a la pagina.
+     */
+    scrollport: "min-h-0 min-w-0 overflow-auto rounded-lg border border-border/60 bg-card",
     stickyLeft: "sticky left-0 z-10",
     stickyRight: "sticky right-0 z-10",
   },
@@ -317,6 +328,17 @@ export const UI_THEME = {
      * Subtítulo / conteo de registros.
      */
     subtitle: "text-sm text-muted-foreground mt-0.5",
+
+    /**
+     * Pantalla de lista. Ocupa el alto libre del dashboard para que
+     * DataTable haga scroll y deje fijos los titulos de columna.
+     */
+    listShell: "flex min-h-0 flex-1 flex-col gap-6 overflow-hidden",
+
+    /**
+     * Encabezado de la lista (PageHeader). No se encoge cuando la tabla scrollea.
+     */
+    listHeader: "shrink-0",
   },
 
   // ─── BOTÓN DE ACCIÓN EN TABLA (columna actions) ───────────────────────────

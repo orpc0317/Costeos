@@ -432,6 +432,7 @@ export function TiposComboRHPanel({ trigger }: TiposComboRHPanelProps) {
               data={tipos}
               tableId="tipos-combo-rh-v1"
               searchPlaceholder="Buscar tipo..."
+              pinHeader={false}
               customToolbarActions={
                 !showForm ? (
                   <Button

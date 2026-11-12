@@ -49,6 +49,8 @@ Sin tildes. Title Case. Preposiciones cortas en minuscula: `Codigo`, `Razon Soci
 
 Densidad por las variables CSS. Columna `id` sticky a la izquierda, `actions` sticky a la derecha. Clic marca la fila; doble clic abre el ojo. Flechas mueven el cursor.
 
+La lista ocupa el alto libre: raiz `page.listShell`, `PageHeader` en `page.listHeader`. Al bajar, los titulos de columna quedan fijos. Buscador y paginacion no se mueven. `pinHeader` viene activo. Una tabla que scrollea junto con un formulario usa `pinHeader={false}`.
+
 Las filas alternan blanco y gris: par `table.rowBase`, impar `table.rowStripe`. La fila activa usa `rowAccent` y tapa el cebra. Las columnas sticky llevan el mismo fondo que su fila (`rowBase`, `rowStripe` o `rowAccent`) porque un fondo transparente deja ver lo que se desplaza debajo. El cebra vive en `DataTable`; una tabla nueva no pinta las filas de un solo color.
 
 ## No cambiar

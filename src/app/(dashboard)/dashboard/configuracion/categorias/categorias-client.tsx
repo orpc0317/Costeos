@@ -87,7 +87,8 @@ export function CategoriasClient({ initialData, permisos }: Props) {
     : `${data.length} ${data.length === 1 ? 'categoría registrada' : 'categorías registradas'}`
 
   return (
-    <div className="space-y-6">
+    <div className={UI_THEME.page.listShell}>
+      <div className={UI_THEME.page.listHeader}>
       <PageHeader
         icon={Tags}
         title="Categorias"
@@ -101,6 +102,7 @@ export function CategoriasClient({ initialData, permisos }: Props) {
           />
         ) : null}
       />
+      </div>
       <DataTable
         columns={columns}
         data={data}

@@ -120,7 +120,8 @@ export function CosteosClient({ costeos, permisos }: { costeos: CosteoListRow[];
   )
 
   return (
-    <div className="space-y-6">
+    <div className={UI_THEME.page.listShell}>
+      <div className={UI_THEME.page.listHeader}>
       <PageHeader
         icon={Calculator}
         title="Costeos"
@@ -132,8 +133,8 @@ export function CosteosClient({ costeos, permisos }: { costeos: CosteoListRow[];
           </Link>
         ) : null}
       />
+      </div>
 
-      {/* Tabla Estandarizada */}
       <DataTable
         columns={columns}
         data={costeos}

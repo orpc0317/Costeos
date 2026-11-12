@@ -80,6 +80,13 @@ interface DataTableProps<TData, TValue> {
   pageSize?: number
   /** Fondo de la fila activa (acento del módulo). */
   rowAccent?: string
+  /**
+   * El scroll es de la tabla y los titulos de columna quedan fijos.
+   * Default true. La pantalla de lista usa UI_THEME.page.listShell.
+   * Pasar false cuando la tabla comparte el scroll con otro contenido
+   * (un formulario encima, dentro del mismo panel).
+   */
+  pinHeader?: boolean
 }
 
 // Icono de dirección de ordenamiento
@@ -93,9 +100,11 @@ function SortIcon({ direction }: { direction: 'asc' | 'desc' | false }) {
 function DraggableTableHead({
   header,
   allRows,
+  pinHeader = false,
 }: {
   header: Header<any, unknown>
   allRows: any[]
+  pinHeader?: boolean
 }) {
   const { attributes, isDragging, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -103,23 +112,31 @@ function DraggableTableHead({
       disabled: header.column.id === 'id' || header.column.id === 'actions' || header.column.id === 'acciones'
     })
 
-  const style = {
+  const style: React.CSSProperties = {
     transform: CSS.Translate.toString(transform),
     transition,
     opacity: isDragging ? 0.8 : 1,
-    zIndex: isDragging ? 10 : 1,
-    position: isDragging ? ('relative' as const) : undefined,
+    // Sin z-index en reposo: un valor inline tapa el z-index del encabezado fijo.
+    ...(isDragging ? { zIndex: 40, position: 'relative' as const } : {}),
   }
 
   const align = (header.column.columnDef.meta as any)?.align || 'left'
   const justifyClass = align === 'center' ? 'justify-center' : align === 'right' ? 'justify-end' : 'justify-start'
   const alignClass = align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : 'text-left'
-  const stickyHead =
-    header.column.id === 'id'
-      ? `${UI_THEME.table.stickyLeft} ${UI_THEME.table.headerBg}`
-      : header.column.id === 'actions' || header.column.id === 'acciones'
-      ? `${UI_THEME.table.stickyRight} ${UI_THEME.table.headerBg}`
-      : ''
+  const headBg = pinHeader ? UI_THEME.table.headerBgSolid : UI_THEME.table.headerBg
+  const isId = header.column.id === 'id'
+  const isActions = header.column.id === 'actions' || header.column.id === 'acciones'
+  const stickyHead = pinHeader
+    ? isId
+      ? `sticky left-0 top-0 z-30 ${headBg}`
+      : isActions
+      ? `sticky right-0 top-0 z-30 ${headBg}`
+      : `sticky top-0 z-20 ${headBg}`
+    : isId
+    ? `${UI_THEME.table.stickyLeft} ${headBg}`
+    : isActions
+    ? `${UI_THEME.table.stickyRight} ${headBg}`
+    : ''
 
   const isActionCol = header.column.id === 'id' || header.column.id === 'actions' || header.column.id === 'acciones'
   const canSort   = !isActionCol && header.column.getCanSort()
@@ -148,7 +165,7 @@ function DraggableTableHead({
     <TableHead
       ref={setNodeRef}
       style={style}
-      className={`group ${UI_THEME.table.headerBg} relative ${alignClass} ${stickyHead}`}
+      className={`group ${headBg} ${pinHeader ? '' : 'relative'} ${alignClass} ${stickyHead}`}
     >
       <div className={`flex items-center gap-1 w-full h-full py-1 ${justifyClass}`}>
         {/* Drag handle */}
@@ -205,6 +222,7 @@ export function DataTable<TData, TValue>({
   loading = false,
   pageSize = 25,
   rowAccent,
+  pinHeader = true,
 }: DataTableProps<TData, TValue>) {
   const [isMounted, setIsMounted] = useState(false)
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
@@ -392,7 +410,7 @@ export function DataTable<TData, TValue>({
 
   return (
     <div
-      className="space-y-4 outline-none"
+      className={pinHeader ? 'flex min-h-0 min-w-0 flex-1 flex-col gap-4 outline-none' : 'space-y-4 outline-none'}
       tabIndex={0}
       onKeyDown={(e) => {
         if (e.key === 'ArrowDown') { e.preventDefault(); moveCursor(1) }
@@ -403,7 +421,7 @@ export function DataTable<TData, TValue>({
         }
       }}
     >
-      <div className="flex items-center justify-between">
+      <div className={`flex items-center justify-between${pinHeader ? ' shrink-0' : ''}`}>
         <div className="flex items-center gap-2">
           <div className="relative max-w-sm w-full">
             {loading ? (
@@ -476,14 +494,20 @@ export function DataTable<TData, TValue>({
         </div>
       </div>
 
-      <div className={UI_THEME.table.container}>
+      <div className={pinHeader ? UI_THEME.table.scrollport : UI_THEME.table.container}>
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
         >
-          <Table>
-            <TableHeader className={UI_THEME.table.headerBg}>
+          <Table scrollable={!pinHeader}>
+            <TableHeader
+              className={
+                pinHeader
+                  ? `${UI_THEME.table.headerBgSolid} sticky top-0 z-20`
+                  : UI_THEME.table.headerBg
+              }
+            >
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className={`${UI_THEME.table.border} hover:bg-transparent`}>
                   <SortableContext
@@ -495,6 +519,7 @@ export function DataTable<TData, TValue>({
                         key={header.id}
                         header={header}
                         allRows={table.getCoreRowModel().rows}
+                        pinHeader={pinHeader}
                       />
                     ))}
                   </SortableContext>
@@ -568,7 +593,7 @@ export function DataTable<TData, TValue>({
       </div>
 
       {/* Controles de paginación */}
-      <div className="flex items-center justify-between px-1">
+      <div className={`flex items-center justify-between px-1${pinHeader ? ' shrink-0' : ''}`}>
         <p className="text-xs text-muted-foreground">
           {table.getFilteredRowModel().rows.length === 0
             ? 'Sin resultados'
