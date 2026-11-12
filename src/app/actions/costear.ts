@@ -16,12 +16,16 @@
  *
  * Los ítems tipo "Solicitar" (4) que el usuario NO ingresó costo se quedan en 0.
  * Los ítems tipo "Compras" sin cotización vigente quedan en 0.
+ *
+ * Manual, Tabla Ítem y Referencia se evalúan con la fecha de inicio del contrato:
+ * el registro vigente es el de fecha más reciente que no pasa de ese día.
  */
 
 import { requirePermiso, puedeConsultar } from '@/app/actions/permisos'
 import { PERMISOS } from '@/lib/permisos'
 import { prisma } from '@/lib/prisma'
 import type { ActionResult } from '@/lib/types/common'
+import { costoHasta, fechaEvaluacion } from '@/lib/utils/costo-a-fecha'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -63,6 +67,12 @@ export async function resolverCostosProyecto(
   const costosResueltos: Record<number, number> = {}
   const sinCosto: { itemId: number; nombre: string; motivo: string }[] = []
 
+  const costeo = await prisma.costeo.findUnique({
+    where: { id: costeoId },
+    select: { fechaInicio: true, contrato: { select: { fechaInicio: true } } },
+  })
+  const vigenteHasta = costoHasta(fechaEvaluacion(costeo?.fechaInicio, costeo?.contrato.fechaInicio))
+
   // Obtener nombres de ítems para los reportes de error
   const itemIds = items.map(i => i.itemId)
   const itemsDB = await prisma.item.findMany({
@@ -92,7 +102,7 @@ export async function resolverCostosProyecto(
   const ultimosCostosManual: Record<number, number> = {}
   if (uniqueManualIds.length > 0) {
     const costos = await prisma.itemCosto.findMany({
-      where: { itemId: { in: uniqueManualIds } },
+      where: { itemId: { in: uniqueManualIds }, ...vigenteHasta },
       orderBy: { fecha: 'desc' },
       select: { itemId: true, costo: true },
     })
@@ -108,7 +118,7 @@ export async function resolverCostosProyecto(
   const ultimosPctRef: Record<number, number> = {}
   if (itemsReferencia.length > 0) {
     const pcts = await prisma.itemCostoRef.findMany({
-      where: { itemId: { in: itemsReferencia.map(i => i.itemId) } },
+      where: { itemId: { in: itemsReferencia.map(i => i.itemId) }, ...vigenteHasta },
       orderBy: { fecha: 'desc' },
       select: { itemId: true, pct: true },
     })

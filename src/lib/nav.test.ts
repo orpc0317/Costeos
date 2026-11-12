@@ -5,11 +5,11 @@ import { menuVisible, modulosPortada } from '@/lib/nav'
 const TODOS = Object.values(PERMISOS)
 
 describe('menuVisible', () => {
-  it('con todos los códigos arma Costeos, Compras y Configuracion', () => {
+  it('con todos los códigos arma Contratos, Compras y Configuracion', () => {
     const modulos = modulosPortada(TODOS)
 
-    expect(modulos.map((modulo) => modulo.titulo)).toEqual(['Costeos', 'Compras', 'Configuracion'])
-    expect(modulos[0].tarjetas.map((tarjeta) => tarjeta.href)).toEqual(['/costeos'])
+    expect(modulos.map((modulo) => modulo.titulo)).toEqual(['Contratos', 'Compras', 'Configuracion'])
+    expect(modulos[0].tarjetas.map((tarjeta) => tarjeta.href)).toEqual(['/contratos'])
     expect(modulos[1].tarjetas.map((tarjeta) => tarjeta.titulo)).toEqual(['Solicitudes', 'Cotizaciones'])
     expect(modulos[2].tarjetas.map((tarjeta) => tarjeta.titulo)).toEqual([
       'Empresas',
@@ -35,7 +35,7 @@ describe('menuVisible', () => {
       TODOS.filter((codigo) => codigo !== PERMISOS.SOL_COM && codigo !== PERMISOS.COT_COM),
     )
 
-    expect(modulos.map((modulo) => modulo.titulo)).toEqual(['Costeos', 'Configuracion'])
+    expect(modulos.map((modulo) => modulo.titulo)).toEqual(['Contratos', 'Configuracion'])
   })
 
   it('COS.NEW y DAS.HOM no crean tarjeta', () => {
@@ -50,6 +50,6 @@ describe('menuVisible', () => {
   it('el sidebar sigue mostrando Dashboard cuando hay DAS.HOM', () => {
     const etiquetas = menuVisible([PERMISOS.DAS_HOM, PERMISOS.COS_CAT]).map((item) => item.label)
 
-    expect(etiquetas).toEqual(['DASHBOARD', 'COSTEOS'])
+    expect(etiquetas).toEqual(['DASHBOARD', 'CONTRATOS'])
   })
 })

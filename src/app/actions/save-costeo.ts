@@ -58,7 +58,7 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
     }
 
     const nodosActuales = await tx.nodo.findMany({
-      where: { contratoId: costeo.contratoId },
+      where: { costeoId },
       select: { id: true }
     });
     
@@ -81,7 +81,7 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
         if (isNaN(nId)) {
           const nuevo = await tx.nodo.create({
             data: {
-              contratoId: costeo.contratoId,
+              costeoId,
               parentId: parentDbId,
               nivel: nodoFront.nivel,
               nombre: nodoFront.nombre,
@@ -139,10 +139,10 @@ export async function saveCosteoTree(proyecto: ProyectoCosteo) {
     // Crear el nodo DEFAULT para recursos raíz ANTES de consultar recursos actuales
     let defaultNodoRaizId: number | null = null;
     if (flatRecursos.some(r => r.nodoTempId === null)) {
-      let defNodo = await tx.nodo.findFirst({ where: { contratoId: costeo.contratoId, nombre: 'DEFAULT', parentId: null } });
+      let defNodo = await tx.nodo.findFirst({ where: { costeoId, nombre: 'DEFAULT', parentId: null } });
       if (!defNodo) {
         defNodo = await tx.nodo.create({
-           data: { contratoId: costeo.contratoId, nivel: 1, nombre: 'DEFAULT' }
+           data: { costeoId, nivel: 1, nombre: 'DEFAULT' }
         });
       }
       defaultNodoRaizId = defNodo.id;

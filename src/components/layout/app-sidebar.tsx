@@ -64,7 +64,7 @@ export function AppSidebar({ user, permisos }: { user: NavUser; permisos: string
 function NavItem({ item, pathname }: { item: NavDestino; pathname: string }) {
   const isActive = item.exact
     ? pathname === item.href
-    : pathname.startsWith(item.href)
+    : pathname.startsWith(item.href) || (item.activoEn?.some((ruta) => pathname.startsWith(ruta)) ?? false)
 
   const hasChildren = item.children && item.children.length > 0
   const childActive = item.children?.some((c) => pathname.startsWith(c.href))

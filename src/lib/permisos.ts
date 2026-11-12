@@ -39,7 +39,7 @@ export type PermisoFlags = {
 
 export const MENUS: { indice: Permiso; nombre: string; ruta: string }[] = [
   { indice: PERMISOS.DAS_HOM, nombre: 'Dashboard', ruta: '/dashboard' },
-  { indice: PERMISOS.COS_CAT, nombre: 'Costeos', ruta: '/costeos' },
+  { indice: PERMISOS.COS_CAT, nombre: 'Contratos', ruta: '/contratos' },
   { indice: PERMISOS.COS_NEW, nombre: 'Costeador', ruta: '/costeos/nuevo' },
   { indice: PERMISOS.SOL_COM, nombre: 'Solicitudes', ruta: '/dashboard/compras/solicitudes' },
   { indice: PERMISOS.COT_COM, nombre: 'Cotizaciones', ruta: '/dashboard/compras/cotizaciones' },

@@ -8,6 +8,7 @@ import EditorPanel from './EditorPanel';
 import { Layers, Cloud, CloudUpload, CloudOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { saveCosteoTree } from '@/app/actions/save-costeo';
+import { claseEstadoCosteo, labelEstadoCosteo } from '@/lib/constants';
 import HistorialSheet from './modals/HistorialSheet';
 
 type SaveState = 'saved' | 'saving' | 'error' | 'idle';
@@ -96,8 +97,8 @@ export default function CosteoBuilderLayout() {
           <h1 className="font-semibold text-sm">
             Costeo: <span className="font-normal text-slate-600">{proyecto.nombreProyecto}</span>
           </h1>
-          <span className="ml-2 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">
-            {proyecto.estado}
+          <span className={`ml-2 ${claseEstadoCosteo(proyecto.estado)}`}>
+            {labelEstadoCosteo(proyecto.estado)}
           </span>
         </div>
         <div className="flex items-center gap-4 text-sm">

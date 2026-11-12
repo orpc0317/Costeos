@@ -298,7 +298,7 @@ export function ComboTab({
         setSubItemSolicitaCosto(true);
       } else if (item.manejoCostos === 2) {
         setIsLoadingSubCosto(true);
-        const costos = await getCostosUltimosManual([item.id]);
+        const costos = await getCostosUltimosManual([item.id], proyecto?.fechaInicio);
         setSubItemCosto(costos[item.id] ?? 0);
         setIsLoadingSubCosto(false);
       }

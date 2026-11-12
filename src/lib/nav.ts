@@ -1,11 +1,11 @@
 import {
   LayoutDashboard,
+  FileSignature,
   FileText,
   Users,
   UserRound,
   Settings,
   Building2,
-  Calculator,
   Network,
   Tags,
   Package,
@@ -28,6 +28,8 @@ export type NavDestino = {
   titulo?: string
   detalle?: string
   acento?: ModuleAccent
+  /** Rutas internas que dejan este ítem marcado, además de `href`. */
+  activoEn?: string[]
   children?: NavDestino[]
 }
 
@@ -57,13 +59,14 @@ export const NAV_ITEMS: NavDestino[] = [
     permiso: PERMISOS.DAS_HOM,
   },
   {
-    label: 'COSTEOS',
-    titulo: 'Costeos',
-    href: '/costeos',
-    icon: Calculator,
+    label: 'CONTRATOS',
+    titulo: 'Contratos',
+    href: '/contratos',
+    icon: FileSignature,
     permiso: PERMISOS.COS_CAT,
-    detalle: 'Listado de costeos',
-    acento: MODULE_ACCENT.costeos,
+    detalle: 'Contratos y su costeo',
+    acento: MODULE_ACCENT.contratos,
+    activoEn: ['/costeos'],
   },
   {
     label: 'COMPRAS',

@@ -17,6 +17,7 @@
 import { requirePermiso, puedeConsultar } from '@/app/actions/permisos'
 import { PERMISOS } from '@/lib/permisos'
 import { prisma } from '@/lib/prisma'
+import { costoHasta, fechaEvaluacion } from '@/lib/utils/costo-a-fecha'
 
 export interface FuenteCostoInfo {
   manejoCostos: number
@@ -91,6 +92,14 @@ export async function getFuenteCosto(
   const manejo      = item.manejoCostos
   const label       = LABEL_MAP[manejo] ?? 'Sin definir'
   const esPorCosteo = (item.porCosteo ?? 0) === 1
+
+  const costeo = costeoId > 0
+    ? await prisma.costeo.findUnique({
+        where: { id: costeoId },
+        select: { fechaInicio: true, contrato: { select: { fechaInicio: true } } },
+      })
+    : null
+  const vigenteHasta = costoHasta(fechaEvaluacion(costeo?.fechaInicio, costeo?.contrato.fechaInicio))
 
   // ── No Aplica ─────────────────────────────────────────────────────────────
   if (manejo === 99 || manejo === 0) {
@@ -174,7 +183,7 @@ export async function getFuenteCosto(
   // ── Manual / Tabla Ítem (2, 5) ────────────────────────────────────────────
   if (manejo === 2 || manejo === 5) {
     const ultimo = await prisma.itemCosto.findFirst({
-      where: { itemId },
+      where: { itemId, ...vigenteHasta },
       orderBy: { fecha: 'desc' },
       select: { costo: true, fecha: true, usuarioId: true },
     })
@@ -213,12 +222,12 @@ export async function getFuenteCosto(
 
     const [ultimoPct, ultimoCostoBase, refItem] = await Promise.all([
       prisma.itemCostoRef.findFirst({
-        where: { itemId },
+        where: { itemId, ...vigenteHasta },
         orderBy: { fecha: 'desc' },
         select: { pct: true, fecha: true },
       }),
       prisma.itemCosto.findFirst({
-        where: { itemId: refId },
+        where: { itemId: refId, ...vigenteHasta },
         orderBy: { fecha: 'desc' },
         select: { costo: true },
       }),

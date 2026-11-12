@@ -34,6 +34,7 @@ import { buildCombosDisponibles, expandirCombosIncluidos, fabricaIdCombo, reconc
 import { FieldError } from '@/components/ui/field-error';
 import { resolverCostosProyecto, type ItemParaCostear } from '@/app/actions/costear';
 import { montosDeLinea } from '@/lib/utils/financial-calculations';
+import { esBorradorCosteo } from '@/lib/constants';
 import { SolicitarCostosModal, type ItemSolicitarCosto } from './modals/SolicitarCostosModal';
 import { FuenteCostoPanel } from './FuenteCostoPanel';
 
@@ -550,7 +551,7 @@ export default function EditorPanel() {
       );
       const ids = data.filter(i => i.manejoCostos === 2).map(i => i.id);
       try {
-        const costos = ids.length > 0 ? await getCostosUltimosManual(ids) : {};
+        const costos = ids.length > 0 ? await getCostosUltimosManual(ids, proyecto?.fechaInicio) : {};
         if (!active) return;
         setCostosManualesCatalogo(costos);
       } catch (err) {
@@ -560,12 +561,12 @@ export default function EditorPanel() {
       setCostosCatalogoListos(true);
     });
     return () => { active = false; };
-  }, []);
+  }, [proyecto?.fechaInicio]);
 
   // Borrador ya guardado: los requeridos de niveles internos no se habían metido al árbol.
   // Sin esa línea, Costear no tiene a quién resolverle el costo.
   useEffect(() => {
-    if (!costosCatalogoListos || !proyecto || proyecto.estado !== 'BORRADOR' || catalogoItems.length === 0) return;
+    if (!costosCatalogoListos || !proyecto || !esBorradorCosteo(proyecto.estado) || catalogoItems.length === 0) return;
 
     const grupos: { nodoId: string | null; recursos: RecursoCosteo[] }[] = [
       { nodoId: null, recursos: proyecto.recursos },
@@ -939,12 +940,12 @@ export default function EditorPanel() {
                       isInteger={true}
                       onChange={(val) => handleChange('cantidad', val || 1)} 
                       min="1"
-                      disabled={proyecto?.estado !== 'BORRADOR'}
+                      disabled={!esBorradorCosteo(proyecto?.estado)}
                     />
                   </div>
                   <div className="col-span-8 flex flex-col gap-1.5">
                     <Label>Turno</Label>
-                    {proyecto?.estado === 'BORRADOR' ? (
+                    {esBorradorCosteo(proyecto?.estado) ? (
                       <SearchableSelect
                         id="field-turno"
                         options={turnos.map(t => ({ value: String(t.codigo), label: t.descripcion })).sort((a, b) => a.label.localeCompare(b.label))}
@@ -973,7 +974,7 @@ export default function EditorPanel() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-1 flex flex-col gap-1.5">
                     <Label>Cubre Descanso</Label>
-                    {proyecto?.estado === 'BORRADOR' ? (
+                    {esBorradorCosteo(proyecto?.estado) ? (
                       <SearchableSelect
                         id="field-cubreDescanso"
                         options={OPCIONES_CUBRE_DESCANSO.map(o => ({ value: o.value, label: o.label }))}
@@ -1001,7 +1002,7 @@ export default function EditorPanel() {
                     isInteger={true}
                     onChange={(val) => handleChange('cantidad', val || 1)} 
                     min="1"
-                    disabled={proyecto?.estado !== 'BORRADOR'}
+                    disabled={!esBorradorCosteo(proyecto?.estado)}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -1072,7 +1073,7 @@ export default function EditorPanel() {
 
                              {/* Columna Ítem */}
                              <td className="px-3 py-2">
-                               {proyecto?.estado === 'BORRADOR' ? (
+                               {esBorradorCosteo(proyecto?.estado) ? (
                                  <SearchableSelect
                                    options={[
                                      { value: '', label: '— Sin seleccionar —' },
@@ -1144,7 +1145,7 @@ export default function EditorPanel() {
                                <input
                                  type="checkbox"
                                  checked={estaIncluido}
-                                 disabled={!!asoc.obligatorio || proyecto?.estado !== 'BORRADOR'}
+                                 disabled={!!asoc.obligatorio || !esBorradorCosteo(proyecto?.estado)}
                                  onChange={(e) => {
                                    setCombosOptIncluidos(prev => ({ ...prev, [asoc.tipoComboId]: e.target.checked }));
                                    if (!e.target.checked && hijoActual) {
@@ -1184,7 +1185,7 @@ export default function EditorPanel() {
                     value={nodeData.precioVentaUnitario}
                     onChange={(val) => handleChange('precioVentaUnitario', val || 0)} 
                     min="0"
-                    disabled={proyecto?.estado !== 'BORRADOR'}
+                    disabled={!esBorradorCosteo(proyecto?.estado)}
                   />
                   {nodeData.categoria === 'RECURSO_HUMANO' && (
                     <p className="text-xs text-slate-500 italic">* Por Persona</p>
@@ -1333,7 +1334,7 @@ export default function EditorPanel() {
                         setSelectedBonoId('');
                       }
                     }}
-                    disabled={!selectedBonoId || proyecto?.estado !== 'BORRADOR'}
+                    disabled={!selectedBonoId || !esBorradorCosteo(proyecto?.estado)}
                   >
                     Agregar
                   </Button>
@@ -1367,7 +1368,7 @@ export default function EditorPanel() {
                                 <button 
                                   type="button" 
                                   className="text-red-500 hover:text-red-700 p-1 disabled:opacity-50" 
-                                  disabled={proyecto?.estado !== 'BORRADOR'}
+                                  disabled={!esBorradorCosteo(proyecto?.estado)}
                                   onClick={() => {
                                     const newBonos = (nodeData.bonos || []).filter((_: any, i: number) => i !== idx);
                                     handleChange('bonos', newBonos);
@@ -1424,7 +1425,7 @@ export default function EditorPanel() {
                 <ComboTab
                   recurso={{ ...nodeData, combosDisponibles: combosEfectivos }}
                   parentId={parentId}
-                  esBorrador={proyecto?.estado === 'BORRADOR'}
+                  esBorrador={esBorradorCosteo(proyecto?.estado)}
                   hermanos={hermanos}
                   catalogoItems={catalogoItems}
                 />

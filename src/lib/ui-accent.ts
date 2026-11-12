@@ -75,7 +75,7 @@ export const MODULE_ACCENT = {
     row: 'bg-cyan-50',
     hover: 'hover:bg-cyan-50 dark:hover:bg-cyan-950/30',
   },
-  costeos: {
+  contratos: {
     badge: 'bg-zinc-100',
     icon: 'text-zinc-600',
     gradient: 'from-zinc-50/70',
