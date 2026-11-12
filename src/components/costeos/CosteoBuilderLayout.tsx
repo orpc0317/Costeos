@@ -86,7 +86,7 @@ export default function CosteoBuilderLayout() {
 
 
   return (
-    <div className="flex flex-col h-full w-full">
+    <div className="flex flex-col h-full w-full" data-costeador>
       {/* Header */}
       <header className="h-14 border-b bg-white flex items-center px-4 justify-between shrink-0 shadow-sm z-10">
         <div className="flex items-center gap-2">

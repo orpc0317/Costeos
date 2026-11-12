@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Cliente, NodoCosteo, ProyectoCosteo, RecursoCosteo } from '../types/costeos'
-import { calcularResumenFinanciero } from './financial-calculations'
+import { calcularResumenFinanciero, montosDeLinea } from './financial-calculations'
 
 const cliente: Cliente = {
   id: '1',
@@ -229,5 +229,101 @@ describe('calcularResumenFinanciero', () => {
     )
 
     expect(resumen.totalCostoProyecto).toBe(5000)
+  })
+})
+
+describe('montosDeLinea', () => {
+  it('suma el ítem y todo el combo que cuelga, en venta y en costo', () => {
+    const montos = montosDeLinea([
+      recurso({
+        id: 'guardia',
+        nombre: 'GUARDIA',
+        categoria: 'RECURSO_HUMANO',
+        tipoCosto: 'MENSUAL',
+        cantidad: 1,
+        personas: 2,
+        costoUnitario: 0,
+        precioVentaUnitario: 8000,
+        bonos: [{ id: 'b1', erpBonoId: '1', nombre: 'BONO', costoUnitario: 100 }],
+      }),
+      recurso({
+        id: 'sueldos',
+        nombre: 'SUELDOS',
+        categoria: 'SERVICIO',
+        tipoCosto: 'MENSUAL',
+        cantidad: 2,
+        costoUnitario: 0,
+        precioVentaUnitario: 0,
+        esCombo: true,
+        comboParentId: 'guardia',
+      }),
+      recurso({
+        id: 'aguinaldo',
+        nombre: 'AGUINALDO',
+        categoria: 'SERVICIO',
+        tipoCosto: 'MENSUAL',
+        cantidad: 2,
+        costoUnitario: 300,
+        precioVentaUnitario: 50,
+        esCombo: true,
+        comboParentId: 'sueldos',
+      }),
+      recurso({
+        id: 'financieros',
+        nombre: 'FINANCIEROS',
+        categoria: 'SERVICIO',
+        tipoCosto: 'MENSUAL',
+        cantidad: 2,
+        costoUnitario: 0,
+        esCombo: true,
+        comboParentId: 'guardia',
+        bonos: [{ id: 'b2', erpBonoId: '2', nombre: 'OTRO', costoUnitario: 5 }],
+      }),
+    ], 'guardia')
+
+    expect(montos.ventaPropia).toBe(16000)
+    expect(montos.ventaTotal).toBe(16000 + 100)
+    expect(montos.costoPropio).toBe(0)
+    expect(montos.costoAbajo).toBe(600)
+    expect(montos.bonosPropios).toBe(200)
+    expect(montos.bonosAbajo).toBe(10)
+    expect(montos.costoTotal).toBe(600 + 200 + 10)
+  })
+
+  it('al seleccionar un hijo, suma solo ese hijo y lo que cuelga de él', () => {
+    const montos = montosDeLinea([
+      recurso({
+        id: 'guardia',
+        nombre: 'GUARDIA',
+        categoria: 'RECURSO_HUMANO',
+        tipoCosto: 'MENSUAL',
+        costoUnitario: 10,
+        precioVentaUnitario: 80,
+      }),
+      recurso({
+        id: 'sueldos',
+        nombre: 'SUELDOS',
+        categoria: 'SERVICIO',
+        tipoCosto: 'MENSUAL',
+        cantidad: 1,
+        costoUnitario: 0,
+        esCombo: true,
+        comboParentId: 'guardia',
+      }),
+      recurso({
+        id: 'aguinaldo',
+        nombre: 'AGUINALDO',
+        categoria: 'SERVICIO',
+        tipoCosto: 'MENSUAL',
+        cantidad: 1,
+        costoUnitario: 30,
+        precioVentaUnitario: 5,
+        esCombo: true,
+        comboParentId: 'sueldos',
+      }),
+    ], 'sueldos')
+
+    expect(montos.ventaTotal).toBe(5)
+    expect(montos.costoTotal).toBe(30)
   })
 })

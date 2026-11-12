@@ -275,3 +275,16 @@
   color: var(--foreground) !important;
   -webkit-text-fill-color: var(--foreground) !important;
 }
+
+/*
+ * Costeador: el formulario está siempre en edición, no hay modo Ver.
+ * El gris de catálogo (#b4bec9) se pierde sobre el blanco. Este tono sigue
+ * marcando el campo bloqueado y se lee mejor.
+ */
+[data-costeador] [data-slot="input"]:is(:disabled, [readonly]),
+[data-costeador] [data-slot="textarea"]:is(:disabled, [readonly]),
+[data-costeador] button[aria-disabled="true"]:not([data-slot="button"]) {
+  color: #5c6b7a !important;
+  -webkit-text-fill-color: #5c6b7a !important;
+  opacity: 1 !important;
+}

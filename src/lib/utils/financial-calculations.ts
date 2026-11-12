@@ -161,3 +161,73 @@ export function calcularResumenFinanciero(proyecto: ProyectoCosteo, selectedNode
 
   return resumen;
 }
+
+export function factorDeLinea(recurso: RecursoCosteo): number {
+  if (recurso.categoria === 'RECURSO_HUMANO') {
+    return (recurso.cantidad || 1) * (recurso.personas || 1)
+  }
+  return recurso.cantidad || 1
+}
+
+/** Montos del detalle de un ítem: lo suyo más todo el combo que cuelga de él. */
+export interface MontosLinea {
+  ventaPropia: number
+  ventaTotal: number
+  costoPropio: number
+  costoAbajo: number
+  bonosPropios: number
+  bonosAbajo: number
+  costoTotal: number
+}
+
+export function montosDeLinea(recursos: RecursoCosteo[], recursoId: string): MontosLinea {
+  const propio = recursos.find(r => r.id === recursoId)
+  const cero: MontosLinea = {
+    ventaPropia: 0,
+    ventaTotal: 0,
+    costoPropio: 0,
+    costoAbajo: 0,
+    bonosPropios: 0,
+    bonosAbajo: 0,
+    costoTotal: 0,
+  }
+  if (!propio) return cero
+
+  const venta = (r: RecursoCosteo) => (r.precioVentaUnitario || 0) * factorDeLinea(r)
+  const costo = (r: RecursoCosteo) => (r.costoUnitario || 0) * factorDeLinea(r)
+  const bonos = (r: RecursoCosteo) =>
+    factorDeLinea(r) * (r.bonos ?? []).reduce((s, b) => s + (b.costoUnitario || 0), 0)
+
+  const visitados = new Set<string>()
+  const acumularAbajo = (id: string): { venta: number; costo: number; bonos: number } => {
+    let ventaS = 0
+    let costoS = 0
+    let bonosS = 0
+    for (const hijo of recursos) {
+      if (hijo.comboParentId !== id || visitados.has(hijo.id)) continue
+      visitados.add(hijo.id)
+      ventaS += venta(hijo)
+      costoS += costo(hijo)
+      bonosS += bonos(hijo)
+      const sub = acumularAbajo(hijo.id)
+      ventaS += sub.venta
+      costoS += sub.costo
+      bonosS += sub.bonos
+    }
+    return { venta: ventaS, costo: costoS, bonos: bonosS }
+  }
+
+  const abajo = acumularAbajo(recursoId)
+  const ventaPropia = venta(propio)
+  const costoPropio = costo(propio)
+  const bonosPropios = bonos(propio)
+  return {
+    ventaPropia,
+    ventaTotal: ventaPropia + abajo.venta,
+    costoPropio,
+    costoAbajo: abajo.costo,
+    bonosPropios,
+    bonosAbajo: abajo.bonos,
+    costoTotal: costoPropio + bonosPropios + abajo.costo + abajo.bonos,
+  }
+}
