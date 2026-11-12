@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useCosteo } from '@/lib/context/CosteoContext';
 import { NumericInput } from '@/components/ui/numeric-input';
 import { normalizeText } from '@/lib/utils/text';
@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UI_THEME } from '@/lib/theme'
+import { SegmentCard } from '@/components/ui/form-layout'
+import { BuscadorTabla, claseFilaTabla, incluyeTexto } from './tabla-listado'
 import { getDepartamentosERP, getMunicipiosERP, getTurnosERP, getClienteDireccionesERP } from '@/app/actions/erp';
 
 import type { ErpTurno, ErpServicioVenta, ErpDireccionOperativa } from '@/lib/erp';
@@ -28,9 +30,10 @@ import { listarTiposComboRHPorEmpresa } from '@/app/actions/tipos-combo-rh';
 import { listarTiposCombosPorEmpresa } from '@/app/actions/tipos-combo';
 import type { ItemRow } from '@/lib/types/items';
 import type { TipoComboRHRow } from '@/lib/types/tipos-combo-rh';
-import { buildCombosDisponibles } from '@/lib/utils/combos';
+import { buildCombosDisponibles, expandirCombosIncluidos, fabricaIdCombo, reconciliarCombosRequeridos } from '@/lib/utils/combos';
 import { FieldError } from '@/components/ui/field-error';
 import { resolverCostosProyecto, type ItemParaCostear } from '@/app/actions/costear';
+import { montosDeLinea } from '@/lib/utils/financial-calculations';
 import { SolicitarCostosModal, type ItemSolicitarCosto } from './modals/SolicitarCostosModal';
 import { FuenteCostoPanel } from './FuenteCostoPanel';
 
@@ -263,36 +266,15 @@ export default function EditorPanel() {
                   },
                 });
 
-                // Sub-combos of the new combo item
-                for (const subCombo of newComboItem.combosPrincipal ?? []) {
-                  if (!subCombo.nuevoIncluido || Number(subCombo.nuevoCantidad) <= 0) continue;
-                  const secItem = catalogoItems.find(i => i.id === subCombo.productoSecundarioId);
-                  if (!secItem) continue;
-                  let secCat: RecursoCosteo['categoria'] = 'SERVICIO';
-                  if (secItem.tipoItem === 1 || secItem.tipoItem === 2) secCat = 'ARTICULO';
-                  if (secItem.tipoItem === 4) secCat = 'EQUIPO';
-                  if (secItem.tipoItem === 3)
-                    secCat = secItem.tipoProducto === 1 ? 'RECURSO_HUMANO' : 'SERVICIO';
-                  dispatch({
-                    type: 'ADD_RECURSO',
-                    payload: {
-                      nodoId: parentId,
-                      recurso: {
-                        id: `REC-${Date.now()}-RH${tipo.id}C${subCombo.productoSecundarioId}`,
-                        itemId: secItem.id,
-                        nombre: secItem.descripcion,
-                        categoria: secCat,
-                        tipoCosto: 'MENSUAL',
-                        cantidad: Math.max(1, Math.round(Number(subCombo.nuevoCantidad) * factorCosto)),
-                        costoUnitario: 0,
-                        precioVentaUnitario: 0,
-                        precioVentaOrigen: 'MANUAL',
-                        esCombo: true,
-                        comboParentId: comboRecursoId,
-                        recetas: [],
-                      },
-                    },
-                  });
+                for (const sub of expandirCombosIncluidos({
+                  combos: newComboItem.combosPrincipal ?? [],
+                  allItems: catalogoItems,
+                  costosManuales: costosManualesCatalogo,
+                  parentRecursoId: comboRecursoId,
+                  parentCantidad: factorCosto,
+                  idDe: fabricaIdCombo(`REC-RH${tipo.id}C`),
+                })) {
+                  dispatch({ type: 'ADD_RECURSO', payload: { nodoId: parentId, recurso: sub } });
                 }
               }
             }
@@ -348,38 +330,15 @@ export default function EditorPanel() {
                 },
               });
 
-              // Agregar los sub-combos del uniforme, escalados por factorCosto
-              for (const combo of unifItem.combosPrincipal ?? []) {
-                if (!combo.nuevoIncluido || Number(combo.nuevoCantidad) <= 0) continue;
-                const secItem = catalogoItems.find(i => i.id === combo.productoSecundarioId);
-                if (!secItem) continue;
-
-                let secCat: RecursoCosteo['categoria'] = 'SERVICIO';
-                if (secItem.tipoItem === 1 || secItem.tipoItem === 2) secCat = 'ARTICULO';
-                if (secItem.tipoItem === 4) secCat = 'EQUIPO';
-                if (secItem.tipoItem === 3)
-                  secCat = secItem.tipoProducto === 1 ? 'RECURSO_HUMANO' : 'SERVICIO';
-
-                dispatch({
-                  type: 'ADD_RECURSO',
-                  payload: {
-                    nodoId: parentId,
-                    recurso: {
-                      id: `REC-${Date.now()}-UNIFC${combo.productoSecundarioId}`,
-                      itemId: secItem.id,
-                      nombre: secItem.descripcion,
-                      categoria: secCat,
-                      tipoCosto: 'MENSUAL',
-                      cantidad: Math.max(1, Math.round(Number(combo.nuevoCantidad) * factorCosto)),
-                      costoUnitario: 0,
-                      precioVentaUnitario: 0,
-                      precioVentaOrigen: 'MANUAL',
-                      esCombo: true,
-                      comboParentId: unifRecursoId,
-                      recetas: [],
-                    },
-                  },
-                });
+              for (const sub of expandirCombosIncluidos({
+                combos: unifItem.combosPrincipal ?? [],
+                allItems: catalogoItems,
+                costosManuales: costosManualesCatalogo,
+                parentRecursoId: unifRecursoId,
+                parentCantidad: factorCosto,
+                idDe: fabricaIdCombo('REC-UNIFC'),
+              })) {
+                dispatch({ type: 'ADD_RECURSO', payload: { nodoId: parentId, recurso: sub } });
               }
             }
           }
@@ -395,10 +354,15 @@ export default function EditorPanel() {
   const [turnos, setTurnos] = useState<ErpTurno[]>([]);
   const [bonosDisponibles, setBonosDisponibles] = useState<{ codigo: string; descripcion: string; costo: number }[]>([]);
   const [selectedBonoId, setSelectedBonoId] = useState<string>('');
+  const [busquedaAdicionales, setBusquedaAdicionales] = useState('');
+  const [busquedaBonos, setBusquedaBonos] = useState('');
 
   // Catálogo de ítems: se carga una sola vez para computar combosDisponibles
   // en recursos que vienen de BD y no traen el campo precomputado
   const [catalogoItems, setCatalogoItems] = useState<ItemRow[]>([]);
+  const [costosManualesCatalogo, setCostosManualesCatalogo] = useState<Record<number, number>>({});
+  const [costosCatalogoListos, setCostosCatalogoListos] = useState(false);
+  const requeridosPedidos = useRef(new Set<string>());
   const [combosComputados, setCombosComputados] = useState<ComboDisponible[] | null>(null);
   const [tiposComboRH, setTiposComboRH] = useState<TipoComboRHRow[]>([]);
   // Mapa id→nombre de TiposCombos de la empresa (nueva arquitectura)
@@ -572,23 +536,64 @@ export default function EditorPanel() {
   // Cargar catálogo de ítems una sola vez (no depende de empresaId — el filtro lo hace el service)
   useEffect(() => {
     let active = true;
-    listarItems().then(data => {
+    listarItems().then(async data => {
       if (!active) return;
       setCatalogoItems(data);
-      // Bonos (tipoItem=6) — derivados del mismo catálogo, sin llamada extra
       setBonosDisponibles(
         data
           .filter(i => i.tipoItem === 6)
           .map(i => ({
             codigo:      i.codigoErp ?? String(i.id),
             descripcion: i.descripcion,
-            costo:       0,  // el costo real se carga desde el historial de precios al seleccionar
-
+            costo:       0,
           }))
       );
+      const ids = data.filter(i => i.manejoCostos === 2).map(i => i.id);
+      try {
+        const costos = ids.length > 0 ? await getCostosUltimosManual(ids) : {};
+        if (!active) return;
+        setCostosManualesCatalogo(costos);
+      } catch (err) {
+        console.error('[EditorPanel] No se pudieron cargar los costos manuales:', err);
+      }
+      if (!active) return;
+      setCostosCatalogoListos(true);
     });
     return () => { active = false; };
   }, []);
+
+  // Borrador ya guardado: los requeridos de niveles internos no se habían metido al árbol.
+  // Sin esa línea, Costear no tiene a quién resolverle el costo.
+  useEffect(() => {
+    if (!costosCatalogoListos || !proyecto || proyecto.estado !== 'BORRADOR' || catalogoItems.length === 0) return;
+
+    const grupos: { nodoId: string | null; recursos: RecursoCosteo[] }[] = [
+      { nodoId: null, recursos: proyecto.recursos },
+    ];
+    const walk = (nodos: NodoCosteo[]) => {
+      for (const n of nodos) {
+        grupos.push({ nodoId: n.id, recursos: n.recursos });
+        walk(n.nodos);
+      }
+    };
+    walk(proyecto.nodos);
+
+    const idDe = fabricaIdCombo('REC-REQ');
+    for (const grupo of grupos) {
+      const faltantes = reconciliarCombosRequeridos(
+        grupo.recursos,
+        catalogoItems,
+        costosManualesCatalogo,
+        idDe,
+      );
+      for (const recurso of faltantes) {
+        const clave = `${grupo.nodoId ?? ''}|${recurso.comboParentId}|${recurso.itemId}`;
+        if (requeridosPedidos.current.has(clave)) continue;
+        requeridosPedidos.current.add(clave);
+        dispatch({ type: 'ADD_RECURSO', payload: { nodoId: grupo.nodoId, recurso } });
+      }
+    }
+  }, [costosCatalogoListos, costosManualesCatalogo, proyecto, catalogoItems, dispatch]);
 
   // Cuando se selecciona un recurso sin combosDisponibles (cargado desde BD),
   // computarlo a partir del catálogo local. Aplica a primarios Y a combos — ambos
@@ -602,36 +607,17 @@ export default function EditorPanel() {
       setCombosComputados(null);
       return;
     }
-    // Si ya viene precomputado (recurso creado en esta sesión), no hacer nada
     if (nodeData.combosDisponibles) {
       setCombosComputados(null);
       return;
     }
-    // Buscar el ítem en el catálogo local por itemId
     const item = catalogoItems.find(i => i.id === nodeData.itemId);
     if (!item?.combosPrincipal?.length) {
       setCombosComputados(null);
       return;
     }
-    // Obtener costos manuales de los sub-ítems que los necesiten
-    const idsConManual = item.combosPrincipal
-      .filter(c => {
-        const sec = catalogoItems.find(i => i.id === c.productoSecundarioId);
-        return sec?.manejoCostos === 2;
-      })
-      .map(c => c.productoSecundarioId);
-
-    let active = true;
-    if (idsConManual.length > 0) {
-      getCostosUltimosManual(idsConManual).then(costos => {
-        if (!active) return;
-        setCombosComputados(buildCombosDisponibles(item.combosPrincipal!, catalogoItems, costos));
-      });
-    } else {
-      setCombosComputados(buildCombosDisponibles(item.combosPrincipal, catalogoItems, {}));
-    }
-    return () => { active = false; };
-  }, [selectedNode?.id, nodeData?.itemId, nodeData?.combosDisponibles, catalogoItems]);
+    setCombosComputados(buildCombosDisponibles(item.combosPrincipal, catalogoItems, costosManualesCatalogo));
+  }, [selectedNode?.id, nodeData?.itemId, nodeData?.combosDisponibles, catalogoItems, costosManualesCatalogo]);
 
   const confirmDelete = () => {
     if (selectedNode.type === 'NODO') {
@@ -681,6 +667,28 @@ export default function EditorPanel() {
     return map;
   }, [currentItemCatalogo, catalogoItems]);
 
+  const fmtMonto = (n: number) =>
+    new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+
+  const montosDetalle = selectedNode.type === 'RECURSO'
+    ? montosDeLinea(
+        !parentId
+          ? proyecto.recursos
+          : (() => {
+              const findN = (nodos: NodoCosteo[], id: string): NodoCosteo | null => {
+                for (const n of nodos) {
+                  if (n.id === id) return n;
+                  const f = findN(n.nodos, id);
+                  if (f) return f;
+                }
+                return null;
+              };
+              return findN(proyecto.nodos, parentId)?.recursos ?? [];
+            })(),
+        nodeData.id,
+      )
+    : null;
+
   return (
     <div className="flex flex-col h-full">
       <div className="px-6 py-4 border-b flex justify-between items-start">
@@ -698,10 +706,10 @@ export default function EditorPanel() {
       <div className="flex-1 flex flex-col min-h-0 bg-slate-50/30 overflow-hidden">
         
         {selectedNode.type === 'PROYECTO' && (
-          <div className="p-6 pt-4 overflow-y-auto h-full w-full">
-          <div className="max-w-4xl">
-            <Tabs defaultValue="general" className="w-full">
-              <TabsList variant="line" className={`${UI_THEME.tabs.listClass} mb-4`}>
+          <div className="p-6 pt-4 h-full w-full min-w-0 min-h-0 flex flex-col overflow-hidden">
+          <div className="flex flex-col flex-1 min-h-0 min-w-0 w-full">
+            <Tabs defaultValue="general" className="flex-1 flex flex-col min-h-0 w-full">
+              <TabsList variant="line" className={`${UI_THEME.tabs.listClass} mb-4 shrink-0`}>
                 <TabsTrigger value="general">
                   <Settings2 className="w-4 h-4 mr-2" />
                   General
@@ -712,7 +720,7 @@ export default function EditorPanel() {
                 </TabsTrigger>
               </TabsList>
               
-              <TabsContent value="general" className="space-y-3 outline-none min-h-[250px]">
+              <TabsContent value="general" className="flex-1 min-h-0 overflow-y-auto space-y-3 outline-none">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Nombre Proyecto</Label>
@@ -846,7 +854,7 @@ export default function EditorPanel() {
                 />
               </TabsContent>
               
-              <TabsContent value="resumen" className="outline-none">
+              <TabsContent value="resumen" className="flex-1 min-h-0 min-w-0 overflow-hidden flex flex-col outline-none">
                 {(() => {
                   const allRecursos: any[] = [];
                   const walk = (nodos: NodoCosteo[], path: string[]) => {
@@ -858,7 +866,7 @@ export default function EditorPanel() {
                   };
                   proyecto.recursos.forEach(r => allRecursos.push({ ...r, _path: ['Proyecto'] }));
                   walk(proyecto.nodos, []);
-                  return <RecursosSummaryTable recursos={allRecursos} />;
+                  return <RecursosSummaryTable recursos={allRecursos} porCategoria />;
                 })()}
               </TabsContent>
             </Tabs>
@@ -869,7 +877,7 @@ export default function EditorPanel() {
 
 
         {selectedNode.type === 'NODO' && (
-          <div className="p-6 pt-4 overflow-y-auto h-full w-full">
+          <div className="p-6 pt-4 h-full w-full min-w-0 min-h-0 flex flex-col overflow-hidden">
           <NodoEditor 
             nodeData={nodeData} 
             handleChange={handleChange} 
@@ -882,9 +890,8 @@ export default function EditorPanel() {
         )}
 
         {selectedNode.type === 'RECURSO' && (
-          <Tabs defaultValue="general" className="flex-1 flex flex-col min-h-0 w-full">
-            <div className="px-6 pt-4 shrink-0">
-              <TabsList variant="line" className={`${UI_THEME.tabs.listClass} mb-4`}>
+          <Tabs defaultValue="general" className="flex-1 flex flex-col min-h-0 w-full bg-muted">
+              <TabsList variant="line" className="shrink-0 w-full border-b-[3px] border-border bg-card px-6">
                 <TabsTrigger value="general">
                   <Settings2 className="w-4 h-4 mr-2" />
                   General
@@ -900,12 +907,12 @@ export default function EditorPanel() {
                   Combo
                 </TabsTrigger>
               </TabsList>
-            </div>
             
             <TabsContent value="general" className="flex-1 overflow-y-auto px-6 pb-6 outline-none m-0">
-              <div className="space-y-2 max-w-[460px]">
-            {/* 1era fila solo Codigo y Descripcion */}
-            <div className="grid grid-cols-12 gap-3">
+              <div className="space-y-3">
+            <div className="max-w-[460px]">
+            <SegmentCard label="Item">
+            <div className="col-span-2 grid grid-cols-12 gap-3">
               <div className="col-span-4 flex flex-col gap-1.5">
                 <Label>Código</Label>
                 <Input type="text" className={`${UI_THEME.forms.inputBase} font-mono`} value={nodeData.itemServicio?.codigo || nodeData.itemId || 'N/A'} readOnly title="Código ERP" />
@@ -915,15 +922,12 @@ export default function EditorPanel() {
                 <Input type="text" className={`${UI_THEME.forms.inputBase} uppercase`} value={nodeData.nombre} readOnly title="No editable directamente" />
               </div>
             </div>
+            </SegmentCard>
+            </div>
 
-            <div className="pt-2">
-              <div className="flex items-center mb-3 min-h-[24px]">
-                <h3 className="text-xs font-bold text-primary uppercase tracking-wider border-l-2 border-primary pl-2 leading-none">
-                  CONFIGURACION
-                </h3>
-                <div className="flex-1 border-t border-primary/30 ml-3 mt-0.5"></div>
-              </div>
-              
+            <div className="max-w-[460px]">
+            <SegmentCard label="Configuracion">
+            <div className="col-span-2">
               {nodeData.categoria === 'RECURSO_HUMANO' ? (
                 // RRHH layout (Turnos, etc)
               <div className="space-y-2">
@@ -1007,19 +1011,16 @@ export default function EditorPanel() {
               </div>
             )}
             </div>
+            </SegmentCard>
             </div>
 
             {/* ── TABLA TIPOS COMBO (nueva arquitectura) ──────────────────────────
                 Visible para cualquier ítem primario (no combo) que tenga Tipos Combo */}
             {!nodeData.esCombo && currentItemCatalogo?.tiposCombo && currentItemCatalogo.tiposCombo.length > 0 && (
-              <div className="pt-4">
-                <div className="flex items-center mb-3 min-h-[24px]">
-                  <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-wider border-l-2 border-indigo-500 pl-2 leading-none">
-                    ITEMS ADICIONALES
-                  </h3>
-                  <div className="flex-1 border-t border-indigo-200 ml-3 mt-0.5" />
-                </div>
-                <div className="border rounded-md">
+              <SegmentCard label="Items Adicionales">
+                <div className="col-span-2 space-y-2">
+                <BuscadorTabla value={busquedaAdicionales} onChange={setBusquedaAdicionales} />
+                <div className="border rounded-md overflow-hidden">
                    <table className="w-full text-sm text-left">
                      <thead className="bg-slate-50 text-slate-500 font-medium border-b">
                        <tr>
@@ -1028,8 +1029,14 @@ export default function EditorPanel() {
                          <th className="px-3 py-2 w-20 text-center">Incluido</th>
                        </tr>
                      </thead>
-                     <tbody className="divide-y">
-                       {currentItemCatalogo.tiposCombo.map(asoc => {
+                     <tbody>
+                       {currentItemCatalogo.tiposCombo
+                         .filter(asoc => {
+                           const nombreTipo = tiposCombosNombres[asoc.tipoComboId] || `Tipo ${asoc.tipoComboId}`;
+                           const opciones = (itemsPorTipoCombo[asoc.tipoComboId] ?? []).map(i => i.descripcion);
+                           return incluyeTexto(busquedaAdicionales, nombreTipo, ...opciones);
+                         })
+                         .map((asoc, filaIdx) => {
                          const nombreTipo = tiposCombosNombres[asoc.tipoComboId] || `Tipo ${asoc.tipoComboId}`;
                          const opcionesCombo = (itemsPorTipoCombo[asoc.tipoComboId] ?? [])
                            .map(i => ({ value: String(i.id), label: i.descripcion }));
@@ -1060,7 +1067,7 @@ export default function EditorPanel() {
                            : (combosOptIncluidos[asoc.tipoComboId] ?? !!hijoActual);
 
                          return (
-                           <tr key={asoc.tipoComboId} className="bg-white">
+                           <tr key={asoc.tipoComboId} className={claseFilaTabla(filaIdx)}>
                              <td className="px-3 py-2 font-medium text-slate-700">{nombreTipo}</td>
 
                              {/* Columna Ítem */}
@@ -1109,35 +1116,15 @@ export default function EditorPanel() {
                                              },
                                            },
                                          });
-                                         for (const sub of newItem.combosPrincipal ?? []) {
-                                           if (!sub.nuevoIncluido || Number(sub.nuevoCantidad) <= 0) continue;
-                                           const secItem = catalogoItems.find(i => i.id === sub.productoSecundarioId);
-                                           if (!secItem) continue;
-                                           let secCat: RecursoCosteo['categoria'] = 'SERVICIO';
-                                           if (secItem.tipoItem === 1 || secItem.tipoItem === 2) secCat = 'ARTICULO';
-                                           if (secItem.tipoItem === 4) secCat = 'EQUIPO';
-                                           if (secItem.tipoItem === 3)
-                                             secCat = secItem.tipoProducto === 1 ? 'RECURSO_HUMANO' : 'SERVICIO';
-                                           dispatch({
-                                             type: 'ADD_RECURSO',
-                                             payload: {
-                                               nodoId: parentId,
-                                               recurso: {
-                                                 id: `REC-${Date.now()}-TC${asoc.tipoComboId}C${sub.productoSecundarioId}`,
-                                                 itemId: secItem.id,
-                                                 nombre: secItem.descripcion,
-                                                 categoria: secCat,
-                                                 tipoCosto: 'MENSUAL',
-                                                 cantidad: Math.max(1, Math.round(Number(sub.nuevoCantidad) * factorCosto)),
-                                                 costoUnitario: 0,
-                                                 precioVentaUnitario: 0,
-                                                 precioVentaOrigen: 'MANUAL',
-                                                 esCombo: true,
-                                                 comboParentId: newRecursoId,
-                                                 recetas: [],
-                                               },
-                                             },
-                                           });
+                                         for (const sub of expandirCombosIncluidos({
+                                           combos: newItem.combosPrincipal ?? [],
+                                           allItems: catalogoItems,
+                                           costosManuales: costosManualesCatalogo,
+                                           parentRecursoId: newRecursoId,
+                                           parentCantidad: factorCosto,
+                                           idDe: fabricaIdCombo(`REC-TC${asoc.tipoComboId}C`),
+                                         })) {
+                                           dispatch({ type: 'ADD_RECURSO', payload: { nodoId: parentId, recurso: sub } });
                                          }
                                        }
                                      }
@@ -1170,23 +1157,27 @@ export default function EditorPanel() {
                            </tr>
                          );
                        })}
+                       {currentItemCatalogo.tiposCombo.filter(asoc => {
+                         const nombreTipo = tiposCombosNombres[asoc.tipoComboId] || `Tipo ${asoc.tipoComboId}`;
+                         const opciones = (itemsPorTipoCombo[asoc.tipoComboId] ?? []).map(i => i.descripcion);
+                         return incluyeTexto(busquedaAdicionales, nombreTipo, ...opciones);
+                       }).length === 0 && (
+                         <tr>
+                           <td colSpan={3} className="px-3 py-6 text-center text-sm text-slate-500">
+                             No se encontraron resultados.
+                           </td>
+                         </tr>
+                       )}
                      </tbody>
                    </table>
                  </div>
-               </div>
+                </div>
+               </SegmentCard>
              )}
 
-            <div className="pt-4">
-              <div className="flex items-center mb-3 min-h-[24px]">
-                <h3 className="text-xs font-bold text-primary uppercase tracking-wider border-l-2 border-primary pl-2 leading-none">
-                  FINANCIERO
-                </h3>
-                <div className="flex-1 border-t border-primary/30 ml-3 mt-0.5"></div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
+            <SegmentCard label="Financiero">
+              <div className="col-span-2 grid grid-cols-3 gap-4">
                 {!nodeData.esCombo && (
-                <>
                 <div className="col-span-1 flex flex-col gap-1.5">
                   <Label>Precio Venta ({proyecto?.moneda || 'Q'})</Label>
                   <NumericInput 
@@ -1199,13 +1190,11 @@ export default function EditorPanel() {
                     <p className="text-xs text-slate-500 italic">* Por Persona</p>
                   )}
                 </div>
+                )}
                 <div className="col-span-1 flex flex-col gap-1.5">
                   <Label>SubTotal Venta</Label>
                   <Input 
-                    value={(() => {
-                      const factor = nodeData.categoria === 'RECURSO_HUMANO' ? ((nodeData.cantidad || 1) * (nodeData.personas || 1)) : (nodeData.cantidad || 1);
-                      return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factor * (nodeData.precioVentaUnitario || 0));
-                    })()} 
+                    value={fmtMonto(montosDetalle?.ventaTotal ?? 0)} 
                     readOnly tabIndex={-1} 
                     className={UI_THEME.forms.inputBase} 
                   />
@@ -1213,20 +1202,15 @@ export default function EditorPanel() {
                 <div className="col-span-1 flex flex-col gap-1.5">
                   <Label>Total Venta</Label>
                   <Input 
-                    value={(() => {
-                      const factor = nodeData.categoria === 'RECURSO_HUMANO' ? ((nodeData.cantidad || 1) * (nodeData.personas || 1)) : (nodeData.cantidad || 1);
-                      return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factor * (nodeData.precioVentaUnitario || 0));
-                    })()} 
+                    value={fmtMonto(montosDetalle?.ventaTotal ?? 0)} 
                     readOnly tabIndex={-1} 
                     className={UI_THEME.forms.inputBase} 
                   />
                 </div>
-                </>
-                )}
               </div>
 
 
-              <div className="grid grid-cols-4 gap-4 mt-4">
+              <div className="col-span-2 grid grid-cols-4 gap-4">
                 <div className="col-span-1 flex flex-col gap-1.5">
                   <Label>Costo Un. ({proyecto?.moneda || 'Q'})</Label>
                   <Input 
@@ -1238,10 +1222,7 @@ export default function EditorPanel() {
                 <div className="col-span-1 flex flex-col gap-1.5">
                   <Label>SubTotal Costo</Label>
                   <Input 
-                    value={(() => {
-                      const factor = nodeData.categoria === 'RECURSO_HUMANO' ? ((nodeData.cantidad || 1) * (nodeData.personas || 1)) : (nodeData.cantidad || 1);
-                      return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factor * (nodeData.costoUnitario || 0));
-                    })()} 
+                    value={fmtMonto((montosDetalle?.costoPropio ?? 0) + (montosDetalle?.costoAbajo ?? 0))} 
                     readOnly tabIndex={-1} 
                     className={UI_THEME.forms.inputBase} 
                   />
@@ -1249,11 +1230,7 @@ export default function EditorPanel() {
                 <div className="col-span-1 flex flex-col gap-1.5">
                   <Label>Bonos Costo</Label>
                   <Input 
-                    value={(() => {
-                      const factor = nodeData.categoria === 'RECURSO_HUMANO' ? ((nodeData.cantidad || 1) * (nodeData.personas || 1)) : (nodeData.cantidad || 1);
-                      const bonosTotal = (nodeData.bonos || []).reduce((sum: number, b: any) => sum + (b.costoUnitario || 0), 0);
-                      return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(factor * bonosTotal);
-                    })()} 
+                    value={fmtMonto((montosDetalle?.bonosPropios ?? 0) + (montosDetalle?.bonosAbajo ?? 0))} 
                     readOnly tabIndex={-1} 
                     className={UI_THEME.forms.inputBase} 
                   />
@@ -1261,35 +1238,13 @@ export default function EditorPanel() {
                 <div className="col-span-1 flex flex-col gap-1.5">
                   <Label>Total Costo</Label>
                   <Input 
-                    value={(() => {
-                      const factor = nodeData.categoria === 'RECURSO_HUMANO' ? ((nodeData.cantidad || 1) * (nodeData.personas || 1)) : (nodeData.cantidad || 1);
-                      const subtotal = factor * (nodeData.costoUnitario || 0);
-                      const bonosTotal = factor * (nodeData.bonos || []).reduce((sum: number, b: any) => sum + (b.costoUnitario || 0), 0);
-
-                      // Sumar costo de todos los sub-ítems del combo (originales y manuales)
-                      let siblingsArr: RecursoCosteo[] = parentId
-                        ? (() => {
-                            const findN = (ns: NodoCosteo[], id: string): NodoCosteo | null => {
-                              for (const n of ns) { if (n.id === id) return n; const f = findN(n.nodos, id); if (f) return f; }
-                              return null;
-                            };
-                            return findN(proyecto.nodos, parentId)?.recursos ?? [];
-                          })()
-                        : proyecto.recursos;
-                      const comboHijos = siblingsArr.filter(h => h.esCombo && h.comboParentId === nodeData.id);
-                      const comboTotal = comboHijos.reduce((sum, h) => {
-                        const hf = h.categoria === 'RECURSO_HUMANO' ? ((h.cantidad || 1) * (h.personas || 1)) : (h.cantidad || 1);
-                        return sum + (h.costoUnitario || 0) * hf;
-                      }, 0);
-
-                      return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(subtotal + bonosTotal + comboTotal);
-                    })()} 
+                    value={fmtMonto(montosDetalle?.costoTotal ?? 0)} 
                     readOnly tabIndex={-1} 
-                    className="bg-red-50/50 text-red-600 font-bold border-red-200 text-sm px-2.5 h-8 py-1" 
+                    className={UI_THEME.forms.inputBase} 
                   />
                 </div>
               </div>
-            </div>
+            </SegmentCard>
 
             {/* ── FUENTE COSTO ─────────────────────────────────────────────────
                 Visible para cualquier recurso que tenga itemId definido         */}
@@ -1337,11 +1292,13 @@ export default function EditorPanel() {
               </div>
             )}
             </div>
+            </div>
           </TabsContent>
 
           {nodeData.categoria === 'RECURSO_HUMANO' && (
             <TabsContent value="bonos" className="flex-1 overflow-y-auto px-6 pb-6 outline-none m-0">
-              <div className="space-y-4 pt-2">
+              <SegmentCard label="Bonos">
+              <div className="col-span-2 space-y-4">
                 <div className="flex gap-2 items-end">
                   <div className="flex-1 flex flex-col gap-1.5">
                     <Label>Seleccionar Bono</Label>
@@ -1382,6 +1339,7 @@ export default function EditorPanel() {
                   </Button>
                 </div>
                 
+                <BuscadorTabla value={busquedaBonos} onChange={setBusquedaBonos} />
                 {(nodeData.bonos || []).length > 0 ? (
                   <div className="border rounded-md overflow-hidden bg-white">
                     <table className="w-full text-sm text-left">
@@ -1393,15 +1351,18 @@ export default function EditorPanel() {
                           <th className="px-3 py-2 w-10"></th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y">
-                        {(nodeData.bonos || []).map((b: any, idx: number) => {
+                      <tbody>
+                        {(nodeData.bonos || [])
+                          .map((b: { nombre: string; costoUnitario: number }, idx: number) => ({ b, idx }))
+                          .filter(({ b }: { b: { nombre: string } }) => incluyeTexto(busquedaBonos, b.nombre))
+                          .map(({ b, idx }: { b: { nombre: string; costoUnitario: number }; idx: number }, filaIdx: number) => {
                           const factor = nodeData.categoria === 'RECURSO_HUMANO' ? ((nodeData.cantidad || 1) * (nodeData.personas || 1)) : (nodeData.cantidad || 1);
                           const costoTotal = (b.costoUnitario || 0) * factor;
                           return (
-                            <tr key={idx} className="bg-white hover:bg-slate-50">
+                            <tr key={idx} className={claseFilaTabla(filaIdx)}>
                               <td className="px-3 py-2">{b.nombre}</td>
                               <td className="px-3 py-2 text-right text-slate-500">{b.costoUnitario.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
-                              <td className="px-3 py-2 text-right text-slate-700 font-semibold bg-slate-100">{costoTotal.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
+                              <td className="px-3 py-2 text-right text-slate-700 font-semibold">{costoTotal.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
                               <td className="px-3 py-2 text-center">
                                 <button 
                                   type="button" 
@@ -1418,6 +1379,13 @@ export default function EditorPanel() {
                             </tr>
                           );
                         })}
+                        {(nodeData.bonos || []).filter((b: any) => incluyeTexto(busquedaBonos, b.nombre)).length === 0 && (
+                          <tr>
+                            <td colSpan={4} className="px-3 py-6 text-center text-sm text-slate-500">
+                              No se encontraron resultados.
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -1427,6 +1395,7 @@ export default function EditorPanel() {
                   </div>
                 )}
               </div>
+              </SegmentCard>
             </TabsContent>
           )}
 
@@ -1451,7 +1420,7 @@ export default function EditorPanel() {
               hermanos = nodoPadre?.recursos ?? [];
             }
             return (
-              <TabsContent value="combo" className="flex-1 overflow-visible px-6 pb-6 outline-none m-0">
+              <TabsContent value="combo" className="flex-1 min-h-0 min-w-0 overflow-hidden flex flex-col px-6 pb-6 outline-none m-0">
                 <ComboTab
                   recurso={{ ...nodeData, combosDisponibles: combosEfectivos }}
                   parentId={parentId}
@@ -1647,9 +1616,9 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas, proye
   }, [nodeData.departamento, hasDireccion]);
 
   return (
-    <div className="max-w-4xl">
-      <Tabs defaultValue="general" className="w-full">
-        <TabsList variant="line" className={`${UI_THEME.tabs.listClass} mb-4`}>
+    <div className="flex flex-col flex-1 min-h-0 min-w-0 w-full">
+      <Tabs defaultValue="general" className="flex-1 flex flex-col min-h-0 w-full">
+        <TabsList variant="line" className={`${UI_THEME.tabs.listClass} mb-4 shrink-0`}>
           <TabsTrigger value="general">
             <Settings2 className="w-4 h-4 mr-2" />
             General
@@ -1659,8 +1628,8 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas, proye
             Resumen
           </TabsTrigger>
         </TabsList>
-        <TabsContent value="general" className="space-y-3 outline-none min-h-[250px]">
-          <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+        <TabsContent value="general" className="flex-1 min-h-0 overflow-y-auto space-y-3 outline-none">
+          <div className="max-w-4xl grid grid-cols-2 gap-x-6 gap-y-3">
             <div className="space-y-1.5 col-span-2">
               <Label>Nombre</Label>
               <Input 
@@ -1764,7 +1733,7 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas, proye
           </div>
         </TabsContent>
         
-        <TabsContent value="resumen" className="outline-none">
+        <TabsContent value="resumen" className="flex-1 min-h-0 min-w-0 overflow-hidden flex flex-col outline-none">
           {(() => {
             const allRecursos: any[] = [];
             const walk = (nodos: NodoCosteo[], path: string[]) => {
@@ -1776,7 +1745,7 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas, proye
             };
             nodeData.recursos.forEach(r => allRecursos.push({ ...r, _path: [nodeData.nombre] }));
             walk(nodeData.nodos, [nodeData.nombre]);
-            return <RecursosSummaryTable recursos={allRecursos} />;
+            return <RecursosSummaryTable recursos={allRecursos} porCategoria />;
           })()}
         </TabsContent>
       </Tabs>

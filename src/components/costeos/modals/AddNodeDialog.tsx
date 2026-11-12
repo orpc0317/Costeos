@@ -15,6 +15,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NumericInput } from '@/components/ui/numeric-input';
 import { FieldError } from '@/components/ui/field-error';
+import { SegmentCard } from '@/components/ui/form-layout'
+import { BuscadorTabla, claseFilaTabla, incluyeTexto } from '../tabla-listado'
 import { Plus, Loader2, Trash, Settings2, Gift, Layers } from 'lucide-react';
 import { normalizeText } from '@/lib/utils/text';
 import { cn } from '@/lib/utils';
@@ -27,7 +29,7 @@ import { Search } from 'lucide-react';
 import { TurnoCard } from '../TurnoCard';
 import { listarItems, getCostosUltimosManual } from '@/app/actions/items';
 import { ItemRow, DetalleComboRow } from '@/lib/types/items';
-import { buildCombosDisponibles } from '@/lib/utils/combos';
+import { buildCombosDisponibles, expandirCombosIncluidos, fabricaIdCombo } from '@/lib/utils/combos';
 import { listarTiposComboRHPorEmpresa } from '@/app/actions/tipos-combo-rh';
 import { listarTiposCombosPorEmpresa } from '@/app/actions/tipos-combo';
 import type { TipoComboRHRow } from '@/lib/types/tipos-combo-rh';
@@ -95,6 +97,9 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
   const [bonosDisponibles, setBonosDisponibles] = useState<{ codigo: string; descripcion: string; costo: number; manejoCostos: number; precioVentaCero: boolean }[]>([]);
   const [bonosAgregados, setBonosAgregados] = useState<BonoCosteo[]>([]);
   const [selectedBonoId, setSelectedBonoId] = useState<string>('');
+  const [busquedaAdicionales, setBusquedaAdicionales] = useState('');
+  const [busquedaBonos, setBusquedaBonos] = useState('');
+  const [busquedaCombo, setBusquedaCombo] = useState('');
   const [selectedBonoCosto, setSelectedBonoCosto] = useState<number>(0);  // costo del bono (si manejoCostos=4)
   const [cantidadTurnos, setCantidadTurnos] = useState<number>(1);
 
@@ -675,37 +680,14 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
         // El primario es siempre el primer recurso del array (para el caso de Activos, solo se enlaza al primero)
         const primaryId = recursosNuevos[0].id;
 
-        for (const combo of localItem.combosPrincipal) {
-          // Solo incluir combos con Incluir Nuevo activo y cantidad > 0
-          if (!combo.nuevoIncluido || Number(combo.nuevoCantidad) <= 0) continue;
-
-          const secItem = items.find(i => i.id === combo.productoSecundarioId);
-          if (!secItem) continue; // Item secundario no encontrado en el catálogo local
-
-          let secCat = 'SERVICIO';
-          if (secItem.tipoItem === 1 || secItem.tipoItem === 2) secCat = 'ARTICULO';
-          if (secItem.tipoItem === 4) secCat = 'EQUIPO';
-          if (secItem.tipoItem === 3) {
-            secCat = secItem.tipoProducto === 1 ? 'RECURSO_HUMANO' : 'SERVICIO';
-          }
-
-          const comboCantidad = Math.max(1, Math.round((Number(combo.nuevoCantidad) || 1) * factorCosto));
-
-          recursosNuevos.push({
-            id: `REC-${Date.now()}-C${combo.productoSecundarioId}`,
-            itemId: secItem.id,
-            nombre: secItem.descripcion,
-            categoria: secCat as any,
-            tipoCosto: 'MENSUAL',
-            cantidad: comboCantidad,
-            costoUnitario: secItem.manejoCostos === 2 ? (costosManuales[secItem.id] ?? 0) : 0,
-            precioVentaUnitario: 0,
-            precioVentaOrigen: 'MANUAL',
-            esCombo: true,
-            comboParentId: primaryId,
-            recetas: [],
-          });
-        }
+        recursosNuevos.push(...expandirCombosIncluidos({
+          combos: localItem.combosPrincipal,
+          allItems: items,
+          costosManuales,
+          parentRecursoId: primaryId,
+          parentCantidad: factorCosto,
+          idDe: fabricaIdCombo('REC-C'),
+        }));
       }
 
       // Auto-agregar ítems de Combos RH cuando es RRHH
@@ -748,33 +730,14 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
             recetas: [],
           });
 
-          // Add the sub-combos of this combo item, scaled by factorCosto
-          for (const subCombo of comboItem.combosPrincipal ?? []) {
-            if (!subCombo.nuevoIncluido || Number(subCombo.nuevoCantidad) <= 0) continue;
-            const secItem = items.find(i => i.id === subCombo.productoSecundarioId);
-            if (!secItem) continue;
-
-            let secCat = 'SERVICIO';
-            if (secItem.tipoItem === 1 || secItem.tipoItem === 2) secCat = 'ARTICULO';
-            if (secItem.tipoItem === 4) secCat = 'EQUIPO';
-            if (secItem.tipoItem === 3)
-              secCat = secItem.tipoProducto === 1 ? 'RECURSO_HUMANO' : 'SERVICIO';
-
-            recursosNuevos.push({
-              id: `REC-${Date.now()}-RH${tipo.id}C${subCombo.productoSecundarioId}`,
-              itemId: secItem.id,
-              nombre: secItem.descripcion,
-              categoria: secCat as any,
-              tipoCosto: 'MENSUAL',
-              cantidad: Math.max(1, Math.round(Number(subCombo.nuevoCantidad) * factorCosto)),
-              costoUnitario: secItem.manejoCostos === 2 ? (costosManuales[secItem.id] ?? 0) : 0,
-              precioVentaUnitario: 0,
-              precioVentaOrigen: 'MANUAL',
-              esCombo: true,
-              comboParentId: comboRecursoId,
-              recetas: [],
-            });
-          }
+          recursosNuevos.push(...expandirCombosIncluidos({
+            combos: comboItem.combosPrincipal ?? [],
+            allItems: items,
+            costosManuales,
+            parentRecursoId: comboRecursoId,
+            parentCantidad: factorCosto,
+            idDe: fabricaIdCombo(`REC-RH${tipo.id}C`),
+          }));
         }
       }
 
@@ -816,33 +779,14 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
             recetas: [],
           });
 
-          // Sub-combos del item combo seleccionado
-          for (const subCombo of comboItem.combosPrincipal ?? []) {
-            if (!subCombo.nuevoIncluido || Number(subCombo.nuevoCantidad) <= 0) continue;
-            const secItem = items.find(i => i.id === subCombo.productoSecundarioId);
-            if (!secItem) continue;
-
-            let secCat: RecursoCosteo['categoria'] = 'SERVICIO';
-            if (secItem.tipoItem === 1 || secItem.tipoItem === 2) secCat = 'ARTICULO';
-            if (secItem.tipoItem === 4) secCat = 'EQUIPO';
-            if (secItem.tipoItem === 3)
-              secCat = secItem.tipoProducto === 1 ? 'RECURSO_HUMANO' : 'SERVICIO';
-
-            recursosNuevos.push({
-              id: `REC-${Date.now()}-TC${asoc.tipoComboId}C${subCombo.productoSecundarioId}`,
-              itemId: secItem.id,
-              nombre: secItem.descripcion,
-              categoria: secCat,
-              tipoCosto: 'MENSUAL',
-              cantidad: Math.max(1, Math.round(Number(subCombo.nuevoCantidad) * factorCosto)),
-              costoUnitario: secItem.manejoCostos === 2 ? (costosManuales[secItem.id] ?? 0) : 0,
-              precioVentaUnitario: 0,
-              precioVentaOrigen: 'MANUAL',
-              esCombo: true,
-              comboParentId: comboRecursoId,
-              recetas: [],
-            });
-          }
+          recursosNuevos.push(...expandirCombosIncluidos({
+            combos: comboItem.combosPrincipal ?? [],
+            allItems: items,
+            costosManuales,
+            parentRecursoId: comboRecursoId,
+            parentCantidad: factorCosto,
+            idDe: fabricaIdCombo(`REC-TC${asoc.tipoComboId}C`),
+          }));
         }
       }
 
@@ -900,7 +844,8 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
   };
 
   const renderBonosContent = () => (
-    <div className="space-y-4 pt-2 pr-2 animate-in fade-in slide-in-from-top-2">
+    <SegmentCard label="Bonos">
+    <div className="col-span-2 space-y-4 animate-in fade-in slide-in-from-top-2">
 
       {/* Selector de bono */}
       <div className="flex flex-col gap-1.5">
@@ -994,6 +939,9 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
           <FieldError message={fieldErrors.bonosCosto} />
         </div>
       )}
+      {bonosAgregados.length > 0 && (
+        <BuscadorTabla value={busquedaBonos} onChange={setBusquedaBonos} />
+      )}
       {bonosAgregados.length > 0 ? (
         <div className="-mt-2 border rounded-md overflow-hidden">
           <table className="w-full text-sm text-left">
@@ -1006,15 +954,18 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                 <th className="px-3 py-2 w-10"></th>
               </tr>
             </thead>
-            <tbody className="divide-y">
-              {bonosAgregados.map((b, idx) => {
+            <tbody>
+              {bonosAgregados
+                .map((b, idx) => ({ b, idx }))
+                .filter(({ b }) => incluyeTexto(busquedaBonos, b.nombre))
+                .map(({ b, idx }, filaIdx) => {
                 const costoTotal = (b.costoUnitario || 0) * factorCosto;
                 return (
-                  <tr key={idx} className="bg-white hover:bg-slate-50">
+                  <tr key={idx} className={claseFilaTabla(filaIdx)}>
                     <td className="px-3 py-2">{b.nombre}</td>
                     <td className="px-3 py-2 text-center text-slate-500">{factorCosto}</td>
                     <td className="px-3 py-2 text-right text-slate-500">{b.costoUnitario.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
-                    <td className="px-3 py-2 text-right text-slate-700 font-semibold bg-slate-100">{costoTotal.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
+                    <td className="px-3 py-2 text-right text-slate-700 font-semibold">{costoTotal.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
                     <td className="px-3 py-2 text-center">
                       <button type="button" className="text-red-500 hover:text-red-700 p-1" onClick={() => setBonosAgregados(prev => prev.filter((_, i) => i !== idx))}>
                         <Trash className="w-4 h-4" />
@@ -1032,6 +983,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
         </div>
       )}
     </div>
+    </SegmentCard>
   );
 
   return (
@@ -1039,8 +991,14 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
       <DialogTrigger render={<button className="p-1 hover:bg-slate-200 rounded text-slate-500" title={level === 1 ? `Agregar Sitio` : `Agregar a ${parentName || 'Nodo'}`} />}>
         <Plus className="w-4 h-4" />
       </DialogTrigger>
-      <DialogContent className={cn(!isLineLevel ? "sm:max-w-[1200px] w-[95vw]" : "sm:max-w-[1000px] w-[95vw]", "h-[90vh] sm:h-[600px] flex flex-col")}>
-        <DialogHeader className="shrink-0">
+      <DialogContent
+        data-costeador
+        className={cn(
+          !isLineLevel ? "sm:max-w-[1200px] w-[95vw]" : "sm:max-w-[1000px] w-[95vw]",
+          "h-[90vh] sm:h-[600px] flex flex-col !bg-muted",
+        )}
+      >
+        <DialogHeader className="shrink-0 border-b border-border pb-2">
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         
@@ -1050,10 +1008,11 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
           </div>
         )}
         
-        <div className={cn(!isLineLevel ? "grid grid-cols-[3.5fr_6.5fr] gap-0" : "", "flex-1 overflow-y-auto pr-2 py-2")}>
+        <div className={cn(!isLineLevel ? "grid grid-cols-[3.5fr_6.5fr] gap-4" : "", "flex-1 overflow-y-auto py-2")}>
           {!isLineLevel && (
-            <div className="space-y-2 pr-6 border-r border-slate-200">
-              <div className="flex flex-col gap-1.5">
+            <div className="space-y-3">
+              <SegmentCard label="Nombre">
+              <div className="col-span-2 flex flex-col gap-1.5">
                 <Label>Nombre</Label>
                 <Input 
                   id="field-nombre"
@@ -1073,14 +1032,11 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
 
                 {fieldErrors.nombre && <FieldError message={fieldErrors.nombre} />}
               </div>
+              </SegmentCard>
               
               {hasDireccion && (
-                <div className="pt-2">
-                  <div className="flex items-center mb-3">
-                    <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider border-l-2 border-blue-500 pl-2 leading-none">
-                      Direccion
-                    </h3>
-                    <div className="flex-1 border-t border-blue-200 mx-3 mt-0.5"></div>
+                <SegmentCard label="Direccion">
+                  <div className="col-span-2 flex justify-end -mt-1 mb-1">
                     {!isNewAddress ? (
                       <Button type="button" variant="ghost" size="sm" onClick={() => { setIsNewAddress(true); setDireccionSecuencia(undefined); setDireccion(''); setDepartamento(''); setMunicipio(''); }} className="text-blue-600 h-6 text-xs px-2">
                         + Crear Nueva
@@ -1092,7 +1048,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                     )}
                   </div>
                   
-                  <div className="space-y-2">
+                  <div className="col-span-2 space-y-2">
                     {!isNewAddress && (
                       <div className="flex flex-col gap-1.5">
                         <Label>Seleccionar Dirección</Label>
@@ -1182,15 +1138,15 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                     />
                     {fieldErrors.municipio && <FieldError message={fieldErrors.municipio} />}
                   </div>
-                </div>
-              </div>
+                  </div>
+                </SegmentCard>
             )}
             </div>
           )}
 
-          <div className={cn("space-y-4", !isLineLevel ? "pl-6" : "")}>
-            <div className="w-full lg:w-[60%]">
-              <div className="flex flex-col gap-1.5">
+          <div className="space-y-3">
+            <SegmentCard label="Item">
+              <div className="col-span-2 flex flex-col gap-1.5">
                 <Label>Item</Label>
               {(isLoadingCatalogo || loadingServicios) ? (
                 <div className="flex items-center gap-2 text-sm text-slate-500 py-2">
@@ -1222,13 +1178,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
 
               {/* ── Campo Descripción para Ítem Genérico ── */}
               {selectedItemId && localItem && isGenerico && (
-                <div className="flex flex-col gap-1.5 mt-3 animate-in fade-in slide-in-from-top-2">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-bold text-amber-700 uppercase tracking-wider border-l-2 border-amber-500 pl-2 leading-none">
-                      ÍTEM
-                    </span>
-                    <div className="flex-1 border-t border-amber-200 mt-0.5" />
-                  </div>
+                <div className="col-span-2 flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-2">
                   <Label htmlFor="field-nombreGenerico">
                     Descripción <span className="text-red-500">*</span>
                   </Label>
@@ -1250,20 +1200,13 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                   {fieldErrors.nombreGenerico && <FieldError message={fieldErrors.nombreGenerico} />}
                 </div>
               )}
-            </div>
+            </SegmentCard>
 
             {selectedItemId && localItem && (() => {
               const generalContent = (
-                <div className="space-y-4 animate-in fade-in slide-in-from-top-2 pr-2">
-                  <div className="w-full lg:w-[60%]">
-                    <div className="pt-2">
-                  <div className="flex items-center mb-3 min-h-[24px]">
-                    <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider border-l-2 border-blue-500 pl-2 leading-none">
-                      CONFIGURACION
-                    </h3>
-                    <div className="flex-1 border-t border-blue-200 ml-3 mt-0.5"></div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                  <SegmentCard label="Configuracion">
+                  <div className="col-span-2 grid grid-cols-2 gap-4">
                   {isEstandar ? (
                     <>
                       <div className="flex flex-col gap-1.5">
@@ -1348,22 +1291,17 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
 
                     </>
                   )}
-                       </div>
-                </div>
-              </div>
+                  </div>
+                  </SegmentCard>
 
               {/* ── TABLA TIPOS COMBO (nueva arquitectura) ──────────────────────────
                   Se muestra para cualquier ítem que tenga Tipos Combo configurados.
                   Col 1: nombre del tipo | Col 2: select con ítems que tienen ese tipoComboId */}
               {localItem?.tiposCombo && localItem.tiposCombo.length > 0 && (
-                <div className="pt-2">
-                  <div className="flex items-center mb-3 min-h-[24px]">
-                    <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-wider border-l-2 border-indigo-500 pl-2 leading-none">
-                      ITEMS ADICIONALES
-                    </h3>
-                    <div className="flex-1 border-t border-indigo-200 ml-3 mt-0.5" />
-                  </div>
-                  <div className="border rounded-md">
+                <SegmentCard label="Items Adicionales">
+                  <div className="col-span-2 space-y-2">
+                  <BuscadorTabla value={busquedaAdicionales} onChange={setBusquedaAdicionales} />
+                  <div className="border rounded-md overflow-hidden">
                     <table className="w-full text-sm text-left">
                       <thead className="bg-slate-50 text-slate-500 font-medium border-b">
                         <tr>
@@ -1372,15 +1310,21 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                           <th className="px-3 py-2 w-20 text-center">Incluido</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y">
-                        {localItem.tiposCombo.map(asoc => {
+                      <tbody>
+                        {localItem.tiposCombo
+                          .filter(asoc => {
+                            const nombreTipo = tiposCombosNombres[asoc.tipoComboId] || `Tipo ${asoc.tipoComboId}`;
+                            const opciones = (itemsPorTipoCombo[asoc.tipoComboId] ?? []).map(i => i.descripcion);
+                            return incluyeTexto(busquedaAdicionales, nombreTipo, ...opciones);
+                          })
+                          .map((asoc, filaIdx) => {
                           const nombreTipo = tiposCombosNombres[asoc.tipoComboId] || `Tipo ${asoc.tipoComboId}`;
                           const opcionesCombo = (itemsPorTipoCombo[asoc.tipoComboId] ?? [])
                             .map(i => ({ value: String(i.id), label: i.descripcion }));
                           const fieldKey = `tipoCombo_${asoc.tipoComboId}`;
                           const estaIncluido = asoc.obligatorio ? true : (combosIncluidos[asoc.tipoComboId] ?? false);
                           return (
-                            <tr key={asoc.tipoComboId} className="bg-white">
+                            <tr key={asoc.tipoComboId} className={claseFilaTabla(filaIdx)}>
                               {/* Columna Item Adicional */}
                               <td className="px-3 py-2 font-medium text-slate-700">
                                 {nombreTipo}
@@ -1429,17 +1373,12 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                       </tbody>
                     </table>
                   </div>
-                </div>
+                  </div>
+                </SegmentCard>
               )}
 
-              <div className="pt-2">
-                <div className="flex items-center mb-3 min-h-[24px]">
-                  <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider border-l-2 border-blue-500 pl-2 leading-none">
-                    FINANCIERO
-                  </h3>
-                  <div className="flex-1 border-t border-blue-200 ml-3 mt-0.5"></div>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
+              <SegmentCard label="Financiero">
+                <div className="col-span-2 grid grid-cols-3 gap-4">
                   <div className="col-span-1 flex flex-col gap-1.5">
                     <Label>Precio Venta ({proyecto?.moneda || 'Q'})</Label>
                     <NumericInput
@@ -1470,7 +1409,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                   </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-4 mt-4">
+                <div className="col-span-2 grid grid-cols-4 gap-4">
                   <div className="col-span-1 flex flex-col gap-1.5">
                     <Label>Costo Un. ({proyecto?.moneda || 'Q'})</Label>
                     {solicitarCosto ? (
@@ -1522,7 +1461,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                     />
                   </div>
                 </div>
-              </div>
+              </SegmentCard>
             </div>
               );
 
@@ -1583,12 +1522,23 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                         );
                       };
 
+                      const qCombo = busquedaCombo.trim().toLowerCase();
+                      const seqCombo = { n: 0 };
+                      const filaCombo = () => claseFilaTabla(seqCombo.n++);
+                      const previewVisible = (combo: typeof comboTree[0]): boolean => {
+                        if (!qCombo) return true;
+                        if (incluyeTexto(qCombo, combo.nombre, combo.unidadMedida)) return true;
+                        return (combo.hijos ?? []).some(previewVisible);
+                      };
+
                       // Render recursivo de cada fila
                       const renderRow = (combo: typeof comboTree[0], depth: number): React.ReactNode => {
+                        if (!previewVisible(combo)) return null;
+                        const selfHit = !!qCombo && incluyeTexto(qCombo, combo.nombre, combo.unidadMedida);
                         const incluido = combo.nuevoIncluido === 1 && combo.nuevoCantidad > 0;
                         return (
                           <React.Fragment key={`${combo.comboId}-${depth}`}>
-                            <tr className="border-t hover:bg-slate-50/50">
+                            <tr className={filaCombo()}>
                               <td className="px-3 py-1.5">
                                 <div className="flex items-center gap-1.5">
                                   <TreeGuide depth={depth} />
@@ -1622,18 +1572,22 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                                 )}
                               </td>
                             </tr>
-                            {combo.hijos?.map(hijo => renderRow(hijo, depth + 1))}
+                            {(combo.hijos ?? [])
+                              .filter(hijo => !qCombo || selfHit || previewVisible(hijo))
+                              .map(hijo => renderRow(hijo, depth + 1))}
                           </React.Fragment>
                         );
                       };
 
                       return (
                         <TabsContent value="combo" className="flex-1 overflow-auto outline-none">
-                          <div className="space-y-3">
+                          <SegmentCard label="Combo">
+                          <div className="col-span-2 space-y-3">
                             <p className="text-xs text-slate-500 italic">
                               Vista previa del combo. Las personalizaciones se gestionan desde el árbol del costeo una vez guardado.
                             </p>
-                            <div className="border rounded-md overflow-hidden bg-white">
+                            <BuscadorTabla value={busquedaCombo} onChange={setBusquedaCombo} />
+                            <div className="overflow-hidden rounded-md border border-border">
                               <table className="w-full text-sm">
                                 <thead className="bg-slate-50 border-b">
                                   <tr>
@@ -1644,11 +1598,18 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {comboTree.map(combo => renderRow(combo, 0))}
+                                  {qCombo && !comboTree.some(previewVisible) ? (
+                                    <tr>
+                                      <td colSpan={4} className="px-3 py-6 text-center text-sm text-slate-500">
+                                        No se encontraron resultados.
+                                      </td>
+                                    </tr>
+                                  ) : comboTree.map(combo => renderRow(combo, 0))}
                                 </tbody>
                               </table>
                             </div>
                           </div>
+                          </SegmentCard>
                         </TabsContent>
                       );
                     })()}
@@ -1660,7 +1621,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 px-6 py-4 border-t bg-slate-50 sm:rounded-b-xl shrink-0">
+        <div className="flex justify-end gap-3 -mx-4 -mb-4 px-6 py-3 border-t-[3px] border-border bg-card sm:rounded-b-xl shrink-0">
           <Button 
             variant="outline"
             onClick={() => setOpen(false)}

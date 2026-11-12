@@ -9,13 +9,15 @@ import { Label } from '@/components/ui/label';
 import { FieldError } from '@/components/ui/field-error';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { UI_THEME } from '@/lib/theme';
+import { BuscadorTabla, claseFilaTabla, incluyeTexto } from './tabla-listado';
 import {
   Minus, Plus, PlusCircle, Pencil, Trash2, AlertTriangle,
   ChevronRight, ChevronDown, ChevronsDownUp, ChevronsUpDown, Loader2,
 } from 'lucide-react';
 import { getCostosUltimosManual, buscarItemsParaCombo, autoCrearItemDesdeERP, getItemSyncHabilitado, type ComboItemOpcion } from '@/app/actions/items';
+import { listarCategoriasPorEmpresa } from '@/app/actions/categorias';
 import type { ItemRow } from '@/lib/types/items';
-import { resolveCategoria } from '@/lib/utils/combos';
+import { resolveCategoria, expandirHijosDisponibles, fabricaIdCombo } from '@/lib/utils/combos';
 
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
@@ -84,8 +86,21 @@ export function ComboTab({
 
   // ── Expand / Collapse ─────────────────────────────────────────────────────
   const [collapsedIds, setCollapsedIds] = useState<Set<number>>(new Set());
-  // IDs de filas manuales colapsadas (usa RecursoCosteo.id — string de runtime)
   const [collapsedManualIds, setCollapsedManualIds] = useState<Set<string>>(new Set());
+  const [collapsedCategoriaIds, setCollapsedCategoriaIds] = useState<Set<number>>(new Set());
+  const [busqueda, setBusqueda] = useState('');
+  const [categoriasCat, setCategoriasCat] = useState<{ id: number; nombre: string; prioridad: number }[]>([]);
+
+  useEffect(() => {
+    setBusqueda('');
+    setCollapsedCategoriaIds(new Set());
+  }, [recurso.id]);
+  useEffect(() => {
+    if (!empresaId) return;
+    listarCategoriasPorEmpresa(empresaId).then(rows => {
+      setCategoriasCat(rows.map(r => ({ id: r.id, nombre: r.nombre, prioridad: r.prioridad })));
+    });
+  }, [empresaId]);
 
   const combosDisponibles = recurso.combosDisponibles ?? [];
 
@@ -120,8 +135,18 @@ export function ComboTab({
       return next;
     });
 
-  const expandAll = () => setCollapsedIds(new Set());
-  const collapseAll = () => setCollapsedIds(new Set(getAllComboIds(combosDisponibles)));
+  const toggleCategoria = (id: number) =>
+    setCollapsedCategoriaIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+
+  const expandAll = () => {
+    setCollapsedIds(new Set());
+    setCollapsedManualIds(new Set());
+    setCollapsedCategoriaIds(new Set());
+  };
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -178,7 +203,8 @@ export function ComboTab({
   ) => {
     const categoria = resolveCat(combo.productoSecundarioId, combo.tipoItem, combo.tipoProducto);
 
-    const nuevoId = `REC-${Date.now()}-C${combo.productoSecundarioId}`;
+    const idDe = fabricaIdCombo('REC-C');
+    const nuevoId = idDe(combo.productoSecundarioId);
     dispatch({
       type: 'ADD_RECURSO',
       payload: {
@@ -201,34 +227,8 @@ export function ComboTab({
     });
     setLocalCosts(prev => { const n = { ...prev }; delete n[combo.productoSecundarioId]; return n; });
 
-    if (combo.hijos?.length) {
-      let delay = 1;
-      for (const hijo of combo.hijos) {
-        if (!hijo.nuevoIncluido) continue;
-        const hijoQty = calculatedQty * Math.max(1, hijo.nuevoCantidad);
-        const hijoId = `REC-${Date.now() + delay++}-C${hijo.productoSecundarioId}`;
-        const hijoCategoria = resolveCat(hijo.productoSecundarioId, hijo.tipoItem, hijo.tipoProducto);
-        dispatch({
-          type: 'ADD_RECURSO',
-          payload: {
-            nodoId: parentId,
-            recurso: {
-              id: hijoId,
-              itemId: hijo.productoSecundarioId,
-              nombre: hijo.nombre,
-              categoria: hijoCategoria,
-              tipoCosto: 'MENSUAL',
-              cantidad: hijoQty,
-              costoUnitario: hijo.manejoCostos === 99 ? 0 : (hijo.costosManuales ?? 0),
-              precioVentaUnitario: 0,
-              precioVentaOrigen: 'MANUAL',
-              esCombo: true,
-              comboParentId: nuevoId,
-              recetas: [],
-            },
-          },
-        });
-      }
+    for (const hijo of expandirHijosDisponibles(combo.hijos, nuevoId, calculatedQty, idDe)) {
+      dispatch({ type: 'ADD_RECURSO', payload: { nodoId: parentId, recurso: hijo } });
     }
   };
 
@@ -386,6 +386,25 @@ export function ComboTab({
     setAutoCrearError(null);
   };
 
+  const fmt = (n: number) =>
+    n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const q = busqueda.trim().toLowerCase();
+  const seq = { n: 0 };
+  const fila = () => claseFilaTabla(seq.n++);
+
+  const comboVisible = (combo: ComboDisponible): boolean => {
+    if (!q) return true;
+    if (incluyeTexto(q, combo.nombre, combo.unidadMedida)) return true;
+    return (combo.hijos ?? []).some(comboVisible);
+  };
+
+  const manualVisible = (h: RecursoCosteo): boolean => {
+    if (!q) return true;
+    if (incluyeTexto(q, h.nombre)) return true;
+    return hermanos.filter(h2 => h2.esCombo && h2.comboParentId === h.id).some(manualVisible);
+  };
+
   // ── Componentes internos de render ────────────────────────────────────────
 
   const TreeGuide = ({ depth }: { depth: number }) => {
@@ -407,7 +426,7 @@ export function ComboTab({
    * Se usa tanto en el nivel raíz (manualHermanos directos de `recurso`)
    * como anidado dentro de renderComboRow (items manuales bajo un combo hijo).
    */
-  const renderManualRow = (h: RecursoCosteo, depth: number): React.ReactNode => {
+  const renderManualRow = (h: RecursoCosteo, depth: number, forzar = false): React.ReactNode => {
     const catItem = catalogoItems.find(i => i.id === h.itemId);
     const solicitarCostoManual = catItem?.manejoCostos === 4;
     const qty = h.cantidad ?? 1;
@@ -421,9 +440,13 @@ export function ComboTab({
     const tieneHijos = manualChildren.length > 0;
     const isCollapsedManual = collapsedManualIds.has(h.id);
 
+    if (!forzar && !manualVisible(h)) return null;
+    const selfHit = !!q && incluyeTexto(q, h.nombre);
+    const abierto = q ? true : !isCollapsedManual;
+
     return (
       <React.Fragment key={h.id}>
-        <tr className="border-t hover:bg-indigo-50/40 bg-indigo-50/20">
+        <tr className={fila()}>
           <td className="px-3 py-1.5">
             <div className="flex items-center gap-1.5">
               <TreeGuide depth={depth} />
@@ -478,6 +501,9 @@ export function ComboTab({
               : <span className="text-sm text-slate-700">{fmt(h.costoUnitario ?? 0)}</span>
             }
           </td>
+          <td className="px-3 py-1.5 text-right w-28">
+            <span className="text-sm text-slate-700 font-medium">{fmt(qty * (h.costoUnitario ?? 0))}</span>
+          </td>
           <td className="px-3 py-1.5 text-center w-20">
             {/* Uniforme padre: siempre checked+disabled (Requerido+Incluido). Resto: comportamiento normal */}
             <input type="checkbox" checked={true}
@@ -501,13 +527,12 @@ export function ComboTab({
           </td>
         </tr>
         {/* Hijos del item manual — expand/collapse recursivo */}
-        {tieneHijos && !isCollapsedManual && manualChildren.map(child => renderManualRow(child, depth + 1))}
+        {tieneHijos && abierto && manualChildren
+          .filter(child => forzar || !q || selfHit || manualVisible(child))
+          .map(child => renderManualRow(child, depth + 1, forzar || selfHit))}
       </React.Fragment>
     );
   };
-
-  const fmt = (n: number) =>
-    n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const PendienteBadge = ({ hermano }: { hermano: RecursoCosteo }) => {
     if (!esPendiente(hermano)) return null;
@@ -524,6 +549,7 @@ export function ComboTab({
     depth: number,
     parentEffectiveQty: number,
     disabledByParent: boolean = false,
+    forzar = false,
   ): React.ReactNode => {
     const calculatedQty = parentEffectiveQty * Math.max(1, combo.nuevoCantidad);
     const enArbol = disabledByParent ? undefined : findComboEnArbol(combo.productoSecundarioId, parentRecursoId);
@@ -537,6 +563,10 @@ export function ComboTab({
     const displayCosto = enArbol
       ? (enArbol.costoUnitario ?? defaultCosto)
       : (localCosts[combo.productoSecundarioId] ?? defaultCosto);
+
+    if (!forzar && !comboVisible(combo) && !(enArbol && hermanos.some(h => h.esCombo && h.comboParentId === enArbol.id && manualVisible(h)))) return null;
+    const selfHit = !!q && incluyeTexto(q, combo.nombre, combo.unidadMedida);
+    const abierto = q ? true : !isCollapsed;
 
     const QtyControls = () => {
       if (!enArbol) return <span className="text-sm text-slate-300">{calculatedQty}</span>;
@@ -571,7 +601,7 @@ export function ComboTab({
 
     return (
       <React.Fragment key={`${combo.comboId}-${parentRecursoId}`}>
-        <tr className="border-t hover:bg-slate-50/50">
+        <tr className={fila()}>
           <td className="px-3 py-1.5">
             <div className="flex items-center gap-1.5">
               <TreeGuide depth={depth} />
@@ -603,6 +633,11 @@ export function ComboTab({
           </td>
           <td className="px-3 py-1.5 text-center w-28"><QtyControls /></td>
           <td className="px-3 py-1.5 text-right w-28"><CostoField /></td>
+          <td className="px-3 py-1.5 text-right w-28">
+            <span className={`text-sm ${enArbol ? 'text-slate-700 font-medium' : 'text-slate-300'}`}>
+              {fmt(displayQty * displayCosto)}
+            </span>
+          </td>
           <td className="px-3 py-1.5 text-center w-20">
             <input type="checkbox" checked={!!enArbol}
               disabled={esRequeridoBloqueado || !esBorrador || disabledByParent}
@@ -618,15 +653,17 @@ export function ComboTab({
           </td>
         </tr>
         {/* Hijos del catálogo — solo si no está colapsado */}
-        {tieneHijos && !isCollapsed && combo.hijos?.map(hijo => renderComboRow(hijo, recursoIdEnArbol, depth + 1, displayQty, disabledByParent || !enArbol))}
+        {tieneHijos && abierto && combo.hijos
+          ?.filter(hijo => forzar || !q || selfHit || comboVisible(hijo))
+          .map(hijo => renderComboRow(hijo, recursoIdEnArbol, depth + 1, displayQty, disabledByParent || !enArbol, forzar || selfHit))}
         {/* Items manuales anidados: misma lógica que manualHermanos raíz pero a nivel combo hijo.
             NO usa esComboManual (no persiste en BD); excluye itemIds que ya son hijos del catálogo. */}
-        {enArbol && !isCollapsed && (() => {
+        {enArbol && abierto && (() => {
           const catalogChildIds = new Set((combo.hijos ?? []).map(h => h.productoSecundarioId));
           const manualesAnidados = hermanos.filter(
             h => h.esCombo && h.comboParentId === enArbol.id && !catalogChildIds.has(h.itemId)
           );
-          return manualesAnidados.map(h => renderManualRow(h, depth + 1));
+          return manualesAnidados.map(h => renderManualRow(h, depth + 1, forzar || selfHit));
         })()}
       </React.Fragment>
     );
@@ -635,10 +672,52 @@ export function ComboTab({
 
   // ── Render principal ──────────────────────────────────────────────────────
 
+  const gruposCombo = (() => {
+    const catMap = new Map(categoriasCat.map(c => [c.id, c]));
+    const grupos = new Map<number, {
+      id: number
+      nombre: string
+      prioridad: number
+      combos: ComboDisponible[]
+      manuales: RecursoCosteo[]
+    }>();
+    const tomar = (itemId: number) => {
+      const item = catalogoItems.find(i => i.id === itemId);
+      const id = item?.categoriaId ?? 0;
+      let grupo = grupos.get(id);
+      if (!grupo) {
+        const cat = catMap.get(id);
+        grupo = {
+          id,
+          nombre: cat?.nombre ?? item?.categoria?.nombre ?? 'SIN CATEGORIA',
+          prioridad: cat && cat.prioridad > 0 ? cat.prioridad : 9999,
+          combos: [],
+          manuales: [],
+        };
+        grupos.set(id, grupo);
+      }
+      return grupo;
+    };
+    for (const combo of combosDisponibles) tomar(combo.productoSecundarioId).combos.push(combo);
+    for (const manual of manualHermanos) tomar(manual.itemId).manuales.push(manual);
+    return [...grupos.values()].sort((a, b) => a.prioridad - b.prioridad || a.nombre.localeCompare(b.nombre));
+  })();
+
+  const collapseAll = () => {
+    setCollapsedIds(new Set(getAllComboIds(combosDisponibles)));
+    setCollapsedCategoriaIds(new Set(gruposCombo.map(g => g.id)));
+  };
+
+  const grupoVisible = (grupo: (typeof gruposCombo)[number]) => {
+    if (!q) return true;
+    if (incluyeTexto(q, grupo.nombre)) return true;
+    return grupo.combos.some(comboVisible) || grupo.manuales.some(manualVisible);
+  };
+
   const tieneFilas = combosDisponibles.length > 0 || manualHermanos.length > 0;
 
   return (
-    <div className="space-y-3 pt-2">
+    <div className="flex flex-col flex-1 min-h-0 gap-3 pt-2">
       {combosDisponibles.length > 0 ? (
         <p className="text-xs text-slate-500">
           Sub-items del combo. Los items <strong>Requeridos</strong> (incluidos con checkbox bloqueado) no pueden quitarse.
@@ -652,14 +731,16 @@ export function ComboTab({
       )}
 
       {tieneFilas && (
-        <div className="border rounded-md overflow-hidden bg-white">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 border-b">
+        <div className="flex flex-col flex-1 min-h-0 min-w-0 gap-2">
+          <BuscadorTabla value={busqueda} onChange={setBusqueda} />
+          <div className="border rounded-md bg-white flex-1 min-h-0 min-w-0 overflow-auto">
+          <table className="w-max min-w-full text-sm whitespace-nowrap">
+            <thead className="bg-slate-50 border-b sticky top-0 z-10 [&_th]:bg-slate-50">
               <tr>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500">
                   <div className="flex items-center gap-2">
-                    <span>Sub-item</span>
-                    {getAllComboIds(combosDisponibles).length > 0 && (
+                    <span>Categoría</span>
+                    {(gruposCombo.length > 0) && (
                       <div className="flex items-center gap-1 ml-1">
                         <button
                           type="button"
@@ -685,17 +766,51 @@ export function ComboTab({
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 w-20">Medida</th>
                 <th className="px-3 py-2 text-center text-xs font-semibold text-slate-500 w-28">Cantidad</th>
-                <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500 w-28">Costo</th>
+                <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500 w-28">Costo Unitario</th>
+                <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500 w-28">Costo Total</th>
                 <th className="px-3 py-2 text-center text-xs font-semibold text-slate-500 w-20">Incluido</th>
                 <th className="px-3 py-2 text-center text-xs font-semibold text-slate-500 w-12"></th>
               </tr>
             </thead>
             <tbody>
-              {combosDisponibles.map(combo => renderComboRow(combo, recurso.id, 0, rootEffectiveQty))}
-              {/* Items manuales directos de este recurso (depth 0) */}
-              {manualHermanos.map(h => renderManualRow(h, 0))}
+              {q && !gruposCombo.some(grupoVisible) ? (
+                <tr>
+                  <td colSpan={7} className="px-3 py-6 text-center text-sm text-slate-500">
+                    No se encontraron resultados.
+                  </td>
+                </tr>
+              ) : gruposCombo.map(grupo => {
+                if (q && !grupoVisible(grupo)) return null;
+                const catHit = !!q && incluyeTexto(q, grupo.nombre);
+                const colapsada = !q && collapsedCategoriaIds.has(grupo.id);
+                return (
+                  <React.Fragment key={`cat-${grupo.id}`}>
+                    <tr className={fila()}>
+                      <td className="px-3 py-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => toggleCategoria(grupo.id)}
+                            className="shrink-0 p-0.5 rounded text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                            title={colapsada ? 'Expandir' : 'Colapsar'}
+                          >
+                            {colapsada
+                              ? <ChevronRight className="w-3.5 h-3.5" />
+                              : <ChevronDown className="w-3.5 h-3.5" />}
+                          </button>
+                          <span className="text-sm font-semibold text-slate-800">{grupo.nombre}</span>
+                        </div>
+                      </td>
+                      <td /><td /><td /><td /><td /><td />
+                    </tr>
+                    {!colapsada && grupo.combos.map(combo => renderComboRow(combo, recurso.id, 1, rootEffectiveQty, false, catHit))}
+                    {!colapsada && grupo.manuales.map(h => renderManualRow(h, 1, catHit))}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
