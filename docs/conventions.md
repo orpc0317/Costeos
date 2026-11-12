@@ -150,32 +150,30 @@ const columns: ColumnDef<MiEntidad>[] = useMemo(() => [
 
 ### 2.4 Encabezado de Página
 
-Encima del `<DataTable>` siempre va un encabezado con ícono, título y contador:
+La lista ocupa el alto que deja la ventana. El titulo y el boton Nuevo no se mueven. El scroll es de la tabla y los nombres de columna quedan fijos. Buscador y paginacion quedan fuera de ese scroll.
 
 ```tsx
-<div className="space-y-6">
-  <div className="flex items-center justify-between">
-    <div>
-      <div className="flex items-center gap-2 text-indigo-900">
-        <IconoEntidad className="h-6 w-6" />
-        <h1 className="text-2xl font-bold tracking-tight">Nombre Entidad</h1>
-      </div>
-      <p className="text-sm text-muted-foreground mt-0.5">
-        {data.length === 1 ? '1 registro' : `${data.length} registros`}
-      </p>
-    </div>
+<div className={UI_THEME.page.listShell}>
+  <div className={UI_THEME.page.listHeader}>
+    <PageHeader
+      icon={IconoEntidad}
+      title="Nombre Entidad"
+      subtitle={data.length === 1 ? '1 registro' : `${data.length} registros`}
+      accent={MODULE_ACCENT.entidad}
+      actions={/* Nuevo, solo si permisos.agregar */}
+    />
   </div>
-
   <DataTable
     columns={columns}
     data={data}
-    tableId="entidad-crud"
+    tableId="entidad-v1"
     searchPlaceholder="Buscar por nombre..."
-    searchKey="nombre"
-    customToolbarActions={<MiEntidadModal trigger={<Button className="gap-2"><Plus className="w-4 h-4" /> Nueva Entidad</Button>} />}
+    rowAccent={MODULE_ACCENT.entidad.row}
   />
 </div>
 ```
+
+`DataTable` trae `pinHeader` activo. No pasarlo en una pantalla de lista. Pasar `pinHeader={false}` solo cuando la tabla comparte el scroll con otro bloque, por ejemplo un formulario encima dentro del mismo panel. El area principal del dashboard (`main`) ya es una columna flex con alto de ventana; la lista usa ese alto via `listShell`.
 
 ---
 
@@ -1127,7 +1125,7 @@ export type EntidadRow = {
 | R12 | En la columna de acciones del DataTable, usar **una instancia del modal por fila** vía `trigger` prop. NUNCA usar estado compartido `selectedItem + setModalOpen` — causa que el modal se abra con datos vacíos (condición de carrera). |
 | R13 | Errores de campo: **SIEMPRE** usar `<FieldError message={fieldErrors.campo} />` (`src/components/ui/field-error.tsx`). NUNCA escribir el `<p className="text-xs text-red-500...">` inline. La presentación visual de errores de campo se define **únicamente** en ese componente. |
 | R14 | **El ícono del sidebar es la fuente de verdad.** El mismo ícono que aparece en el sidebar para una entidad debe usarse en: (1) el encabezado de su página principal y (2) su modal (`DialogTitle` + pestaña General). Ver §15 para la tabla de íconos canónicos. |
-| R15 | **Encabezado de página estándar:** toda pantalla de listado/CRUD debe usar exactamente este patrón en su client component (ver §2.4): `<div className="space-y-6">` → `<div className="flex items-center gap-2 text-indigo-900">` → `<IconoEntidad className="h-6 w-6" />` → `<h1 className="text-2xl font-bold tracking-tight">`. El `page.tsx` (Server Component) NO debe contener markup de encabezado; solo pasa datos al client component. |
+| R15 | **Encabezado de página estándar:** la raiz del client es `UI_THEME.page.listShell` y el `PageHeader` va en `page.listHeader` (ver §2.4). El scroll es de la tabla y los titulos de columna quedan fijos. El `page.tsx` no lleva markup de encabezado. |
 
 ---
 

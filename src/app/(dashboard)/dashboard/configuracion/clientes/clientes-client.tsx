@@ -86,8 +86,10 @@ export function ClientesClient({ initialData, permisos }: Props) {
     : `Últimos ${data.length} clientes`
 
   return (
-    <div className="space-y-6">
+    <div className={UI_THEME.page.listShell}>
+      <div className={UI_THEME.page.listHeader}>
       <PageHeader icon={UserRound} title="Clientes" subtitle={subtitulo} accent={MODULE_ACCENT.clientes} actions={puedeAgregar ? <ClienteModal trigger={<Button className="gap-2"><Plus className="w-4 h-4" /> Nuevo Cliente</Button>} /> : null} />
+      </div>
       <DataTable
         columns={columns}
         data={data}

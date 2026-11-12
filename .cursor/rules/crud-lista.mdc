@@ -9,6 +9,7 @@ alwaysApply: false
 Antes de editar: leer `categorias-client.tsx` y copiar `src/templates/entidad-client.template.tsx`.
 
 - Encabezado en el client, con `PageHeader` y `accent`. Nuevo en `actions`, visible solo si `permisos.agregar`.
+- La raiz es `UI_THEME.page.listShell`. El `PageHeader` va dentro de `page.listHeader`. `DataTable` no recibe `pinHeader`: el default fija los titulos de columna. `pinHeader={false}` solo si la tabla comparte el scroll con otro bloque.
 - `DataTable` sin `searchKey`, con `rowAccent`. Columna `id` primera, `actions` ultima (`enableHiding: false`). Las filas alternan blanco y gris dentro de `DataTable` (`table.rowBase` / `table.rowStripe`); no pintar las filas de un solo color en la pantalla.
 - FK con `accessorFn`.
 - Modal de fila: una instancia por fila via `trigger`. Pasar `permisos`.

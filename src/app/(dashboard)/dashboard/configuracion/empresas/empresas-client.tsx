@@ -71,8 +71,10 @@ export function EmpresasClient({ initialData, permisos }: Props) {
     : `${initialData.length} empresas registradas`
 
   return (
-    <div className="space-y-6">
+    <div className={UI_THEME.page.listShell}>
+      <div className={UI_THEME.page.listHeader}>
       <PageHeader icon={Building2} title="Empresas" subtitle={subtitulo} accent={MODULE_ACCENT.empresas} actions={puedeAgregar ? <EmpresaModal onSuccess={() => router.refresh()} trigger={<Button className="gap-2"><Plus className="w-4 h-4" />Nueva Empresa</Button>} /> : null} />
+      </div>
       <DataTable
         columns={columns}
         data={data}

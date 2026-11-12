@@ -92,7 +92,7 @@ Excepción: el **Costeador** usa `CosteoContext` + `saveCosteoTree`. Solo se le 
 ## Qué no hacer
 
 - No `implementation_plan.md`. No CRUD/modal desde cero.
-- No toast de validación. No `searchKey` en DataTable. No `selectedItem + setModalOpen`.
+- No toast de validación. No `searchKey` en DataTable. No `pinHeader` en una lista de pantalla (ya viene activo). No `selectedItem + setModalOpen`.
 - No `include` de Prisma solo para el nombre de una FK.
 - No `--no-engine` en `prisma generate`.
 - No `requireAdmin` para mutar una pantalla del menú: `requirePermiso`.

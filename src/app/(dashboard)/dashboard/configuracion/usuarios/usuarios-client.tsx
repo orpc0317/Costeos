@@ -104,8 +104,10 @@ export function UsuariosClient({ initialData, permisos }: Props) {
     : `${data.length} ${data.length === 1 ? 'usuario registrado' : 'usuarios registrados'}`
 
   return (
-    <div className="space-y-6">
+    <div className={UI_THEME.page.listShell}>
+      <div className={UI_THEME.page.listHeader}>
       <PageHeader icon={Users} title="Usuarios" subtitle={subtitulo} accent={MODULE_ACCENT.usuarios} actions={puedeAgregar ? <UsuarioModal permisos={permisos} onSuccess={() => router.refresh()} trigger={<Button className="gap-2"><Plus className="w-4 h-4" />Nuevo Usuario</Button>} /> : null} />
+      </div>
       <DataTable
         columns={columns}
         data={data}

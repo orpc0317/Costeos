@@ -147,7 +147,8 @@ export function CotizacionesClient({ cotizaciones, permisos }: CotizacionesClien
   ], [router])
 
   return (
-    <div className="space-y-6">
+    <div className={UI_THEME.page.listShell}>
+      <div className={UI_THEME.page.listHeader}>
       <PageHeader
         icon={FileText}
         title="Cotizaciones"
@@ -164,6 +165,7 @@ export function CotizacionesClient({ cotizaciones, permisos }: CotizacionesClien
           />
         ) : null}
       />
+      </div>
       <DataTable
         columns={columns}
         data={data}

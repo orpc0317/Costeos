@@ -140,7 +140,8 @@ export function SolicitudesClient({ solicitudes, permisos }: { solicitudes: Soli
   ], [router])
 
   return (
-    <div className="space-y-6">
+    <div className={UI_THEME.page.listShell}>
+      <div className={UI_THEME.page.listHeader}>
       <PageHeader
         icon={ClipboardList}
         title="Solicitudes"
@@ -153,6 +154,7 @@ export function SolicitudesClient({ solicitudes, permisos }: { solicitudes: Soli
           />
         ) : null}
       />
+      </div>
       <DataTable
         columns={columns}
         data={data}

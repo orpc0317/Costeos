@@ -95,8 +95,10 @@ export function ProveedoresClient({ initialData, permisos }: Props) {
     : `Últimos ${data.length} proveedores`
 
   return (
-    <div className="space-y-6">
+    <div className={UI_THEME.page.listShell}>
+      <div className={UI_THEME.page.listHeader}>
       <PageHeader icon={Truck} title="Proveedores" subtitle={subtitulo} accent={MODULE_ACCENT.proveedores} actions={puedeAgregar ? <ProveedorModal trigger={<Button className="gap-2"><Plus className="w-4 h-4" /> Nuevo Proveedor</Button>} /> : null} />
+      </div>
       <DataTable
         columns={columns}
         data={data}

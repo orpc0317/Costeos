@@ -11,7 +11,7 @@ El aspecto es el de Cartera, sobre el stack de Costeos.
 - Tokens: `src/lib/theme.ts` y variables `--ui-*` en `src/app/globals.css`. Acentos: `src/lib/ui-accent.ts`.
 - Campos: label semibold tracking-wider, control `l-border` (`UI_THEME.forms.inputBase`). Vista con `ViewField`, no un input deshabilitado cuando el campo es solo lectura.
 - Modal de catalogo: fondo gris (`contentWide` / `contentStandard`). Cabecera `ModalHeading` con borde inferior de 3px. Barra de pestañas blanca de lado a lado (`tabs.modalListClass`, borde 3px; el form lleva `pt-2` y `data-form-mode={mode}`). En Ver el dato es negro, tambien si no se edita; en Editar lo bloqueado es gris `#b4bec9`. Grupos `SegmentCard` en blanco con borde de 3px. Footer blanco con borde superior de 3px. Dos lados: `TwoColumns`. Catalogo chico: `SingleColumn`. El Costeador no usa `modalListClass`.
-- Lista: `PageHeader` con `accent`. Boton Nuevo solo en el encabezado. `DataTable` con `rowAccent`. Filas alternas blanco y gris (`table.rowBase` / `table.rowStripe`); la fila activa usa `rowAccent`. Columna `id` sticky izquierda, `actions` sticky derecha, con el mismo fondo de su fila.
+- Lista: raiz `UI_THEME.page.listShell`. `PageHeader` dentro de `page.listHeader`, con `accent`. Boton Nuevo solo en el encabezado. `DataTable` con `rowAccent`. El scroll es de la tabla y los titulos de columna quedan fijos (`pinHeader` activo). Filas alternas blanco y gris (`table.rowBase` / `table.rowStripe`); la fila activa usa `rowAccent`. Columna `id` sticky izquierda, `actions` sticky derecha, con el mismo fondo de su fila.
 - Permisos: codigo de pantalla y flags consultar/agregar/modificar/eliminar. `requirePermiso` es la primera instruccion de cada escritura. Cero filas del usuario = acceso total. Ver `.cursor/rules/permisos.mdc`.
 - Bloqueo optimista: entero `registroVersion` (`WHERE id AND registroVersion`, luego increment). No usar `modifico_fecha` como candado. Mensaje: `Este registro fue modificado por otro usuario. Cierra el formulario, recarga los datos y vuelve a intentarlo.`
 - Se conservan Prisma/MySQL, NextAuth, ERP, `SearchableSelect`, `NumericInput`, `FieldError`, `HistorialDrawer`, anti-similares y un modal por fila via `trigger`.
@@ -161,6 +161,7 @@ Para todo lo demás: **decidir, ejecutar, verificar, reportar resultado**.
 - [ ] Columnas de FK usan `accessorFn` (no `accessorKey`) para que el buscador funcione
 - [ ] NO se pasa `searchKey` al `<DataTable>`
 - [ ] Las filas alternan blanco y gris. Eso sale de `DataTable` (`table.rowBase` / `table.rowStripe`). No pintar las filas de un solo color. La activa usa `rowAccent`. Las columnas sticky usan el mismo fondo de la fila.
+- [ ] La raiz de la lista es `UI_THEME.page.listShell` y el `PageHeader` va en `page.listHeader`. No pasar `pinHeader`: ya viene activo y fija los titulos al hacer scroll. `pinHeader={false}` solo si la tabla comparte el scroll con otro bloque.
 - [ ] Encabezado de página está en `*-client.tsx`, NO en `page.tsx`
 
 ---
@@ -243,21 +244,27 @@ Para todo lo demás: **decidir, ejecutar, verificar, reportar resultado**.
 - **Historial de Auditoría:** Utilizar SIEMPRE el componente `<HistorialDrawer tabla="nombre_tabla_db" />`. El nombre de la tabla debe coincidir exactamente con el esquema de Prisma para que cargue la bitácora.
 - **Ýconos por Entidad (R14) — El sidebar es la fuente de verdad:** El ícono definido en el sidebar para cada entidad es el que debe aparecer en (1) el encabezado de su página principal y (2) su modal (`DialogTitle` + pestaña General). Consultar `docs/conventions.md` §15 para la tabla de íconos canónicos. Al crear una pantalla nueva, definir el ícono en el sidebar primero y registrarlo en esa tabla antes de escribir código.
 
-- **Encabezado de Página (R15):** El markup del encabezado va **SIEMPRE en el client component** (`*-client.tsx`), NUNCA en `page.tsx`. Patrón obligatorio:
+- **Encabezado de Página (R15):** El markup del encabezado va **SIEMPRE en el client component** (`*-client.tsx`), NUNCA en `page.tsx`. La lista ocupa el alto libre y el scroll es de la tabla:
   ```tsx
-  <div className="space-y-6">
-    <div className="flex items-center justify-between">
-      <div>
-        <div className="flex items-center gap-2 text-indigo-900">
-          <IconoEntidad className="h-6 w-6" />
-          <h1 className="text-2xl font-bold tracking-tight">Nombre</h1>
-        </div>
-        <p className="text-sm text-muted-foreground mt-0.5">N registros</p>
-      </div>
+  <div className={UI_THEME.page.listShell}>
+    <div className={UI_THEME.page.listHeader}>
+      <PageHeader
+        icon={IconoEntidad}
+        title="Nombre"
+        subtitle="N registros"
+        accent={MODULE_ACCENT.entidad}
+        actions={/* Nuevo, solo si permisos.agregar */}
+      />
     </div>
-    <DataTable ... />
+    <DataTable
+      columns={columns}
+      data={data}
+      tableId="entidad-v1"
+      rowAccent={MODULE_ACCENT.entidad.row}
+    />
   </div>
   ```
+  `pinHeader` no se pasa: el default deja fijos los titulos de columna. Buscador y paginacion quedan fuera del scroll. `pinHeader={false}` solo cuando la tabla scrollea junto con otro contenido.
 
 - **Puerto de Desarrollo:** El proyecto corre en el puerto **30001**. Siempre que se levante el servidor, se debe notificar al usuario que acceda a `http://localhost:30001`.
 
