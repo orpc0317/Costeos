@@ -14,13 +14,15 @@ describe('ESTADO_COSTEO', () => {
     expect(ESTADO_COSTEO_OPCIONES.map((o) => [o.value, o.label])).toEqual([
       [0, 'Borrador'],
       [1, 'Autorizar'],
-      [2, 'Preparacion'],
-      [3, 'Vigente'],
-      [4, 'Historico'],
-      [5, 'Cancelado'],
+      [2, 'Aceptacion'],
+      [3, 'Preparacion'],
+      [4, 'Vigente'],
+      [5, 'Historico'],
+      [6, 'Cancelado'],
     ])
     expect(ESTADO_COSTEO.BORRADOR).toBe(0)
-    expect(ESTADO_COSTEO.CANCELADO).toBe(5)
+    expect(ESTADO_COSTEO.ACEPTACION).toBe(2)
+    expect(ESTADO_COSTEO.CANCELADO).toBe(6)
   })
 
   it('etiqueta el codigo y trata el borrador como el unico editable', () => {
@@ -35,12 +37,14 @@ describe('ESTADO_COSTEO', () => {
     expect(ESTADO_CONTRATO_OPCIONES.map((o) => [o.value, o.label])).toEqual([
       [0, 'Borrador'],
       [1, 'Autorizar'],
-      [2, 'Preparacion'],
-      [3, 'Vigente'],
-      [5, 'Cancelado'],
+      [2, 'Aceptacion'],
+      [3, 'Preparacion'],
+      [4, 'Vigente'],
+      [6, 'Cancelado'],
     ])
+    expect(ESTADO_CONTRATO.ACEPTACION).toBe(ESTADO_COSTEO.ACEPTACION)
     expect(ESTADO_CONTRATO.CANCELADO).toBe(ESTADO_COSTEO.CANCELADO)
     expect(labelEstadoContrato(ESTADO_CONTRATO.VIGENTE)).toBe('Vigente')
-    expect(labelEstadoContrato(ESTADO_COSTEO.HISTORICO)).toBe('4')
+    expect(labelEstadoContrato(ESTADO_COSTEO.HISTORICO)).toBe('5')
   })
 })

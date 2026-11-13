@@ -69,11 +69,11 @@ Cabecera comercial. Tiene:
 - Fecha de contrato: el día en que se crea el registro
 - Fecha de inicio: el día en que el contrato empieza a correr. Puede ser posterior a la fecha de contrato
 - Plazo en meses y moneda (GTQ, USD)
-- Estado propio, con los mismos códigos del costeo excepto Histórico: 0 Borrador, 1 Autorizar, 2 Preparacion, 3 Vigente, 5 Cancelado
+- Estado propio, con los mismos códigos del costeo excepto Histórico: 0 Borrador, 1 Autorizar, 2 Aceptacion, 3 Preparacion, 4 Vigente, 6 Cancelado
 
 El costeador evalúa los costos con la fecha de inicio: usa el costo cuya fecha es la más reciente que no pasa de ese día.
 
-Un contrato tiene una o varias versiones (`costeos_costeo`). Cada versión guarda su fecha de costeo, la fecha de inicio con la que se evalúan los costos, su estado (0 Borrador, 1 Autorizar, 2 Preparacion, 3 Vigente, 4 Historico, 5 Cancelado) y su propio árbol de sitios, puestos y recursos.
+Un contrato tiene una o varias versiones (`costeos_costeo`). Cada versión guarda su fecha de costeo, la fecha de inicio con la que se evalúan los costos, su estado (0 Borrador, 1 Autorizar, 2 Aceptacion, 3 Preparacion, 4 Vigente, 5 Historico, 6 Cancelado) y su propio árbol de sitios, puestos y recursos.
 
 ### SITIOS
 Ubicaciones físicas donde se presta el servicio. Ejemplos:
@@ -177,16 +177,17 @@ El Total Costo se desglosa por categoría del item. Ejemplos:
 
 ## Ciclo de vida del Costeo
 
-`costeos_costeo.estado` es un `TinyInt`. La etiqueta vive en `ESTADO_COSTEO` (`src/lib/constants.ts`). El número es el orden del ciclo. `costeos_contrato.estado` sigue siendo texto y no usa este catálogo.
+`costeos_costeo.estado` y `costeos_contrato.estado` son `TinyInt`. La etiqueta vive en `ESTADO_COSTEO` y `ESTADO_CONTRATO` (`src/lib/constants.ts`). El número es el orden del ciclo. El contrato usa los mismos códigos y omite Histórico. Aceptacion es la aceptación de parte del cliente.
 
 | Código | Estado | En el builder |
 | --- | --- | --- |
 | 0 | Borrador | Editable. Costos vivos del ERP al abrir. |
 | 1 | Autorizar | Solo lectura |
-| 2 | Preparacion | Solo lectura |
-| 3 | Vigente | Solo lectura |
-| 4 | Historico | Solo lectura |
-| 5 | Cancelado | Solo lectura |
+| 2 | Aceptacion | Solo lectura |
+| 3 | Preparacion | Solo lectura |
+| 4 | Vigente | Solo lectura |
+| 5 | Historico | Solo lectura |
+| 6 | Cancelado | Solo lectura |
 
 Un costeo nuevo nace en Borrador (0). Cualquier otro código abre el builder en solo lectura.
 

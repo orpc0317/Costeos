@@ -15,10 +15,12 @@ export const DEFAULTS_PARAMETROS = {
 export const ESTADO_COSTEO = {
   BORRADOR: 0,
   AUTORIZAR: 1,
-  PREPARACION: 2,
-  VIGENTE: 3,
-  HISTORICO: 4,
-  CANCELADO: 5,
+  // Aceptación de parte del cliente.
+  ACEPTACION: 2,
+  PREPARACION: 3,
+  VIGENTE: 4,
+  HISTORICO: 5,
+  CANCELADO: 6,
 } as const
 
 export type EstadoCosteo = (typeof ESTADO_COSTEO)[keyof typeof ESTADO_COSTEO]
@@ -26,6 +28,7 @@ export type EstadoCosteo = (typeof ESTADO_COSTEO)[keyof typeof ESTADO_COSTEO]
 export const ESTADO_COSTEO_OPCIONES: { value: EstadoCosteo; label: string }[] = [
   { value: ESTADO_COSTEO.BORRADOR, label: 'Borrador' },
   { value: ESTADO_COSTEO.AUTORIZAR, label: 'Autorizar' },
+  { value: ESTADO_COSTEO.ACEPTACION, label: 'Aceptacion' },
   { value: ESTADO_COSTEO.PREPARACION, label: 'Preparacion' },
   { value: ESTADO_COSTEO.VIGENTE, label: 'Vigente' },
   { value: ESTADO_COSTEO.HISTORICO, label: 'Historico' },
@@ -42,10 +45,11 @@ export function esBorradorCosteo(val: unknown): boolean {
   return val === ESTADO_COSTEO.BORRADOR
 }
 
-// Estados de costeos_contrato.estado. Mismos códigos que el costeo, sin Histórico (4).
+// Estados de costeos_contrato.estado. Mismos códigos que el costeo, sin Histórico.
 export const ESTADO_CONTRATO = {
   BORRADOR: ESTADO_COSTEO.BORRADOR,
   AUTORIZAR: ESTADO_COSTEO.AUTORIZAR,
+  ACEPTACION: ESTADO_COSTEO.ACEPTACION,
   PREPARACION: ESTADO_COSTEO.PREPARACION,
   VIGENTE: ESTADO_COSTEO.VIGENTE,
   CANCELADO: ESTADO_COSTEO.CANCELADO,
@@ -68,6 +72,8 @@ export function claseEstadoCosteo(val: unknown): string {
     case ESTADO_COSTEO.BORRADOR:
       return UI_THEME.badge.warning
     case ESTADO_COSTEO.AUTORIZAR:
+      return UI_THEME.badge.info
+    case ESTADO_COSTEO.ACEPTACION:
       return UI_THEME.badge.info
     case ESTADO_COSTEO.PREPARACION:
       return UI_THEME.badge.info
