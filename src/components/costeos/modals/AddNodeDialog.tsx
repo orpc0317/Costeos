@@ -174,7 +174,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
             .filter(i => i.manejoCostos === 2)
             .map(i => i.id);
           const costosMap = idsManual.length > 0
-            ? await getCostosUltimosManual(idsManual)
+            ? await getCostosUltimosManual(idsManual, proyecto?.fechaInicio)
             : {};
           if (active) setCostosManuales(costosMap);
 

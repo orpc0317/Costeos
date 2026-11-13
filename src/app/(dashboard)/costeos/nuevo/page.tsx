@@ -3,7 +3,7 @@ import { getTiposCosteoActivosAction } from '@/app/actions/tipos-costeo'
 // import { auth } from '@/lib/auth'
 
 export const metadata = {
-  title: 'Nuevo Costeo | Costeos',
+  title: 'Nuevo Contrato',
 }
 
 export default async function NuevoCosteoPage() {

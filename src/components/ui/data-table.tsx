@@ -161,48 +161,73 @@ function DraggableTableHead({
     return Array.from(vals).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
   }, [allRows, canFilter, header.column])
 
+  const centered = align === 'center'
+  const hasTools = canSort || canFilter
+  const toolsRef = React.useRef<HTMLDivElement>(null)
+  const [toolsWidth, setToolsWidth] = React.useState(0)
+
+  React.useLayoutEffect(() => {
+    const el = toolsRef.current
+    if (!centered || !el) {
+      setToolsWidth(0)
+      return
+    }
+    const measure = () => setToolsWidth(el.offsetWidth)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [centered, hasTools])
+
+  const titulo = header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())
+  const herramientas = (
+    <>
+      {canSort && (
+        <button
+          type="button"
+          onClick={header.column.getToggleSortingHandler()}
+          className="shrink-0 rounded p-0.5 hover:bg-accent transition-colors"
+          title={
+            header.column.getIsSorted() === 'asc'  ? 'Ordenado A→Z (clic para invertir)' :
+            header.column.getIsSorted() === 'desc' ? 'Ordenado Z→A (clic para quitar)' :
+            'Clic para ordenar'
+          }
+        >
+          <SortIcon direction={header.column.getIsSorted()} />
+        </button>
+      )}
+      {canFilter && (
+        <ColumnFilterPopover
+          uniqueValues={uniqueValues}
+          filterValue={header.column.getFilterValue() as ColumnFilterValue}
+          onChange={val => header.column.setFilterValue(val)}
+        />
+      )}
+    </>
+  )
+
   return (
     <TableHead
       ref={setNodeRef}
       style={style}
       className={`group ${headBg} ${pinHeader ? '' : 'relative'} ${alignClass} ${stickyHead}`}
     >
-      <div className={`flex items-center gap-1 w-full h-full py-1 ${justifyClass}`}>
-        {/* Drag handle */}
+      <div className={`flex items-center w-full h-full py-1 ${centered ? '' : `gap-1 ${justifyClass}`}`}>
+        {centered && hasTools && <div className="shrink-0" style={{ width: toolsWidth }} aria-hidden />}
         <div
           {...attributes}
           {...listeners}
-          className={`flex items-center gap-1.5 flex-1 min-w-0 select-none ${
-            isActionCol ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
-          }`}
+          className={`flex items-center gap-1.5 min-w-0 select-none ${
+            centered ? 'flex-1 justify-center' : 'flex-1'
+          } ${isActionCol ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}`}
           title={isActionCol ? '' : 'Arrastrar para reordenar'}
         >
-          {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+          {titulo}
         </div>
-
-        {/* Botón de ordenamiento — siempre visible */}
-        {canSort && (
-          <button
-            type="button"
-            onClick={header.column.getToggleSortingHandler()}
-            className="shrink-0 rounded p-0.5 hover:bg-accent transition-colors"
-            title={
-              header.column.getIsSorted() === 'asc'  ? 'Ordenado A→Z (clic para invertir)' :
-              header.column.getIsSorted() === 'desc' ? 'Ordenado Z→A (clic para quitar)' :
-              'Clic para ordenar'
-            }
-          >
-            <SortIcon direction={header.column.getIsSorted()} />
-          </button>
-        )}
-
-        {/* Panel de filtro estilo Excel — siempre visible */}
-        {canFilter && (
-          <ColumnFilterPopover
-            uniqueValues={uniqueValues}
-            filterValue={header.column.getFilterValue() as ColumnFilterValue}
-            onChange={val => header.column.setFilterValue(val)}
-          />
+        {hasTools && (
+          <div ref={toolsRef} className="flex items-center shrink-0">
+            {herramientas}
+          </div>
         )}
       </div>
     </TableHead>

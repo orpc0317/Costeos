@@ -12,6 +12,7 @@ import { ItemRepository } from '@/lib/repositories/item.repository'
 import { detectarSimilares, similitud, type SimilarItem, type SimilarItemConOrigen, type ErpSimilarData } from '@/lib/utils/similarity'
 import { erp } from '@/lib/erp'
 import { prisma } from '@/lib/prisma'
+import { costoHasta } from '@/lib/utils/costo-a-fecha'
 import type { ActionResult } from '@/lib/types/common'
 
 const PATH = '/dashboard/configuracion/items'
@@ -316,18 +317,18 @@ export async function eliminarCostoItem(
 }
 
 /**
- * Retorna el costo manual más reciente para cada itemId del array dado.
- * Solo incluye ítems que tengan al menos un registro en costeo_item_costo.
- * Clave: itemId, Valor: costo (número).
+ * Retorna el costo manual vigente para cada itemId.
+ * Sin fechaHasta, es el más reciente. Con fechaHasta (fecha de inicio del
+ * contrato), es el más reciente que no pasa de ese día.
  */
 export async function getCostosUltimosManual(
   itemIds: number[],
+  fechaHasta?: string,
 ): Promise<Record<number, number>> {
   if (!(await puedeConsultar(PERMISOS.COS_CAT)) || itemIds.length === 0) return {}
 
-  // Traer todos los registros de los ítems pedidos, ordenados por fecha DESC
   const costos = await prisma.itemCosto.findMany({
-    where: { itemId: { in: itemIds } },
+    where: { itemId: { in: itemIds }, ...costoHasta(fechaHasta) },
     orderBy: { fecha: 'desc' },
     select: { itemId: true, costo: true },
   })

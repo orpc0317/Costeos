@@ -1,7 +1,8 @@
 // src/lib/types/costeos.ts
 
+import type { EstadoCosteo } from '@/lib/constants'
+
 export type Moneda = 'GTQ' | 'USD';
-export type EstadoContrato = 'BORRADOR' | 'APROBADO' | 'VIGENTE' | 'TERMINADO';
 export type CategoriaItem = 'RECURSO_HUMANO' | 'EQUIPO' | 'ARTICULO' | 'SERVICIO';
 export type TipoCosto = 'MENSUAL' | 'UNICO';
 
@@ -174,7 +175,7 @@ export interface ProyectoCosteo {
   fechaInicio: string;
   plazoMeses: number;
   moneda: Moneda;
-  estado: EstadoContrato;
+  estado: EstadoCosteo;
   nodos: NodoCosteo[];
   recursos: RecursoCosteo[]; // Líneas directas en la raíz
   porcentajeOverhead: number;

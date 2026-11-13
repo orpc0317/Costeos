@@ -1,9 +1,91 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
+import type { Prisma } from '@prisma/client'
 import { requirePermiso, puedeConsultar } from '@/app/actions/permisos'
 import { PERMISOS } from '@/lib/permisos'
+import { ESTADO_CONTRATO, ESTADO_COSTEO, labelEstadoContrato } from '@/lib/constants'
+import { costeoParaAbrir } from '@/lib/costeo-abrir'
 import { redirect } from 'next/navigation'
+
+/** Siguiente correlativo de la empresa. Atómico por fila de empresa. */
+async function siguienteNumeroContrato(tx: Prisma.TransactionClient, empresaId: number): Promise<string> {
+  await tx.$executeRaw`
+    INSERT INTO costeos_contrato_correlativo (empresa_id, ultimo)
+    VALUES (${empresaId}, LAST_INSERT_ID(1))
+    ON DUPLICATE KEY UPDATE ultimo = LAST_INSERT_ID(ultimo + 1)
+  `
+  const filas = await tx.$queryRaw<Array<{ n: bigint | number }>>`SELECT LAST_INSERT_ID() AS n`
+  const numero = Number(filas[0]?.n ?? 0)
+  if (!Number.isInteger(numero) || numero < 1) {
+    throw new Error('No se pudo asignar el numero de contrato')
+  }
+  return String(numero)
+}
+
+function parseFecha(valor: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(valor)) return null
+  const fecha = new Date(`${valor}T00:00:00.000Z`)
+  return Number.isNaN(fecha.getTime()) ? null : fecha
+}
+
+function fechaCorta(fecha: Date): string {
+  const dia = String(fecha.getUTCDate()).padStart(2, '0')
+  const mes = String(fecha.getUTCMonth() + 1).padStart(2, '0')
+  return `${dia}/${mes}/${fecha.getUTCFullYear()}`
+}
+
+export type ContratoExistente = {
+  id: number
+  nombre: string
+  numero: string
+  fechaCosteo: string
+  fechaInicio: string
+  estado: number
+  estadoLabel: string
+  costeoId: number | null
+  version: number | null
+}
+
+/** Contratos del cliente en Costeos. No consulta el ERP. */
+export async function buscarContratosDeCliente(
+  empresaId: number,
+  clienteId: number,
+): Promise<ContratoExistente[]> {
+  if (!(await puedeConsultar(PERMISOS.COS_NEW))) return []
+  if (!empresaId || !clienteId) return []
+
+  const rows = await prisma.contrato.findMany({
+    where: { empresaId, clienteId },
+    select: {
+      id: true,
+      nombre: true,
+      numero: true,
+      fechaInicio: true,
+      estado: true,
+      costeos: {
+        select: { id: true, version: true, estado: true, fechaCosteo: true },
+        orderBy: { version: 'desc' },
+      },
+    },
+    orderBy: { fechaInicio: 'desc' },
+  })
+
+  return rows.map(row => {
+    const elegido = costeoParaAbrir(row.costeos)
+    return {
+      id: row.id,
+      nombre: row.nombre,
+      numero: row.numero,
+      fechaCosteo: elegido ? fechaCorta(elegido.fechaCosteo) : '—',
+      fechaInicio: fechaCorta(row.fechaInicio),
+      estado: row.estado,
+      estadoLabel: labelEstadoContrato(row.estado),
+      costeoId: elegido?.id ?? null,
+      version: elegido?.version ?? null,
+    }
+  })
+}
 
 export async function createCosteo(formData: FormData) {
   const guard = await requirePermiso(PERMISOS.COS_NEW, 'agregar')
@@ -14,9 +96,11 @@ export async function createCosteo(formData: FormData) {
   const nombreProyecto = formData.get('nombreProyecto') as string
   const plazoMeses = formData.get('plazoMeses') as string
   const moneda = formData.get('moneda') as string
+  const fechaCosteo = parseFecha(String(formData.get('fechaCosteo') ?? ''))
+  const fechaInicio = parseFecha(String(formData.get('fechaInicio') ?? ''))
 
   // Validaciones
-  if (!erpClienteDataStr || !nombreProyecto || !plazoMeses || !moneda) {
+  if (!erpClienteDataStr || !nombreProyecto || !plazoMeses || !moneda || !fechaCosteo || !fechaInicio) {
     throw new Error('Faltan campos requeridos')
   }
 
@@ -109,12 +193,13 @@ export async function createCosteo(formData: FormData) {
       data: {
         clienteId: clienteLocal.id,
         empresaId: empresaIdNum,
-        numero: `TEMP-${Date.now()}`,
+        numero: await siguienteNumeroContrato(tx, empresaIdNum),
         nombre: nombreProyecto,
-        fechaInicio: new Date(),
+        fechaContrato: new Date(),
+        fechaInicio,
         plazoMeses: parseInt(plazoMeses, 10),
         moneda: moneda,
-        estado: 'BORRADOR',
+        estado: ESTADO_CONTRATO.BORRADOR,
         creadoPor: userId,
       }
     })
@@ -125,8 +210,10 @@ export async function createCosteo(formData: FormData) {
       data: {
         contratoId: contrato.id,
         tipoCosteoId,
+        fechaCosteo,
+        fechaInicio,
         version: 1,
-        estado: 'BORRADOR',
+        estado: ESTADO_COSTEO.BORRADOR,
         creadoPor: userId,
       }
     })

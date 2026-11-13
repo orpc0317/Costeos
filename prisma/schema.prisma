@@ -98,12 +98,16 @@ model Proveedor {
 model Contrato {
   id            Int       @id @default(autoincrement())
   clienteId     Int       @map("cliente_id")
+  // Correlativo de la empresa. Lo asigna Costeos. No es el código del ERP.
   numero        String    @db.VarChar(50)
   nombre        String    @db.VarChar(200)
+  fechaContrato DateTime  @map("fecha_contrato") @db.Date
   fechaInicio   DateTime  @map("fecha_inicio") @db.Date
   plazoMeses    Int       @map("plazo_meses")
   moneda        String    @default("GTQ") @db.VarChar(10)
-  estado        String    @default("BORRADOR") @db.VarChar(20)
+  // 0 Borrador, 1 Autorizar, 2 Preparacion, 3 Vigente, 5 Cancelado. Sin Historico.
+  estado        Int       @default(0) @db.TinyInt
+  // Referencia que devuelve el ERP si el contrato se envía. Vacío sin integración.
   erpContratoId Int?      @map("erp_contrato_id")
   notas         String?   @db.Text
   aprobadoPor   Int?      @map("aprobado_por")
@@ -115,18 +119,25 @@ model Contrato {
   aprobador     Usuario?  @relation("ContratoAprobador", fields: [aprobadoPor], references: [id])
   cliente       Cliente   @relation(fields: [clienteId], references: [id])
   creador       Usuario   @relation("ContratoCreador", fields: [creadoPor], references: [id])
-  costeo        Costeo?
-  nodos         Nodo[]
+  costeos       Costeo[]
 
+  @@unique([empresaId, numero], map: "costeos_contrato_empresa_numero_key")
   @@index([aprobadoPor], map: "costeos_contrato_aprobado_por_fkey")
   @@index([clienteId], map: "costeos_contrato_cliente_id_fkey")
   @@index([creadoPor], map: "costeos_contrato_creado_por_fkey")
   @@map("costeos_contrato")
 }
 
+model ContratoCorrelativo {
+  empresaId Int @id @map("empresa_id")
+  ultimo    Int @default(0)
+
+  @@map("costeos_contrato_correlativo")
+}
+
 model Nodo {
   id             Int           @id @default(autoincrement())
-  contratoId     Int           @map("contrato_id")
+  costeoId       Int           @map("costeo_id")
   parentId       Int?          @map("parent_id")
   nivel          Int           @default(1)
   codigo         String?       @db.VarChar(20)
@@ -146,12 +157,12 @@ model Nodo {
   uniformeCodigo String?       @map("uniforme_codigo") @db.VarChar(50)
   cubreDescanso  Int           @default(0) @map("cubre_descanso")
   combosRhSelec  String?       @map("combos_rh_seleccionados") @db.Text
-  contrato       Contrato      @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+  costeo         Costeo        @relation(fields: [costeoId], references: [id], onDelete: Cascade)
   parent         Nodo?         @relation("JerarquiaNodos", fields: [parentId], references: [id], onDelete: Cascade)
   children       Nodo[]        @relation("JerarquiaNodos")
   recursos       NodoRecurso[]
 
-  @@index([contratoId], map: "costeos_nodo_contrato_id_fkey")
+  @@index([costeoId], map: "costeos_nodo_costeo_id_fkey")
   @@index([parentId], map: "costeos_nodo_parent_id_fkey")
   @@map("costeos_nodo")
 }
@@ -214,10 +225,13 @@ model RecetaSnap {
 
 model Costeo {
   id              Int                     @id @default(autoincrement())
-  contratoId      Int                     @unique @map("contrato_id")
+  contratoId      Int                     @map("contrato_id")
+  fechaCosteo     DateTime                @map("fecha_costeo") @db.Date
+  fechaInicio     DateTime                @map("fecha_inicio") @db.Date
   version         Int                     @default(1)
   costeoPadreId   Int?                    @map("costeo_padre_id")
-  estado          String                  @default("BORRADOR") @db.VarChar(20)
+  // 0 Borrador, 1 Autorizar, 2 Preparacion, 3 Vigente, 4 Historico, 5 Cancelado
+  estado          Int                     @default(0) @db.TinyInt
   overheadPct     Decimal                 @default(0.00) @map("overhead_pct") @db.Decimal(5, 2)
   contingenciaPct Decimal                 @default(0.00) @map("contingencia_pct") @db.Decimal(5, 2)
   margenPct       Decimal                 @default(0.00) @map("margen_pct") @db.Decimal(5, 2)
@@ -230,7 +244,8 @@ model Costeo {
   tipoCosteoId    Int?                    @map("tipo_costeo_id")
   auditLogs       AuditLog[]
   aprobador       Usuario?                @relation("CosteoAprobador", fields: [aprobadoPor], references: [id])
-  contrato        Contrato                @relation(fields: [contratoId], references: [id])
+  contrato        Contrato                @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+  nodos           Nodo[]
   costeoPadre     Costeo?                 @relation("VersionesCosteo", fields: [costeoPadreId], references: [id])
   versiones       Costeo[]                @relation("VersionesCosteo")
   creador         Usuario                 @relation("CosteoCreador", fields: [creadoPor], references: [id])
@@ -239,6 +254,7 @@ model Costeo {
   resultado       Resultado?
 
   @@index([aprobadoPor], map: "costeos_costeo_aprobado_por_fkey")
+  @@index([contratoId], map: "costeos_costeo_contrato_id_idx")
   @@index([costeoPadreId], map: "costeos_costeo_costeo_padre_id_fkey")
   @@index([creadoPor], map: "costeos_costeo_creado_por_fkey")
   @@index([tipoCosteoId], map: "costeos_costeo_tipo_costeo_id_fkey")

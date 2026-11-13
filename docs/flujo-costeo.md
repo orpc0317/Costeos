@@ -62,18 +62,25 @@ El cliente existe (o se crea como nuevo). Tiene:
 - Puede ser un cliente existente en el ERP o uno nuevo que se creará al aprobar
 
 ### CONTRATO
-Acuerdo comercial con el cliente. Tiene:
-- Número, Nombre descriptivo
-- Fecha de inicio y Plazo en meses
-- Moneda (GTQ, USD)
-- Estado: BORRADOR → APROBADO → VIGENTE → TERMINADO
+Cabecera comercial. Tiene:
+- Cliente, empresa, nombre y número
+- Número: correlativo de la empresa (1, 2, 3…). Lo asigna Costeos al crear el contrato, haya o no ERP
+- Código ERP (`erp_contrato_id`): vacío hasta que, si hay integración, el contrato se envía y el ERP devuelve su referencia. No reemplaza el correlativo
+- Fecha de contrato: el día en que se crea el registro
+- Fecha de inicio: el día en que el contrato empieza a correr. Puede ser posterior a la fecha de contrato
+- Plazo en meses y moneda (GTQ, USD)
+- Estado propio, con los mismos códigos del costeo excepto Histórico: 0 Borrador, 1 Autorizar, 2 Preparacion, 3 Vigente, 5 Cancelado
+
+El costeador evalúa los costos con la fecha de inicio: usa el costo cuya fecha es la más reciente que no pasa de ese día.
+
+Un contrato tiene una o varias versiones (`costeos_costeo`). Cada versión guarda su fecha de costeo, la fecha de inicio con la que se evalúan los costos, su estado (0 Borrador, 1 Autorizar, 2 Preparacion, 3 Vigente, 4 Historico, 5 Cancelado) y su propio árbol de sitios, puestos y recursos.
 
 ### SITIOS
 Ubicaciones físicas donde se presta el servicio. Ejemplos:
 - "Oficinas Centrales", "Bodega Zona 4", "La Formuladora", "Agencia Sur"
 
 Cada sitio tiene: nombre, dirección (país, departamento, municipio), coordenadas GPS.
-Los Sitios pueden tener un código único a nivel de contrato.
+Los Sitios pueden tener un código único dentro de la versión del costeo.
 
 ### PUESTOS
 Posiciones dentro de un Sitio donde estará el personal o equipo. Ejemplos:
@@ -170,21 +177,18 @@ El Total Costo se desglosa por categoría del item. Ejemplos:
 
 ## Ciclo de vida del Costeo
 
-```
-1. BORRADOR
-   └── Costos: vivos del ERP — se actualizan al abrir
-   └── Editable: sí — se pueden agregar/quitar sitios, puestos, recursos
+`costeos_costeo.estado` es un `TinyInt`. La etiqueta vive en `ESTADO_COSTEO` (`src/lib/constants.ts`). El número es el orden del ciclo. `costeos_contrato.estado` sigue siendo texto y no usa este catálogo.
 
-2. APROBADO
-   └── Costos: congelados al momento de aprobación
-   └── Estructura enviada al ERP (Contrato + Cliente nuevo si aplica)
-   └── Inmutable: no se puede editar
+| Código | Estado | En el builder |
+| --- | --- | --- |
+| 0 | Borrador | Editable. Costos vivos del ERP al abrir. |
+| 1 | Autorizar | Solo lectura |
+| 2 | Preparacion | Solo lectura |
+| 3 | Vigente | Solo lectura |
+| 4 | Historico | Solo lectura |
+| 5 | Cancelado | Solo lectura |
 
-3. ACTUALIZAR COSTOS (post-aprobación)
-   └── Crea una nueva versión (v2, v3...) en estado BORRADOR
-   └── El costeo aprobado original queda intacto
-   └── Se traen precios frescos del ERP
-```
+Un costeo nuevo nace en Borrador (0). Cualquier otro código abre el builder en solo lectura.
 
 ---
 
@@ -192,12 +196,12 @@ El Total Costo se desglosa por categoría del item. Ejemplos:
 
 Al aprobar un Contrato, Costeos envía al ERP:
 - **Cliente** (si es nuevo: NIT, Razón Social, Dirección Fiscal)
-- **Contrato** (número, plazo, moneda, fecha inicio)
+- **Contrato** (correlativo local, plazo, moneda, fecha inicio)
 - **Sitios** con sus coordenadas y dirección
 - **Puestos** con días y horario
 - **Recursos asignados** por puesto con costos y precios
 - **Resumen financiero** (costo total, venta total, gross margin, ROI)
 
 El ERP responde con:
-- `erp_contrato_id` — ID del contrato creado en ERP
+- `erp_contrato_id` — referencia del contrato en el ERP. Costeos la guarda aparte y no cambia el correlativo. Si no hay integración, este dato no existe
 - `erp_cliente_id` — ID del cliente en ERP (si era cliente nuevo)

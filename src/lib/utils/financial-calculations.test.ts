@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Cliente, NodoCosteo, ProyectoCosteo, RecursoCosteo } from '../types/costeos'
 import { calcularResumenFinanciero, montosDeLinea } from './financial-calculations'
+import { ESTADO_COSTEO } from '../constants'
 
 const cliente: Cliente = {
   id: '1',
@@ -37,7 +38,7 @@ function proyecto(over: Partial<ProyectoCosteo> = {}): ProyectoCosteo {
     fechaInicio: '2026-01-01',
     plazoMeses: 24,
     moneda: 'GTQ',
-    estado: 'BORRADOR',
+    estado: ESTADO_COSTEO.BORRADOR,
     nodos: [],
     recursos: [],
     porcentajeOverhead: 0,

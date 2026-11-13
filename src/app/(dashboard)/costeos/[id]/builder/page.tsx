@@ -5,7 +5,9 @@ import { auth } from '@/lib/auth';
 import { CosteoProvider } from '@/lib/context/CosteoContext';
 import CosteoBuilderLayout from '@/components/costeos/CosteoBuilderLayout';
 import { ProyectoCosteo, NodoCosteo, RecursoCosteo } from '@/lib/types/costeos';
+import type { EstadoCosteo } from '@/lib/constants';
 import { resolveCategoria } from '@/lib/utils/combos';
+import { fechaEvaluacion } from '@/lib/utils/costo-a-fecha';
 
 
 export default async function CosteoBuilderPage({ params }: { params: Promise<{ id: string }> }) {
@@ -16,7 +18,7 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
   const costeoId = parseInt(resolvedParams.id, 10);
   
   if (isNaN(costeoId)) {
-    redirect('/costeos');
+    redirect('/contratos');
   }
 
   const costeo = await prisma.costeo.findUnique({
@@ -32,12 +34,12 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
   });
 
   if (!costeo) {
-    redirect('/costeos');
+    redirect('/contratos');
   }
 
-  // Cargar nodos y recursos del contrato en memoria para construir el arbol
+  // El árbol pertenece a esta versión del costeo
   const dbNodos = await prisma.nodo.findMany({
-    where: { contratoId: costeo.contratoId },
+    where: { costeoId: costeo.id },
     include: {
       recursos: true,
     }
@@ -137,10 +139,11 @@ export default async function CosteoBuilderPage({ params }: { params: Promise<{ 
     },
     numeroContrato: costeo.contrato.numero,
     nombreProyecto: costeo.contrato.nombre,
-    fechaInicio: costeo.contrato.fechaInicio.toISOString().split('T')[0],
+    fechaInicio: (fechaEvaluacion(costeo.fechaInicio, costeo.contrato.fechaInicio) ?? costeo.contrato.fechaInicio)
+      .toISOString().split('T')[0],
     plazoMeses: costeo.contrato.plazoMeses,
     moneda: costeo.contrato.moneda as 'GTQ' | 'USD',
-    estado: costeo.estado as 'BORRADOR' | 'APROBADO',
+    estado: costeo.estado as EstadoCosteo,
     porcentajeOverhead: Number(costeo.overheadPct),
     porcentajeContingencia: Number(costeo.contingenciaPct),
     tipoCosteo: costeo.tipoCosteo ? {
