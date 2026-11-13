@@ -1,18 +1,17 @@
 import { WizardCosteo } from './_wizard'
 import { getTiposCosteoActivosAction } from '@/app/actions/tipos-costeo'
-// import { auth } from '@/lib/auth'
+import { getPermisosDetalle } from '@/app/actions/permisos'
+import { PERMISOS } from '@/lib/permisos'
 
 export const metadata = {
   title: 'Nuevo Contrato',
 }
 
 export default async function NuevoCosteoPage() {
-  // const session = await auth()
-  // const usuarioErp = session?.user?.email || 'admin'
-  const usuarioErp = 'ALGO' // TODO: Cambiar por el usuario_erp de la sesión real
+  const [tiposCosteo, permisosCliente] = await Promise.all([
+    getTiposCosteoActivosAction(),
+    getPermisosDetalle(PERMISOS.CLI_CAT),
+  ])
 
-  // Fetch inicial
-  const tiposCosteo = await getTiposCosteoActivosAction()
-
-  return <WizardCosteo tiposCosteo={tiposCosteo} />
+  return <WizardCosteo tiposCosteo={tiposCosteo} puedeAgregarClientes={permisosCliente.agregar} />
 }
