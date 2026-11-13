@@ -105,7 +105,7 @@ model Contrato {
   fechaInicio   DateTime  @map("fecha_inicio") @db.Date
   plazoMeses    Int       @map("plazo_meses")
   moneda        String    @default("GTQ") @db.VarChar(10)
-  // 0 Borrador, 1 Autorizar, 2 Preparacion, 3 Vigente, 5 Cancelado. Sin Historico.
+  // 0 Borrador, 1 Autorizar, 2 Aceptacion, 3 Preparacion, 4 Vigente, 6 Cancelado. Sin Historico.
   estado        Int       @default(0) @db.TinyInt
   // Referencia que devuelve el ERP si el contrato se envía. Vacío sin integración.
   erpContratoId Int?      @map("erp_contrato_id")
@@ -230,7 +230,7 @@ model Costeo {
   fechaInicio     DateTime                @map("fecha_inicio") @db.Date
   version         Int                     @default(1)
   costeoPadreId   Int?                    @map("costeo_padre_id")
-  // 0 Borrador, 1 Autorizar, 2 Preparacion, 3 Vigente, 4 Historico, 5 Cancelado
+  // 0 Borrador, 1 Autorizar, 2 Aceptacion, 3 Preparacion, 4 Vigente, 5 Historico, 6 Cancelado
   estado          Int                     @default(0) @db.TinyInt
   overheadPct     Decimal                 @default(0.00) @map("overhead_pct") @db.Decimal(5, 2)
   contingenciaPct Decimal                 @default(0.00) @map("contingencia_pct") @db.Decimal(5, 2)
