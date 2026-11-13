@@ -33,13 +33,26 @@ interface ClienteModalProps {
   open?: boolean
   onOpenChange?: (open: boolean) => void
   onActualizado?: (row: ClienteRow) => void
+  /** Alta desde Nuevo Contrato: empresa ya elegida, sin el paso de búsqueda. */
+  empresaFijaId?: number
+  empresaFijaNombre?: string
+  onCreado?: (row: ClienteRow) => void
 }
 
 const MIN_BUSQUEDA_CHARS = 3
 type ClienteModalStep = 'busqueda' | 'formulario'
 type TipoBusqueda = 'nombre' | 'nit'
 
-export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenChange, onActualizado }: ClienteModalProps) {
+export function ClienteModal({
+  cliente,
+  trigger,
+  open: controlledOpen,
+  onOpenChange,
+  onActualizado,
+  empresaFijaId,
+  empresaFijaNombre,
+  onCreado,
+}: ClienteModalProps) {
   const router = useRouter()
   const [internalOpen, setInternalOpen] = useState(false)
   const isControlled = controlledOpen !== undefined
@@ -118,8 +131,17 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
         const sorted = empresasData
           .map(e => ({ value: e.id.toString(), label: e.nombre }))
           .sort((a, b) => a.label.localeCompare(b.label))
-        setEmpresas(sorted)
-        if (!cliente && sorted.length > 0) {
+        const fija = empresaFijaId != null && empresaFijaId > 0
+          ? { value: String(empresaFijaId), label: empresaFijaNombre?.trim() || String(empresaFijaId) }
+          : null
+        const empresasConFija = fija && !sorted.some(e => e.value === fija.value)
+          ? [...sorted, fija].sort((a, b) => a.label.localeCompare(b.label))
+          : sorted
+        setEmpresas(empresasConFija)
+        if (fija) {
+          setEmpresaId(fija.value)
+          setStep('formulario')
+        } else if (!cliente && sorted.length > 0) {
           setEmpresaId(prev => prev || sorted[0].value)
         }
 
@@ -127,6 +149,12 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
           .map(d => ({ value: String(d.codigo), label: d.nombre }))
           .sort((a, b) => a.label.localeCompare(b.label))
         setDepartamentos(sortedDeptos)
+      }).catch(() => {
+        if (empresaFijaId != null && empresaFijaId > 0) {
+          setEmpresas([{ value: String(empresaFijaId), label: empresaFijaNombre?.trim() || String(empresaFijaId) }])
+          setEmpresaId(String(empresaFijaId))
+          setStep('formulario')
+        }
       }).finally(() => {
         setCargandoEmpresas(false)
         setLoadingDeptos(false)
@@ -189,6 +217,10 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
     if (newOpen) {
       resetForm(cliente)
       setMode(isEditing ? 'view' : 'edit')
+      if (!isEditing && empresaFijaId != null && empresaFijaId > 0) {
+        setEmpresaId(String(empresaFijaId))
+        setStep('formulario')
+      }
     }
     setOpen(newOpen)
   }
@@ -328,6 +360,7 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
           resetForm(res.data)
           setMode('view')
         } else {
+          onCreado?.(res.data)
           setOpen(false)
         }
       }
@@ -859,10 +892,12 @@ export function ClienteModal({ cliente, trigger, open: controlledOpen, onOpenCha
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex w-full items-center justify-between">
-                    <Button type="button" variant="ghost" size="sm" onClick={() => { clearFormFields(); setStep('busqueda') }} disabled={loading}>
-                      <ArrowLeft className={UI_THEME.modal.buttons.icon} /> Atras
-                    </Button>
+                  <div className={empresaFijaId != null ? UI_THEME.modal.buttons.editRow : 'flex w-full items-center justify-between'}>
+                    {empresaFijaId == null && (
+                      <Button type="button" variant="ghost" size="sm" onClick={() => { clearFormFields(); setStep('busqueda') }} disabled={loading}>
+                        <ArrowLeft className={UI_THEME.modal.buttons.icon} /> Atras
+                      </Button>
+                    )}
                     <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.clientes.hover} disabled={loading}>
                       <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
                     </Button>

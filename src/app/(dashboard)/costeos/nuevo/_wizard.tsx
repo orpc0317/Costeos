@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { getEmpresasConSync, searchClientesWizard, type ClienteWizardResultado } from '@/app/actions/erp'
+import { ClienteModal } from '@/components/clientes/cliente-modal'
+import type { ClienteRow } from '@/lib/types/clientes'
 import { cn } from '@/lib/utils'
 import { normalizeText } from '@/lib/utils/text'
 import { Button } from '@/components/ui/button'
@@ -36,9 +38,24 @@ function hoyLocal(): string {
 
 type WizardCosteoProps = {
   tiposCosteo?: any[]
+  puedeAgregarClientes?: boolean
 }
 
-export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
+function clienteLocalDesdeAlta(row: ClienteRow): ClienteWizardResultado {
+  return {
+    fuente: 'LOCAL',
+    clienteLocalId: row.id,
+    id: row.codigoErp ?? undefined,
+    codigo: row.codigoErp ?? undefined,
+    nit: row.nit,
+    razonSocial: row.razonSocial,
+    nombreComercial: row.razonSocial,
+    direccion: row.direccionFiscal ?? undefined,
+    diasCredito: row.diasCredito,
+  }
+}
+
+export function WizardCosteo({ tiposCosteo, puedeAgregarClientes = false }: WizardCosteoProps) {
   const router = useRouter()
   // ── Empresas (desde Prisma, con flag de sync de clientes) ──────────────────────
   const [empresas, setEmpresas] = useState<{ value: string; label: string; syncClientes: boolean }[]>([])
@@ -362,13 +379,25 @@ export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
             <div>
               <CardTitle className="text-lg text-indigo-900">Resultados Búsqueda</CardTitle>
               <CardDescription>
-                {clientes.length} cliente(s) encontrado(s). Selecciona uno o crea uno nuevo.
+                {clientes.length} cliente(s) encontrado(s).{' '}
+                {puedeAgregarClientes
+                  ? 'Selecciona uno o crea uno nuevo.'
+                  : 'Selecciona uno que ya está en Costeos.'}
               </CardDescription>
             </div>
-            <Button variant="outline" className="border-indigo-600 text-indigo-600 hover:bg-indigo-50">
-              <Plus className="mr-2 h-4 w-4" />
-              Cliente Nuevo
-            </Button>
+            {puedeAgregarClientes && empresaId && (
+              <ClienteModal
+                empresaFijaId={Number(empresaId)}
+                empresaFijaNombre={empresaNombre}
+                onCreado={(row) => { void handleSelectCliente(clienteLocalDesdeAlta(row)) }}
+                trigger={
+                  <Button type="button" variant="outline" className="border-indigo-600 text-indigo-600 hover:bg-indigo-50">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Cliente Nuevo
+                  </Button>
+                }
+              />
+            )}
           </CardHeader>
           <CardContent>
             {clientes.length > 0 ? (
@@ -384,15 +413,19 @@ export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {clientes.map((c, idx) => (
+                    {clientes.map((c, idx) => {
+                      const soloEnErp = c.fuente !== 'LOCAL'
+                      const bloqueada = soloEnErp && !puedeAgregarClientes
+                      return (
                       <TableRow
                         key={c.clienteLocalId ?? `erp-${idx}`}
                         className={cn(
                           idx % 2 === 1 ? UI_THEME.table.rowStripe : UI_THEME.table.rowBase,
-                          UI_THEME.table.rowHover,
-                          'cursor-pointer',
+                          !bloqueada && UI_THEME.table.rowHover,
+                          !bloqueada && 'cursor-pointer',
                         )}
-                        onClick={() => { if (!buscandoContratos) void handleSelectCliente(c) }}
+                        title={bloqueada ? 'Este cliente no está en Costeos' : undefined}
+                        onClick={() => { if (!bloqueada && !buscandoContratos) void handleSelectCliente(c) }}
                       >
                         <TableCell>
                           {c.fuente === 'LOCAL' ? (
@@ -409,7 +442,8 @@ export function WizardCosteo({ tiposCosteo }: WizardCosteoProps) {
                         <TableCell>{c.nombreComercial}</TableCell>
                         <TableCell>{c.razonSocial}</TableCell>
                       </TableRow>
-                    ))}
+                      )
+                    })}
                   </TableBody>
                 </Table>
               </div>

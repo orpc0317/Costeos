@@ -104,25 +104,28 @@ export async function createCosteo(formData: FormData) {
     throw new Error('Faltan campos requeridos')
   }
 
-  const erpCliente = JSON.parse(erpClienteDataStr)
+  const clienteData: {
+    fuente?: 'LOCAL' | 'ERP'
+    clienteLocalId?: number
+    id?: string           // codigoErp en el ERP
+    codigo?: string
+    nit: string
+    razonSocial: string
+    direccion?: string
+    departamentoId?: number
+    municipioId?: number
+    diasCredito?: number
+  } = JSON.parse(erpClienteDataStr)
+
+  const esClienteLocal = clienteData.fuente === 'LOCAL' && Number(clienteData.clienteLocalId) > 0
+  if (!esClienteLocal) {
+    const altaCliente = await requirePermiso(PERMISOS.CLI_CAT, 'agregar')
+    if (!altaCliente.ok) throw new Error(altaCliente.error)
+  }
 
   const userId = guard.userId
 
   const result = await prisma.$transaction(async (tx) => {
-    // Parsear datos del cliente (puede incluir fuente/clienteLocalId del nuevo wizard)
-    const clienteData: {
-      fuente?: 'LOCAL' | 'ERP'
-      clienteLocalId?: number
-      id?: string           // codigoErp en el ERP
-      codigo?: string
-      nit: string
-      razonSocial: string
-      direccion?: string
-      departamentoId?: number
-      municipioId?: number
-      diasCredito?: number
-    } = JSON.parse(erpClienteDataStr)
-
     const empresaIdNum = parseInt(formData.get('empresa') as string || '0', 10)
 
     let clienteLocal
