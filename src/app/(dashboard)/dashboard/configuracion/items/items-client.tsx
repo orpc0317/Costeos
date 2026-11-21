@@ -111,7 +111,7 @@ export function ItemsClient({ initialData, categorias, permisos }: Props) {
     () => [
       {
         accessorKey: 'id',
-        header: 'ID',
+        header: 'Codigo',
         enableHiding: false,
         cell: ({ row }) => (
           <span className="font-mono text-sm text-muted-foreground">{row.original.id}</span>

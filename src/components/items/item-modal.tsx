@@ -17,7 +17,7 @@ import { crearItem, actualizarItem, buscarItemsSimilaresConERP, buscarItemsLIKEC
 import { useRegistroFresco } from '@/hooks/use-registro-fresco'
 import { listarTiposCombosPorEmpresa } from '@/app/actions/tipos-combo'
 import type { SimilarItemConOrigen, ErpSimilarData } from '@/lib/utils/similarity'
-import { getEmpresasForUser } from '@/app/actions/erp'
+import { getEmpresasForUser, buscarNombreCatalogoErp } from '@/app/actions/erp'
 import { normalizeText } from '@/lib/utils/text'
 import type { ItemInput, ItemRow } from '@/lib/types/items'
 import type { CategoriaRow } from '@/lib/types/categorias'
@@ -80,6 +80,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
   const [tipoItem, setTipoItem] = useState<string>(TIPOS_ITEM[0].value)
   const [tipoProducto, setTipoProducto] = useState<string>('0')
   const [codigoErp, setCodigoErp] = useState('')
+  const [nombreErp, setNombreErp] = useState<string | null>(null)
   const [categoriaId, setCategoriaId] = useState<string>('')
   const [tipoComboId, setTipoComboId] = useState<string>('')          // '' = sin asignar (campo opcional)
   const [precioVentaCero, setPrecioVentaCero] = useState(false)
@@ -225,6 +226,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
     setTipoItem(data?.tipoItem.toString() ?? TIPOS_ITEM[0].value)
     setTipoProducto(data?.tipoProducto?.toString() ?? '0')
     setCodigoErp(data?.codigoErp ?? '')
+    setNombreErp(null)
     setCategoriaId(
       data?.categoriaId.toString() ??
         (opcionesCategoria.length > 0 ? opcionesCategoria[0].value : '')
@@ -399,6 +401,23 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
   // Campo bloqueado si: modo vista, ERP vinculado (al crearlo), o si el registro ya existía con un código ERP
   const bloqueadoPorERP = (erpVinculado !== null) || Boolean(item?.codigoErp)
   const disabledPorERP = (mode === 'view') || bloqueadoPorERP
+
+  const codigoErpSoloLectura = disabledPorERP || !syncItemsHabilitado
+
+  useEffect(() => {
+    if (!open || !codigoErpSoloLectura) return
+    const codigo = codigoErp.trim()
+    const empId = parseInt(empresa, 10)
+    if (!codigo || !empId) {
+      setNombreErp(null)
+      return
+    }
+    let active = true
+    buscarNombreCatalogoErp('item', empId, codigo).then(nombre => {
+      if (active) setNombreErp(nombre)
+    })
+    return () => { active = false }
+  }, [open, codigoErp, empresa, codigoErpSoloLectura])
   const disabledDescripcion = disabledPorERP
 
   /** Badge que indica que el campo vino del ERP */
@@ -605,7 +624,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
             accent={MODULE_ACCENT.items}
             icon={Package}
             mode={!isEditing ? 'create' : mode === 'view' ? 'view' : 'edit'}
-            title={isEditing ? (mode === 'view' ? 'Detalle Item' : 'Editar Item') : 'Nuevo Item'}
+            title="Items"
           />
 
           {globalError && (
@@ -681,7 +700,7 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                       <table className="w-full text-xs">
                         <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
                           <tr>
-                            <th className="text-left px-2 py-2 font-semibold text-slate-600 w-10">ID</th>
+                            <th className="text-left px-2 py-2 font-semibold text-slate-600 w-10">Codigo</th>
                             <th className="text-left px-2 py-2 font-semibold text-slate-600">Descripcion</th>
                             <th className="text-left px-2 py-2 font-semibold text-slate-600 w-24">Cod. ERP</th>
                             <th className="text-center px-2 py-2 font-semibold text-slate-600 w-14">Match</th>
@@ -834,12 +853,26 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
                         <Input
                           id="codigoErp"
                           value={codigoErp}
-                          onChange={e => setCodigoErp(e.target.value)}
+                          onChange={e => {
+                            setCodigoErp(e.target.value)
+                            setNombreErp(null)
+                          }}
+                          onBlur={() => {
+                            const codigo = codigoErp.trim()
+                            const empId = parseInt(empresa, 10)
+                            if (!codigo || !empId || codigoErpSoloLectura) return
+                            buscarNombreCatalogoErp('item', empId, codigo).then(setNombreErp)
+                          }}
                           disabled={disabledPorERP || !syncItemsHabilitado}
                           data-view-mode={mode === 'view'}
                           className={`${UI_THEME.forms.inputBase} uppercase font-mono`}
                           title={!syncItemsHabilitado ? 'El Codigo ERP es asignado automaticamente cuando la empresa tiene sync con ERP habilitado' : undefined}
                         />
+                        {nombreErp && (
+                          <p className="text-xs text-emerald-600 !mt-0.5 leading-none font-medium">
+                            ✓ {nombreErp}
+                          </p>
+                        )}
                         <FieldError message={fieldErrors.codigoErp} />
                       </div>
 
@@ -1372,32 +1405,32 @@ export function ItemModal({ item, categorias, todosItems = [], trigger, open: co
               <div className={UI_THEME.modal.footer}>
                 {mode === 'view' ? (
                   <div className={UI_THEME.modal.buttons.viewRow}>
-                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.items.hover} onClick={() => setHistorialOpen(true)}>
+                    <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => setHistorialOpen(true)}>
                       <History className={UI_THEME.modal.buttons.icon} /> Historial
                     </Button>
-                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.items.hover} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
+                    <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
                       <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
                     </Button>
                   </div>
                 ) : isEditing ? (
                   <div className={UI_THEME.modal.buttons.editRow}>
-                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.items.hover} onClick={() => {
+                    <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => {
                       resetForm(item)
                       if (activeTab === 'costo' || activeTab === 'costo-ref') setActiveTab('general')
                       setMode('view')
                     }} disabled={loading}>
                       <X className={UI_THEME.modal.buttons.icon} /> Cancelar
                     </Button>
-                    <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.items.hover} disabled={loading}>
+                    <Button type="submit" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} disabled={loading}>
                       <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
                     </Button>
                   </div>
                 ) : (
                   <div className="flex w-full items-center justify-between">
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setStep('busqueda')} disabled={loading}>
+                    <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => setStep('busqueda')} disabled={loading}>
                       <ArrowLeft className={UI_THEME.modal.buttons.icon} /> Atras
                     </Button>
-                    <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.items.hover} disabled={loading}>
+                    <Button type="submit" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} disabled={loading}>
                       <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
                     </Button>
                   </div>

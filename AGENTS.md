@@ -10,12 +10,12 @@ El aspecto es el de Cartera, sobre el stack de Costeos.
 
 - Tokens: `src/lib/theme.ts` y variables `--ui-*` en `src/app/globals.css`. Acentos: `src/lib/ui-accent.ts`.
 - Campos: label semibold tracking-wider, control `l-border` (`UI_THEME.forms.inputBase`). Vista con `ViewField`, no un input deshabilitado cuando el campo es solo lectura.
-- Modal de catalogo: fondo gris (`contentWide` / `contentStandard`). Cabecera `ModalHeading` con borde inferior de 3px. Barra de pestañas blanca de lado a lado (`tabs.modalListClass`, borde 3px; el form lleva `pt-2` y `data-form-mode={mode}`). En Ver el dato es negro, tambien si no se edita; en Editar lo bloqueado es gris `#b4bec9`. Grupos `SegmentCard` en blanco con borde de 3px. Footer blanco con borde superior de 3px. Dos lados: `TwoColumns`. Catalogo chico: `SingleColumn`. El Costeador no usa `modalListClass`.
-- Lista: raiz `UI_THEME.page.listShell`. `PageHeader` dentro de `page.listHeader`, con `accent`. Boton Nuevo solo en el encabezado. `DataTable` con `rowAccent`. El scroll es de la tabla y los titulos de columna quedan fijos (`pinHeader` activo). Filas alternas blanco y gris (`table.rowBase` / `table.rowStripe`); la fila activa usa `rowAccent`. Columna `id` sticky izquierda, `actions` sticky derecha, con el mismo fondo de su fila.
+- Modal de catalogo: fondo gris azulado `#eef2f6` (`--muted`, en `contentWide` / `contentStandard`). Cabecera `ModalHeading` con borde inferior de 1.5px. El titulo del modal es el mismo de la pantalla (`PageHeader`), en crear, ver y editar. No lleva una linea de texto debajo del titulo. Barra de pestañas blanca de lado a lado (`tabs.modalListClass`, borde 1.5px, label a la mitad de la altura con `pt-[13px] pb-[7px]`; el form lleva `pt-2` y `data-form-mode={mode}`). No usar relleno solo arriba. En Ver el dato es negro, tambien si no se edita; en Editar lo bloqueado es gris `#b4bec9`. Grupos `SegmentCard` en blanco con borde de 1.5px y el icono del titulo (`src/lib/iconos-seccion.ts`: mismo titulo, mismo icono; dos titulos pueden compartir icono si el dibujo les queda). La pestaña General abre con Identificacion y General (el resto de esa pestaña). En Identificacion, Empresa ocupa la primera fila. Codigo y, si el catalogo lo tiene, Codigo ERP van juntos en la fila de abajo. Codigo es el id del registro: el label visible es Codigo, se oculta al crear y queda disabled despues. Footer blanco con borde superior de 1.5px. Los botones del pie son ghost `size="sm"` con `buttons.accion`: texto de 14px, peso medio, gris de la pestaña inactiva. Al pasar el mouse el gris se oscurece y el fondo no se pinta. Eliminar usa `buttons.eliminar` (rojo, mismo tamaño, sin fondo). Dos lados: `TwoColumns`. Catalogo chico: `SingleColumn`. El Costeador no usa `modalListClass`, pero su panel y su alta usan el mismo gris y los mismos bordes de 1.5px. La raya de la pestaña activa sigue en 3px.
+- Lista: raiz `UI_THEME.page.listShell`. `PageHeader` dentro de `page.listHeader`, con `accent`. Boton Nuevo solo en el encabezado. `DataTable` con `rowAccent`. El scroll es de la tabla y los titulos de columna quedan fijos (`pinHeader` activo). Filas alternas blanco y gris (`table.rowBase` / `table.rowStripe`); la fila activa usa `rowAccent`. Columna `id` sticky izquierda (el titulo que ve el usuario es Codigo), `actions` sticky derecha, con el mismo fondo de su fila.
 - Permisos: codigo de pantalla y flags consultar/agregar/modificar/eliminar. `requirePermiso` es la primera instruccion de cada escritura. Cero filas del usuario = acceso total. Ver `.cursor/rules/permisos.mdc`.
 - Bloqueo optimista: entero `registroVersion` (`WHERE id AND registroVersion`, luego increment). No usar `modifico_fecha` como candado. Mensaje: `Este registro fue modificado por otro usuario. Cierra el formulario, recarga los datos y vuelve a intentarlo.`
 - Se conservan Prisma/MySQL, NextAuth, ERP, `SearchableSelect`, `NumericInput`, `FieldError`, `HistorialDrawer`, anti-similares y un modal por fila via `trigger`.
-- El Costeador no se convierte en modal de catalogo. Solo cromado (tipografia, campos, badges).
+- El Costeador no se convierte en modal de catalogo. Solo cromado (tipografia, campos, badges, fondo `--muted` y bordes de 1.5px).
 
 Mapa: `docs/ai-index.md`. Reglas cortas: `.cursor/rules/ui-conventions.mdc`, `crud-modal.mdc`, `crud-lista.mdc`, `permisos.mdc`, `server-actions.mdc`. Skill: `.cursor/skills/crud-screen/SKILL.md`.
 
@@ -106,12 +106,14 @@ Para todo lo demás: **decidir, ejecutar, verificar, reportar resultado**.
 ### Estructura y Layout
 - [ ] `DialogContent` tiene altura fija: `h-[85vh] sm:h-[altura]` + `flex flex-col p-4 sm:p-6 overflow-hidden`
 - [ ] `DialogTitle` incluye el **ícono canónico de la entidad** (el mismo del sidebar)
-- [ ] El modal usa **pestañas** (`<Tabs>` + `<TabsList variant="line" className={UI_THEME.tabs.modalListClass}>`) aunque solo tenga una pestaña "General" — el scroll horizontal es automático (R23), no limitar por espacio. El `<form>` lleva `pt-2`
+- [ ] El modal usa **pestañas** (`<Tabs>` + `<TabsList variant="line" className={UI_THEME.tabs.modalListClass}>`) aunque solo tenga una pestaña "General" — el scroll horizontal es automático (R23), no limitar por espacio. El `<form>` lleva `pt-2`. El label queda a la mitad de la barra (`pt-[13px] pb-[7px]` dentro del token). No agregar `pt-5` ni otro relleno solo arriba.
 - [ ] Cada `<TabsTrigger>` tiene el ícono canónico de la entidad a la izquierda del texto
-- [ ] El área de campos está dentro de `<div className={UI_THEME.modal.scrollArea}>` + `<TabsContent>`. El fondo del modal es gris. Cada grupo es un `SegmentCard` blanco con borde de 3px. La barra de pestañas es blanca y llega a los dos bordes
+- [ ] El área de campos está dentro de `<div className={UI_THEME.modal.scrollArea}>` + `<TabsContent>`. El fondo del modal es el gris azulado `--muted` (`#eef2f6`). Cada grupo es un `SegmentCard` blanco con borde de 1.5px. El titulo de la seccion esta en `src/lib/iconos-seccion.ts` con el icono de Lucide que mejor lo nombre. La barra de pestañas es blanca y llega a los dos bordes
+- [ ] La pestaña General tiene, como minimo, `SegmentCard` Identificacion y `SegmentCard` General. Identificacion muestra Empresa en la primera fila. La segunda fila lleva Codigo y, si existe, Codigo ERP. Codigo es el `id` numerico: label `Codigo`, oculto al crear, `disabled` en ver y editar, `data-view-mode` solo en Ver. Si la entidad no tiene empresa (Empresas, Usuarios), Identificacion muestra Codigo y Codigo ERP. Sin ninguno de los dos, no se pinta al crear. Las secciones de dominio (Direccion Fiscal, Contacto, Fiscal, Parametros, Acceso, Seguimiento, Detalle, Otros) se conservan.
 
 ### Campos y Datos
-- [ ] **Empresa** se muestra en los TRES modos: `create` → `<SearchableSelect>` | `view/edit` → `<Input disabled className={UI_THEME.forms.inputBase}>`. En Ver el valor es negro; en Editar, gris claro.
+- [ ] **Empresa** se muestra en los TRES modos, dentro de Identificacion: `create` → `<SearchableSelect>` | `view/edit` → `<Input disabled className={UI_THEME.forms.inputBase}>`. En Ver el valor es negro; en Editar, gris claro.
+- [ ] **Codigo** (el id del registro) vive en Identificacion, en la fila de abajo, al lado de Codigo ERP cuando el catalogo lo tiene. Empresa no comparte esa fila. El label es `Codigo`. No se llama ID. Oculto al crear. Disabled siempre despues. En Ver, negro (`data-view-mode`). En Editar, gris `#b4bec9`. En la lista, `accessorKey: 'id'` y `header: 'Codigo'`.
 - [ ] **NO hay datos de auditoría inline** (`Creado:`, `ID:`, `Modificado:`) — eso es responsabilidad del `<HistorialDrawer>`
 - [ ] Todos los campos de texto libre usan `normalizeText()` al guardar (mayúsculas sin tildes)
 - [ ] El `<form>` lleva `data-form-mode={mode}`. En Ver todo dato es negro (`--foreground`), tambien el que no se edita. En Editar, lo bloqueado pasa a gris claro `#b4bec9`. El subrayado no cambia y no se usa opacidad.
@@ -138,14 +140,11 @@ Para todo lo demás: **decidir, ejecutar, verificar, reportar resultado**.
 
 ### Footer
 - [ ] Footer usa **SIEMPRE** `className={UI_THEME.modal.footer}` — NUNCA hardcodear las clases Tailwind directamente
-- [ ] Botones de color usan **SIEMPRE** los tokens `UI_THEME.modal.buttons.*`:
-  - `Historial` → `variant="outline" className={UI_THEME.modal.buttons.historial}` (sky)
-  - `Eliminar` → `variant="outline" className={UI_THEME.modal.buttons.eliminar}` (rojo)
-  - Acción especial (Prioridad, etc.) → `variant="outline" className={UI_THEME.modal.buttons.accionEspecial}` (violet)
-  - Grupo derecho → `className={UI_THEME.modal.buttons.rightGroup}`
-- [ ] `Editar`, `Cancelar` y `Guardar` usan `<Button>` sin className extra (primary / outline por defecto)
-- [ ] **Modo Vista** → izquierda: `Eliminar` o acción especial (si aplica) | derecha: `Historial` (sky) + `Editar`
-- [ ] **Modo Editar/Crear** → derecha: `Cancelar` (outline, solo si `isEditing`) + `Guardar` (con ícono `<Save>`)
+- [ ] Botones de accion: `variant="ghost" size="sm"` y `className={UI_THEME.modal.buttons.accion}`. El texto es el del label de pestaña (14px, peso medio, gris de la pestaña inactiva). Al pasar el mouse el gris se oscurece y el fondo no se pinta. No usar el hover de color del modulo
+- [ ] `Eliminar` (y Desactivar) usa `className={UI_THEME.modal.buttons.eliminar}`: mismo tamaño, texto rojo, sin fondo al pasar el mouse
+- [ ] Icono con `className={UI_THEME.modal.buttons.icon}`
+- [ ] **Modo Vista** → `buttons.viewRow`: Historial, accion extra, Eliminar, Editar
+- [ ] **Modo Editar** → `buttons.editRow`: Cancelar + Guardar. **Alta** → Guardar. Atras, si existe, usa `buttons.accion`
 
 ### Comportamiento
 - [ ] `handleOpenChange(true)` inicializa `mode` + todos los campos + llama `resetFields()`
@@ -155,7 +154,7 @@ Para todo lo demás: **decidir, ejecutar, verificar, reportar resultado**.
 - [ ] OCC: el `update` pasa `registroVersion` y maneja el caso `count === 0`
 
 ### DataTable (página cliente)
-- [ ] Columna `id` es la primera (`enableHiding: false`)
+- [ ] Columna `id` es la primera (`enableHiding: false`) y su header visible es `Codigo`
 - [ ] Columna `actions` es la última (`enableHiding: false`, `id: 'actions'`)
 - [ ] Modal de fila usa **instancia por fila** vía prop `trigger` — NUNCA estado compartido
 - [ ] Columnas de FK usan `accessorFn` (no `accessorKey`) para que el buscador funcione
@@ -238,9 +237,10 @@ Para todo lo demás: **decidir, ejecutar, verificar, reportar resultado**.
 
 - **Estructura de Modales (Acciones):** En modo vista, botones ("Historial" y "Editar") van agrupados a la derecha. En modo edición, el botón "Cancelar" debe resetear el estado a modo vista (sin cerrar el modal si es un registro existente).
 - **⚠︝ Footer de Modal:** Los botones de acción del modal (Historial, Editar, Cancelar, Guardar) se colocan **SIEMPRE en un footer fijo al fondo** del `DialogContent`. Usar **SIEMPRE** `className={UI_THEME.modal.footer}` para el contenedor y `UI_THEME.modal.buttons.*` para los colores de botones. **NUNCA** hardcodear clases Tailwind de color, **NUNCA** poner los botones en el header ni en el área scrolleable del formulario.
-- **⚠︝ Pestañas en Modales — OBLIGATORIAS SIEMPRE:** TODO modal DEBE usar pestañas (`<Tabs>`), **aunque el formulario sea tan simple que solo tenga una pestaña "General"**. NUNCA construir un modal sin la estructura de tabs. El `<TabsList>` debe usar `variant="line"` y `className={UI_THEME.tabs.modalListClass}` (barra blanca, borde inferior de 3px, de lado a lado; no agregar borde ni margen). El `<form>` lleva `pt-2`. Los campos van dentro de `UI_THEME.modal.scrollArea`. Cada grupo es un `SegmentCard` (blanco, borde 3px). Cada `<TabsTrigger>` DEBE incluir el **ícono canónico de la entidad** a la izquierda del texto. Referencia obligatoria: `src/components/categorias/categoria-modal.tsx`.
+- **⚠︝ Pestañas en Modales — OBLIGATORIAS SIEMPRE:** TODO modal DEBE usar pestañas (`<Tabs>`), **aunque el formulario sea tan simple que solo tenga una pestaña "General"**. NUNCA construir un modal sin la estructura de tabs. El `<TabsList>` debe usar `variant="line"` y `className={UI_THEME.tabs.modalListClass}` (barra blanca, borde inferior de 1.5px, de lado a lado; el label a la mitad de la altura; no agregar borde, margen ni relleno vertical). El `<form>` lleva `pt-2`. Los campos van dentro de `UI_THEME.modal.scrollArea`. Cada grupo es un `SegmentCard` (blanco, borde 1.5px, icono del titulo en `src/lib/iconos-seccion.ts`). Cada `<TabsTrigger>` DEBE incluir el **ícono canónico de la entidad** a la izquierda del texto. Referencia obligatoria: `src/components/categorias/categoria-modal.tsx`.
 - **Scroll Horizontal de Pestañas (R23):** El componente `<TabsList variant="line">` implementa scroll horizontal con **botones de flecha `‹` / `›`** que aparecen y desaparecen dinámicamente según el contenido. Internamente usa `ScrollableTabsList` con `ResizeObserver`. **NUNCA limitar el número de pestañas de un modal por miedo a que no quepan.** Agregar todas las que la entidad necesite. No se necesita ningún wrapper extra ni clase adicional en el código del modal. Ver detalles en `docs/conventions.md §5.0`.
-- **Campos Autogenerados:** Códigos/IDs autogenerados deben ocultarse al crear, y deshabilitarse de forma permanente (`disabled={true}`) al ver y al editar. En Ver el valor es negro. En Editar queda en gris claro.
+- **Campos Autogenerados:** El id del registro se muestra con el label `Codigo` dentro de la seccion Identificacion. Se oculta al crear y queda `disabled` al ver y al editar. En Ver el valor es negro. En Editar queda en gris claro. El titulo de la columna en la lista tambien es `Codigo` (`accessorKey` sigue siendo `id`). Si el catalogo tiene Codigo ERP, ese campo va en la misma fila que Codigo.
+- **Pestaña General:** como minimo dos `SegmentCard`: Identificacion (Empresa + Codigo) y General (el resto de los campos de esa pestaña). Sin empresa padre, Identificacion solo lleva Codigo y se omite al crear. Las demas secciones de la entidad se quedan.
 - **Historial de Auditoría:** Utilizar SIEMPRE el componente `<HistorialDrawer tabla="nombre_tabla_db" />`. El nombre de la tabla debe coincidir exactamente con el esquema de Prisma para que cargue la bitácora.
 - **Ýconos por Entidad (R14) — El sidebar es la fuente de verdad:** El ícono definido en el sidebar para cada entidad es el que debe aparecer en (1) el encabezado de su página principal y (2) su modal (`DialogTitle` + pestaña General). Consultar `docs/conventions.md` §15 para la tabla de íconos canónicos. Al crear una pantalla nueva, definir el ícono en el sidebar primero y registrarlo en esa tabla antes de escribir código.
 

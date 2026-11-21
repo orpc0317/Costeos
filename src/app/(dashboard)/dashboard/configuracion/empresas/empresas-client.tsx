@@ -24,7 +24,7 @@ export function EmpresasClient({ initialData, permisos }: Props) {
   const columns: ColumnDef<EmpresaRow>[] = useMemo(() => [
     {
       accessorKey: 'id',
-      header: 'ID',
+      header: 'Codigo',
       enableHiding: false,
       cell: ({ row }) => <span className="font-mono text-sm text-muted-foreground">{row.original.id}</span>,
     },
@@ -35,7 +35,7 @@ export function EmpresasClient({ initialData, permisos }: Props) {
     },
     {
       accessorKey: 'razonSocial',
-      header: 'Razón Social',
+      header: 'Razon Social',
       cell: ({ row }) => <span className="text-sm">{row.original.razonSocial || '—'}</span>,
     },
     {
@@ -45,7 +45,7 @@ export function EmpresasClient({ initialData, permisos }: Props) {
     },
     {
       accessorKey: 'codigoErp',
-      header: 'Código ERP',
+      header: 'Codigo ERP',
       cell: ({ row }) => (
         <span className="font-mono text-sm text-muted-foreground">{row.original.codigoErp || 'N/A'}</span>
       ),

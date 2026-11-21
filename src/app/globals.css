@@ -71,7 +71,7 @@
   --ui-table-head-h:     32px;
   --ui-table-cell-py:    6px;
 
-  --background:            oklch(0.978 0.003 247);     /* slate-50 levemente azulado */
+  --background:            #eef2f6;                    /* gris azulado claro */
   --foreground:            oklch(0.175 0.018 264);     /* slate-900 */
   --card:                  oklch(1 0 0);
   --card-foreground:       oklch(0.175 0.018 264);
@@ -82,21 +82,21 @@
   --primary:               oklch(0.55 0.13 260);
   --primary-foreground:    oklch(0.985 0.005 247);
 
-  --secondary:             oklch(0.944 0.01 264);      /* slate-100 */
-  --secondary-foreground:  oklch(0.3 0.03 264);
+  /* Fondo del modal: la mitad del gris azulado anterior (#dce4ee) */
+  --secondary:             #eef2f6;
+  --secondary-foreground:  oklch(0.32 0.02 230);
 
-  --muted:                 oklch(0.944 0.01 264);
-  --muted-foreground:      oklch(0.556 0.02 264);
+  --muted:                 #eef2f6;
+  --muted-foreground:      oklch(0.52 0.02 230);
 
-  /* Acento: Azul muy suave */
-  --accent:                oklch(0.95 0.02 260);
-  --accent-foreground:     oklch(0.55 0.13 260);
+  --accent:                #d3deea;
+  --accent-foreground:     oklch(0.45 0.12 240);
 
   /* Destructivo: Rojo pastel elegante */
   --destructive:           oklch(0.62 0.16 25);
 
-  --border:                oklch(0.88 0.015 264);
-  --input:                 oklch(0.88 0.015 264);
+  --border:                #c5d0dc;
+  --input:                 #c5d0dc;
   --ring:                  oklch(0.55 0.13 260);
 
   /* Charts */
@@ -131,13 +131,13 @@
   --primary:               oklch(0.68 0.14 260);
   --primary-foreground:    oklch(0.12 0.02 264);
 
-  --secondary:             oklch(0.23 0.03 264);
-  --secondary-foreground:  oklch(0.88 0.01 264);
+  --secondary:             oklch(0.24 0.02 230);
+  --secondary-foreground:  oklch(0.88 0.01 230);
 
-  --muted:                 oklch(0.23 0.03 264);
-  --muted-foreground:      oklch(0.62 0.02 264);
+  --muted:                 oklch(0.24 0.02 230);
+  --muted-foreground:      oklch(0.62 0.02 230);
 
-  --accent:                oklch(0.27 0.04 264);
+  --accent:                oklch(0.28 0.025 230);
   --accent-foreground:     oklch(0.94 0.008 264);
 
   --destructive:           oklch(0.68 0.16 25);
@@ -198,6 +198,18 @@
   [data-form-mode="view"] [data-slot="textarea"]:disabled,
   [data-form-mode="view"] [data-slot="textarea"][readonly],
   [data-form-mode="view"] button[aria-disabled="true"]:not([data-slot="button"]) {
+    color: var(--foreground) !important;
+    -webkit-text-fill-color: var(--foreground) !important;
+    opacity: 1 !important;
+  }
+  /*
+   * Costeador: el panel se edita, pero el dato bloqueado se lee en negro,
+   * igual que el modal Ver. Tiene que vivir en esta capa: un !important
+   * fuera de capa pierde contra el gris #b4bec9 de arriba.
+   */
+  [data-costeador] [data-slot="input"]:is(:disabled, [readonly]),
+  [data-costeador] [data-slot="textarea"]:is(:disabled, [readonly]),
+  [data-costeador] button[aria-disabled="true"]:not([data-slot="button"]) {
     color: var(--foreground) !important;
     -webkit-text-fill-color: var(--foreground) !important;
     opacity: 1 !important;
@@ -274,17 +286,4 @@
 [data-form-mode="view"] button[aria-disabled="true"]:not([data-slot="button"]) {
   color: var(--foreground) !important;
   -webkit-text-fill-color: var(--foreground) !important;
-}
-
-/*
- * Costeador: el formulario está siempre en edición, no hay modo Ver.
- * El gris de catálogo (#b4bec9) se pierde sobre el blanco. Este tono sigue
- * marcando el campo bloqueado y se lee mejor.
- */
-[data-costeador] [data-slot="input"]:is(:disabled, [readonly]),
-[data-costeador] [data-slot="textarea"]:is(:disabled, [readonly]),
-[data-costeador] button[aria-disabled="true"]:not([data-slot="button"]) {
-  color: #5c6b7a !important;
-  -webkit-text-fill-color: #5c6b7a !important;
-  opacity: 1 !important;
 }

@@ -32,6 +32,7 @@ import { ItemRow, DetalleComboRow } from '@/lib/types/items';
 import { buildCombosDisponibles, expandirCombosIncluidos, fabricaIdCombo } from '@/lib/utils/combos';
 import { listarTiposComboRHPorEmpresa } from '@/app/actions/tipos-combo-rh';
 import { listarTiposCombosPorEmpresa } from '@/app/actions/tipos-combo';
+import { NombreTipoCombo } from '@/lib/iconos';
 import type { TipoComboRHRow } from '@/lib/types/tipos-combo-rh';
 
 export interface AddNodeDialogProps {
@@ -82,6 +83,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
   const [combosIncluidos, setCombosIncluidos] = useState<Record<number, boolean>>({});
   // Mapa id→nombre de TiposCombos de la empresa (para mostrar nombre en la tabla)
   const [tiposCombosNombres, setTiposCombosNombres] = useState<Record<number, string>>({});
+  const [tiposCombosIconos, setTiposCombosIconos] = useState<Record<number, string | null>>({});
 
   const [selectedItemId, setSelectedItemId] = useState<string>('');
   // Nombre ingresado manualmente para ítems Genéricos (tipoItem=2)
@@ -194,8 +196,13 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
             setTiposComboRH(tiposData);
             // Mapa id→nombre para TiposCombos
             const nombresMap: Record<number, string> = {};
-            tiposCombosData.forEach(t => { nombresMap[t.id] = t.nombre; });
+            const iconosMap: Record<number, string | null> = {};
+            tiposCombosData.forEach(t => {
+              nombresMap[t.id] = t.nombre;
+              iconosMap[t.id] = t.icono;
+            });
             setTiposCombosNombres(nombresMap);
+            setTiposCombosIconos(iconosMap);
             setIsLoadingCatalogo(false);
             setLoadingServicios(false);
             setLoadingTurnos(false);
@@ -998,7 +1005,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
           "h-[90vh] sm:h-[600px] flex flex-col !bg-muted",
         )}
       >
-        <DialogHeader className="shrink-0 border-b border-border pb-2">
+        <DialogHeader className="shrink-0 border-b-[1.5px] border-border pb-2">
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         
@@ -1327,7 +1334,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
                             <tr key={asoc.tipoComboId} className={claseFilaTabla(filaIdx)}>
                               {/* Columna Item Adicional */}
                               <td className="px-3 py-2 font-medium text-slate-700">
-                                {nombreTipo}
+                                <NombreTipoCombo nombre={nombreTipo} icono={tiposCombosIconos[asoc.tipoComboId]} />
                               </td>
 
                               {/* Columna Ítem */}
@@ -1621,7 +1628,7 @@ export function AddNodeDialog({ level, parentId, parentName }: AddNodeDialogProp
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 -mx-4 -mb-4 px-6 py-3 border-t-[3px] border-border bg-card sm:rounded-b-xl shrink-0">
+        <div className="flex justify-end gap-3 -mx-4 -mb-4 px-6 py-3 border-t-[1.5px] border-border bg-card sm:rounded-b-xl shrink-0">
           <Button 
             variant="outline"
             onClick={() => setOpen(false)}

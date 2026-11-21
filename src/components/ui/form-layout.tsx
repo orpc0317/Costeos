@@ -1,4 +1,6 @@
 import React from 'react'
+import { cn } from '@/lib/utils'
+import { iconoSeccion } from '@/lib/iconos-seccion'
 import { UI_THEME } from '@/lib/theme'
 
 export function ViewField({ label, value }: { label: string; value?: string | null; locked?: boolean }) {
@@ -28,14 +30,20 @@ export function ViewField({ label, value }: { label: string; value?: string | nu
 export function SegmentCard({
   label,
   children,
+  className,
+  bodyClassName,
 }: {
   label: string
   children: React.ReactNode
+  className?: string
+  bodyClassName?: string
 }) {
+  const Icon = iconoSeccion(label)
   return (
-    <div className="col-span-2 grid gap-1.5">
-      <div className="flex items-center gap-2">
+    <div className={cn('col-span-2 grid gap-1.5', className)}>
+      <div className="flex items-center gap-1.5">
         <div className="h-4 w-0.5 rounded-full bg-primary/40" />
+        {Icon ? <Icon className="h-3.5 w-3.5 text-primary" aria-hidden /> : null}
         <span
           className="font-semibold uppercase tracking-wider text-primary"
           style={{ fontSize: 'var(--ui-section-divider)' }}
@@ -43,7 +51,7 @@ export function SegmentCard({
           {label}
         </span>
       </div>
-      <div className={`grid grid-cols-2 gap-2 rounded-lg p-3 ${UI_THEME.modal.segment}`}>
+      <div className={cn('grid grid-cols-2 gap-2 rounded-lg p-3', UI_THEME.modal.segment, bodyClassName)}>
         {children}
       </div>
     </div>

@@ -126,8 +126,9 @@ Para mantener una apariencia corporativa ("ERP state of the art"):
     - Para que las pestañas (`TabsList`) no se pierdan al hacer scroll y los botones de acción (`Footer`) queden fijos abajo, el formulario debe utilizar Flexbox:
       - `<form className="flex-1 overflow-hidden flex flex-col pt-2">`
       - El contenedor principal de Tabs: `<Tabs className="w-full flex-1 flex flex-col min-h-0">`
-      - El Listado de Tabs: `<TabsList variant="line" className={UI_THEME.tabs.modalListClass}>` (barra blanca, borde inferior de 3px, de lado a lado; el form lleva `pt-2`)
-      - El contenedor de campos: `<div className={UI_THEME.modal.scrollArea}>`. Cada grupo es un `SegmentCard` blanco con borde de 3px, pegado a la línea de las pestañas. `<TabsContent ...>` va adentro. El footer queda fuera.
+      - El Listado de Tabs: `<TabsList variant="line" className={UI_THEME.tabs.modalListClass}>` (barra blanca, borde inferior de 1.5px, de lado a lado; el label a la mitad de la altura con `pt-[13px] pb-[7px]`; el form lleva `pt-2`)
+      - El contenedor de campos: `<div className={UI_THEME.modal.scrollArea}>`. Cada grupo es un `SegmentCard` blanco con borde de 1.5px y el ícono de su título (`src/lib/iconos-seccion.ts`), pegado a la línea de las pestañas. `<TabsContent ...>` va adentro. El footer queda fuera. El fondo del modal es `--muted` (`#eef2f6`).
+      - La pestaña General abre con dos secciones: Identificacion y General (el resto de esa pestaña). Empresa va en la primera fila. Codigo y, si existe, Codigo ERP van en la fila de abajo. El label es `Codigo`. Se oculta al crear y queda deshabilitado al ver y al editar. Si no hay empresa, esa fila lleva Codigo y Codigo ERP. Sin ninguno de los dos, se omite al crear. En la lista, el header de la columna `id` es `Codigo`.
       - El Footer: `<div className="flex flex-row items-center justify-between mt-6 -mx-4 -mb-4 px-4 py-4 border-t bg-slate-50 sm:rounded-b-xl shrink-0">`
 11. **Mensajes de Campos Bloqueados**: Si un registro "en uso" bloquea ciertos campos (modo de edición restringido), evita mostrar cajas de alerta (blocks amarillos) en el formulario que rompen la estética. En su lugar, agrega un "foot note" pequeño (ej. `<p className="text-[11px] text-amber-700">`) del lado izquierdo del footer para mantener el diseño limpio.
 12. **Flujo de Edición (Editar -> Guardar -> Ver)**:

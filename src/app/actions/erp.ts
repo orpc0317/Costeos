@@ -341,3 +341,40 @@ export async function buscarEmpresaErp(codigoEmpresa: string) {
     return null
   }
 }
+
+/**
+ * Nombre informativo en el ERP para un codigo ya guardado.
+ * No se persiste. Null si el codigo no aparece exacto en el catalogo.
+ */
+export async function buscarNombreCatalogoErp(
+  tipo: 'cliente' | 'proveedor' | 'item',
+  empresaId: number,
+  codigo: string,
+): Promise<string | null> {
+  const guard = await requireAuth()
+  if (!guard.ok) return null
+  const codigoBuscado = codigo.trim()
+  if (!codigoBuscado || codigoBuscado === 'NULL' || !empresaId) return null
+  try {
+    const codigoEmpresa = await resolveCodigoErpEmpresa(empresaId)
+    const empresaErp = Number(codigoEmpresa)
+    if (!Number.isFinite(empresaErp)) return null
+    const mismo = (valor?: string) => (valor ?? '').trim() === codigoBuscado
+    if (tipo === 'cliente') {
+      const rows = await erp.getClientes(empresaErp, codigoBuscado)
+      const hit = rows.find(r => mismo(r.codigo) || mismo(r.id))
+      const nombre = hit?.razonSocial || hit?.nombreComercial || ''
+      return nombre || null
+    }
+    if (tipo === 'proveedor') {
+      const rows = await erp.getProveedores(empresaErp, codigoBuscado)
+      const hit = rows.find(r => mismo(r.codigo) || mismo(r.id))
+      return hit?.nombre || null
+    }
+    const rows = await erp.getItems({ empresaId: empresaErp, busqueda: codigoBuscado })
+    const hit = rows.find(r => mismo(r.codigo) || mismo(r.id))
+    return hit?.nombre || null
+  } catch {
+    return null
+  }
+}

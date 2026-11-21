@@ -20,7 +20,7 @@ import { UI_THEME } from '@/lib/theme'
 import { MODULE_ACCENT } from '@/lib/ui-accent'
 import { ModalHeading } from '@/components/ui/modal-heading'
 import { esConflicto } from '@/lib/conflicto'
-import { SegmentCard, SingleColumn, ViewField } from '@/components/ui/form-layout'
+import { SegmentCard, ViewField } from '@/components/ui/form-layout'
 import type { PermisosPantalla } from '@/lib/permisos'
 import type { CategoriaInput, CategoriaRow } from '@/lib/types/categorias'
 
@@ -202,8 +202,7 @@ export function CategoriaModal({
             accent={MODULE_ACCENT.categorias}
             icon={Tags}
             mode={isEditing ? (mode === 'view' ? 'view' : 'edit') : 'create'}
-            title={isEditing ? (mode === 'view' ? 'Detalle Categoria' : 'Editar Categoria') : 'Nueva Categoria'}
-            subtitle={isEditing ? empresaNombreActual : null}
+            title="Categorias"
           />
 
           {globalError && (
@@ -222,13 +221,9 @@ export function CategoriaModal({
               </TabsList>
 
               <div className={UI_THEME.modal.scrollArea}>
-                <TabsContent value="general" className="mt-0">
-                  <SingleColumn>
-                  <SegmentCard label="General">
-                  <div className="col-span-2 grid gap-2">
-
-                    {/* Empresa */}
-                    <div className="flex flex-col gap-1.5 col-span-2">
+                <TabsContent value="general" className="mt-0 flex flex-col gap-2">
+                  <SegmentCard label="Identificacion">
+                    <div className={`flex flex-col gap-1.5 ${isEditing ? '' : 'col-span-2'}`}>
                       <Label htmlFor="cat-empresa" className={UI_THEME.forms.labelBase}>
                         Empresa {!isEditing && <span className="text-red-500">*</span>}
                       </Label>
@@ -253,8 +248,21 @@ export function CategoriaModal({
                       )}
                       <FieldError message={fieldErrors.empresa} />
                     </div>
+                    {isEditing && categoria && (
+                      <div className="flex flex-col gap-1.5">
+                        <Label className={UI_THEME.forms.labelBase}>Codigo</Label>
+                        <Input
+                          value={String(categoria.id)}
+                          disabled
+                          data-view-mode={mode === 'view'}
+                          className={UI_THEME.forms.inputBase}
+                        />
+                      </div>
+                    )}
+                  </SegmentCard>
+                  <SegmentCard label="General">
+                  <div className="col-span-2 grid gap-2">
 
-                    {/* Nombre */}
                     <div className="flex flex-col gap-1.5 col-span-2">
                       <Label htmlFor="cat-nombre">
                         Nombre <span className="text-red-500">*</span>
@@ -314,7 +322,6 @@ export function CategoriaModal({
 
                   </div>
                   </SegmentCard>
-                  </SingleColumn>
                 </TabsContent>
               </div>
             </Tabs>
@@ -323,32 +330,32 @@ export function CategoriaModal({
             <div className={UI_THEME.modal.footer}>
               {mode === 'view' ? (
                 <div className={UI_THEME.modal.buttons.viewRow}>
-                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.categorias.hover} onClick={() => setHistorialOpen(true)}>
+                  <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => setHistorialOpen(true)}>
                     <History className={UI_THEME.modal.buttons.icon} /> Historial
                   </Button>
                   {isEditing && empresa && (
-                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.categorias.hover} onClick={() => setPrioridadOpen(true)}>
+                    <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => setPrioridadOpen(true)}>
                       <ArrowUpDown className={UI_THEME.modal.buttons.icon} /> Prioridad
                     </Button>
                   )}
                   {puedeEditar && (
-                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.categorias.hover} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
+                    <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
                       <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
                     </Button>
                   )}
                 </div>
               ) : isEditing ? (
                 <div className={UI_THEME.modal.buttons.editRow}>
-                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.categorias.hover} onClick={() => { resetForm(categoria); setMode('view') }} disabled={loading}>
+                  <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => { resetForm(categoria); setMode('view') }} disabled={loading}>
                     <X className={UI_THEME.modal.buttons.icon} /> Cancelar
                   </Button>
-                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.categorias.hover} disabled={loading}>
+                  <Button type="submit" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} disabled={loading}>
                     <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
                   </Button>
                 </div>
               ) : (
                 <div className={UI_THEME.modal.buttons.editRow}>
-                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.categorias.hover} disabled={loading}>
+                  <Button type="submit" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} disabled={loading}>
                     <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
                   </Button>
                 </div>

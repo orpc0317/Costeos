@@ -14,7 +14,7 @@ import { HistorialDrawer } from '@/components/shared/historial-drawer'
 import { crearProveedor, actualizarProveedor, buscarProveedoresSimilares, obtenerProveedor } from '@/app/actions/proveedores'
 import { useRegistroFresco } from '@/hooks/use-registro-fresco'
 import type { ProveedorSimilarConOrigen } from '@/app/actions/proveedores'
-import { getEmpresasForUser } from '@/app/actions/erp'
+import { getEmpresasForUser, buscarNombreCatalogoErp } from '@/app/actions/erp'
 import { normalizeText } from '@/lib/utils/text'
 import { isConsumidorFinal, normalizeNIT, validateNIT } from '@/lib/utils/nit'
 import type { ProveedorInput, ProveedorRow } from '@/lib/types/proveedores'
@@ -66,6 +66,7 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
   const [telefono, setTelefono] = useState('')
   const [email, setEmail] = useState('')
   const [codigoErp, setCodigoErp] = useState<string | null>(null)
+  const [nombreErp, setNombreErp] = useState<string | null>(null)
   const { ficha, cargando: cargandoFicha } = useRegistroFresco({
     open,
     mode,
@@ -134,6 +135,21 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
     }
   }, [open]) // SOLO depende de `open`
 
+  useEffect(() => {
+    if (!open) return
+    const codigo = codigoErp && codigoErp !== 'NULL' ? codigoErp : ''
+    const empId = parseInt(empresaId, 10)
+    if (!codigo || !empId) {
+      setNombreErp(null)
+      return
+    }
+    let active = true
+    buscarNombreCatalogoErp('proveedor', empId, codigo).then(nombre => {
+      if (active) setNombreErp(nombre)
+    })
+    return () => { active = false }
+  }, [open, codigoErp, empresaId])
+
   const resetForm = (data?: ProveedorRow) => {
     setEmpresaId(data?.empresaId.toString() ?? '')
     setNit(data?.nit ?? '')
@@ -143,6 +159,7 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
     setEmail(data?.email ?? '')
     const rawCodigo = data?.codigoErp ?? null
     setCodigoErp(rawCodigo && rawCodigo !== 'NULL' ? rawCodigo : null)
+    setNombreErp(null)
     setGlobalError(null)
     setFieldErrors({})
     setActiveTab('general')
@@ -391,8 +408,7 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
             accent={MODULE_ACCENT.proveedores}
             icon={Truck}
             mode={!isEditing ? 'create' : mode === 'view' ? 'view' : 'edit'}
-            title={isEditing ? (mode === 'view' ? 'Detalle Proveedor' : 'Editar Proveedor') : 'Nuevo Proveedor'}
-            subtitle={isEditing ? empresaNombre : null}
+            title="Proveedores"
           />
 
           {globalError && (
@@ -607,117 +623,123 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
                 <div className={UI_THEME.modal.scrollArea}>
                   <TabsContent value="general" className="mt-0">
                     <TwoColumns
-                      left={<SegmentCard label="Identificacion"><div className="contents">
-
-                      {/* Empresa */}
-                      <div className="flex flex-col gap-1.5 col-span-4">
-                        <Label className={UI_THEME.forms.labelBase}>Empresa</Label>
-                        <Input
-                          value={empresaNombre}
-                          disabled
-                          data-view-mode={mode === 'view'}
-                          className={UI_THEME.forms.inputBase}
-                        />
-                      </div>
-
-                      {/* NIT */}
-                      <div className="flex flex-col gap-1.5 col-span-2">
-                        <Label htmlFor="nit">
-                          NIT <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          id="nit"
-                          value={nit}
-                          onChange={e => {
-                            setNit(e.target.value.replace(/\s/g, ''))
-                            if (fieldErrors.nit) setFieldErrors(prev => { const n = { ...prev }; delete n.nit; return n })
-                          }}
-                          disabled={disabledPorERP}
-                          data-view-mode={mode === 'view'}
-                          className={UI_THEME.forms.inputBase}
-                          aria-invalid={!!fieldErrors.nit}
-                        />
-                        <FieldError message={fieldErrors.nit} />
-                      </div>
-
-                      {/* Nombre */}
-                      <div className="flex flex-col gap-1.5 col-span-4">
-                        <Label htmlFor="nombre">
-                          Nombre <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          id="nombre"
-                          value={nombre}
-                          onChange={e => {
-                            setNombre(e.target.value)
-                            if (fieldErrors.nombre) setFieldErrors(prev => { const n = { ...prev }; delete n.nombre; return n })
-                          }}
-                          disabled={disabledPorERP}
-                          data-view-mode={mode === 'view'}
-                          className={`${UI_THEME.forms.inputBase} uppercase`}
-                          aria-invalid={!!fieldErrors.nombre}
-                        />
-                        <FieldError message={fieldErrors.nombre} />
-                      </div>
-
-                      </div></SegmentCard>}
-                      right={<SegmentCard label="Contacto"><div className="contents">
-                      {/* Contacto */}
-                      <div className="flex flex-col gap-1.5 col-span-4">
-                        <Label htmlFor="contacto">Contacto</Label>
-                        <Input
-                          id="contacto"
-                          value={contacto}
-                          onChange={e => setContacto(e.target.value)}
-                          disabled={mode === 'view'}
-                          data-view-mode={mode === 'view'}
-                          className={`${UI_THEME.forms.inputBase} uppercase`}
-                          placeholder="Nombre del contacto"
-                        />
-                      </div>
-
-                      {/* Teléfono */}
-                      <div className="flex flex-col gap-1.5 col-span-2">
-                        <Label htmlFor="telefono">Telefono</Label>
-                        <Input
-                          id="telefono"
-                          value={telefono}
-                          onChange={e => setTelefono(e.target.value)}
-                          disabled={mode === 'view'}
-                          data-view-mode={mode === 'view'}
-                          className={UI_THEME.forms.inputBase}
-                          placeholder="Ej. 2222-1111"
-                        />
-                      </div>
-
-                      {/* Email */}
-                      <div className="flex flex-col gap-1.5 col-span-2">
-                        <Label htmlFor="email">Email</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          value={email}
-                          onChange={e => setEmail(e.target.value)}
-                          disabled={mode === 'view'}
-                          data-view-mode={mode === 'view'}
-                          className={UI_THEME.forms.inputBase}
-                          placeholder="contacto@empresa.com"
-                        />
-                      </div>
-
-                      {/* Código ERP (solo lectura, se puebla desde ERP) */}
-                      <div className="flex flex-col gap-1.5 col-span-2">
-                        <Label htmlFor="codigoErp">Codigo ERP</Label>
-                        <Input
-                          id="codigoErp"
-                          value={codigoErp && codigoErp !== 'NULL' ? codigoErp : ''}
-                          disabled
-                          className={`${UI_THEME.forms.inputBase} font-mono`}
-                          title="Asignado automáticamente al vincular con el ERP"
-                        />
-                      </div>
-
-                      </div></SegmentCard>}
+                      left={<div className="col-span-2 flex flex-col gap-2">
+                      <SegmentCard label="Identificacion">
+                        <div className="flex flex-col gap-1.5 col-span-2">
+                          <Label className={UI_THEME.forms.labelBase}>Empresa</Label>
+                          <Input
+                            value={empresaNombre}
+                            disabled
+                            data-view-mode={mode === 'view'}
+                            className={UI_THEME.forms.inputBase}
+                          />
+                        </div>
+                        {isEditing && proveedor && (
+                          <div className="flex flex-col gap-1.5">
+                            <Label className={UI_THEME.forms.labelBase}>Codigo</Label>
+                            <Input
+                              value={String(proveedor.id)}
+                              disabled
+                              data-view-mode={mode === 'view'}
+                              className={UI_THEME.forms.inputBase}
+                            />
+                          </div>
+                        )}
+                        <div className={`flex flex-col gap-1.5 ${isEditing && proveedor ? '' : 'col-span-2'}`}>
+                          <Label htmlFor="codigoErp">Codigo ERP</Label>
+                          <Input
+                            id="codigoErp"
+                            value={codigoErp && codigoErp !== 'NULL' ? codigoErp : ''}
+                            disabled
+                            data-view-mode={mode === 'view'}
+                            className={`${UI_THEME.forms.inputBase} font-mono`}
+                            title="Asignado automaticamente al vincular con el ERP"
+                          />
+                          {nombreErp && (
+                            <p className="text-xs text-emerald-600 !mt-0.5 leading-none font-medium">
+                              ✓ {nombreErp}
+                            </p>
+                          )}
+                        </div>
+                      </SegmentCard>
+                      <SegmentCard label="General">
+                        <div className="flex flex-col gap-1.5 col-span-2">
+                          <Label htmlFor="nit">
+                            NIT <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            id="nit"
+                            value={nit}
+                            onChange={e => {
+                              setNit(e.target.value.replace(/\s/g, ''))
+                              if (fieldErrors.nit) setFieldErrors(prev => { const n = { ...prev }; delete n.nit; return n })
+                            }}
+                            disabled={disabledPorERP}
+                            data-view-mode={mode === 'view'}
+                            className={UI_THEME.forms.inputBase}
+                            aria-invalid={!!fieldErrors.nit}
+                          />
+                          <FieldError message={fieldErrors.nit} />
+                        </div>
+                        <div className="flex flex-col gap-1.5 col-span-2">
+                          <Label htmlFor="nombre">
+                            Nombre <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            id="nombre"
+                            value={nombre}
+                            onChange={e => {
+                              setNombre(e.target.value)
+                              if (fieldErrors.nombre) setFieldErrors(prev => { const n = { ...prev }; delete n.nombre; return n })
+                            }}
+                            disabled={disabledPorERP}
+                            data-view-mode={mode === 'view'}
+                            className={`${UI_THEME.forms.inputBase} uppercase`}
+                            aria-invalid={!!fieldErrors.nombre}
+                          />
+                          <FieldError message={fieldErrors.nombre} />
+                        </div>
+                      </SegmentCard>
+                      </div>}
+                      right={<SegmentCard label="Contacto">
+                        <div className="flex flex-col gap-1.5 col-span-2">
+                          <Label htmlFor="contacto">Contacto</Label>
+                          <Input
+                            id="contacto"
+                            value={contacto}
+                            onChange={e => setContacto(e.target.value)}
+                            disabled={mode === 'view'}
+                            data-view-mode={mode === 'view'}
+                            className={`${UI_THEME.forms.inputBase} uppercase`}
+                            placeholder="Nombre del contacto"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="telefono">Telefono</Label>
+                          <Input
+                            id="telefono"
+                            value={telefono}
+                            onChange={e => setTelefono(e.target.value)}
+                            disabled={mode === 'view'}
+                            data-view-mode={mode === 'view'}
+                            className={UI_THEME.forms.inputBase}
+                            placeholder="Ej. 2222-1111"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="email">Email</Label>
+                          <Input
+                            id="email"
+                            type="email"
+                            value={email}
+                            onChange={e => setEmail(e.target.value)}
+                            disabled={mode === 'view'}
+                            data-view-mode={mode === 'view'}
+                            className={UI_THEME.forms.inputBase}
+                            placeholder="contacto@empresa.com"
+                          />
+                        </div>
+                      </SegmentCard>}
                     />
                   </TabsContent>
                 </div>
@@ -727,28 +749,28 @@ export function ProveedorModal({ proveedor, trigger, open: controlledOpen, onOpe
               <div className={UI_THEME.modal.footer}>
                 {mode === 'view' ? (
                   <div className={UI_THEME.modal.buttons.viewRow}>
-                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.proveedores.hover} onClick={() => setHistorialOpen(true)}>
+                    <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => setHistorialOpen(true)}>
                       <History className={UI_THEME.modal.buttons.icon} /> Historial
                     </Button>
-                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.proveedores.hover} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
+                    <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
                       <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
                     </Button>
                   </div>
                 ) : isEditing ? (
                   <div className={UI_THEME.modal.buttons.editRow}>
-                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.proveedores.hover} onClick={() => { resetForm(proveedor); setMode('view') }} disabled={loading}>
+                    <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => { resetForm(proveedor); setMode('view') }} disabled={loading}>
                       <X className={UI_THEME.modal.buttons.icon} /> Cancelar
                     </Button>
-                    <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.proveedores.hover} disabled={loading}>
+                    <Button type="submit" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} disabled={loading}>
                       <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
                     </Button>
                   </div>
                 ) : (
                   <div className="flex w-full items-center justify-between">
-                    <Button type="button" variant="ghost" size="sm" onClick={() => { clearFormFields(); setStep('busqueda') }} disabled={loading}>
+                    <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => { clearFormFields(); setStep('busqueda') }} disabled={loading}>
                       <ArrowLeft className={UI_THEME.modal.buttons.icon} /> Atras
                     </Button>
-                    <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.proveedores.hover} disabled={loading}>
+                    <Button type="submit" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} disabled={loading}>
                       <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
                     </Button>
                   </div>

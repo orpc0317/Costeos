@@ -13,6 +13,11 @@
  * GOLD STANDARD DE REFERENCIA (leer antes de modificar):
  *   src/components/categorias/categoria-modal.tsx
  * Cabecera: ModalHeading. Grupos: SegmentCard. Dos lados: TwoColumns.
+ * El icono del titulo de cada seccion se registra en src/lib/iconos-seccion.ts
+ * (mismo label, mismo icono). Elegir el de Lucide que mejor nombre el titulo.
+ * Titulo del modal: el mismo texto del PageHeader. Sin linea debajo.
+ * Pestaña General: Identificacion (Empresa + Codigo) y General (el resto).
+ * Codigo es el id. Label "Codigo". Oculto al crear. Disabled en ver y editar.
  * Vista: ViewField. Candado: registroVersion. Permiso: requirePermiso.
  */
 
@@ -36,6 +41,7 @@ import { crearEntidad, actualizarEntidad, obtenerEntidad } from '@/app/actions/e
 import { useRegistroFresco } from '@/hooks/use-registro-fresco'
 import { getEmpresasForUser } from '@/app/actions/erp'
 import { normalizeText } from '@/lib/utils/text'
+import { SegmentCard } from '@/components/ui/form-layout'
 import { UI_THEME } from '@/lib/theme'
 import { MODULE_ACCENT } from '@/lib/ui-accent'
 import type { EntidadInput, EntidadRow } from '@/lib/types/entidades' // ← ajustar import
@@ -255,9 +261,7 @@ export function EntidadModal({
           <DialogHeader className="shrink-0">
             <DialogTitle className={UI_THEME.modal.title}>
               <IconoEntidad className="h-5 w-5 text-indigo-600" /> {/* ← ícono canónico */}
-              {isEditing
-                ? mode === 'view' ? 'Detalle Entidad' : 'Editar Entidad'
-                : 'Nueva Entidad'}
+              Entidad
             </DialogTitle>
           </DialogHeader>
 
@@ -280,16 +284,15 @@ export function EntidadModal({
                 )}
 
                 {/* ── Tab General ────────────────────────────────────────── */}
-                <TabsContent value="general" className="mt-0">
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-
+                <TabsContent value="general" className="mt-0 flex flex-col gap-2">
+                  <SegmentCard label="Identificacion">
                     {/* Empresa — tres modos obligatorios (R: AGENTS.md §Campos y Datos)
                         SIEMPRE usar UI_THEME.forms.labelBase en Label.
                         Vista → Input disabled. El form lleva data-form-mode="view" y el dato es negro.
                         Edicion → el mismo Input disabled, en gris claro. Empresa no se cambia.
                         inputBase conserva el subrayado inferior (igual que en nuevo/editar).
                         Creación      → SearchableSelect activo. */}
-                    <div className="flex flex-col gap-1.5 col-span-2">
+                    <div className={`flex flex-col gap-1.5 ${isEditing ? '' : 'col-span-2'}`}>
                       <Label className={UI_THEME.forms.labelBase}>Empresa</Label>
                       {mode === 'view' ? (
                         // Vista: Input deshabilitado — inputBase ya aplica estilos disabled
@@ -309,6 +312,20 @@ export function EntidadModal({
                       )}
                       <FieldError message={fieldErrors.empresaId} />
                     </div>
+                    {isEditing && entidad && (
+                      <div className="flex flex-col gap-1.5">
+                        <Label className={UI_THEME.forms.labelBase}>Codigo</Label>
+                        <Input
+                          value={String(entidad.id)}
+                          disabled
+                          data-view-mode={mode === 'view'}
+                          className={UI_THEME.forms.inputBase}
+                        />
+                      </div>
+                    )}
+                  </SegmentCard>
+                  <SegmentCard label="General">
+                  <div className="col-span-2 grid gap-4">
 
                     {/* Nombre — usar UI_THEME.forms.inputBase en todos los Input.
                         Agregar clases extra (ej. "uppercase") DESPUÉS del token base. */}
@@ -369,6 +386,7 @@ export function EntidadModal({
                         ─────────────────────────────────────────────────────────────────── */}
 
                   </div>
+                  </SegmentCard>
                 </TabsContent>
 
                 {/* TODO: agregar más TabsContent si la entidad los necesita */}
@@ -380,25 +398,25 @@ export function EntidadModal({
             <div className={UI_THEME.modal.footer}>
               {mode === 'view' ? (
                 <div className={UI_THEME.modal.buttons.viewRow}>
-                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.categorias.hover} onClick={() => setHistorialOpen(true)}>
+                  <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => setHistorialOpen(true)}>
                     <History className={UI_THEME.modal.buttons.icon} /> Historial
                   </Button>
-                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.categorias.hover} onClick={() => setMode('edit')}>
+                  <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => setMode('edit')}>
                     <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
                   </Button>
                 </div>
               ) : isEditing ? (
                 <div className={UI_THEME.modal.buttons.editRow}>
-                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.categorias.hover} onClick={() => { resetForm(entidad); setMode('view') }} disabled={loading}>
+                  <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => { resetForm(entidad); setMode('view') }} disabled={loading}>
                     <X className={UI_THEME.modal.buttons.icon} /> Cancelar
                   </Button>
-                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.categorias.hover} disabled={loading}>
+                  <Button type="submit" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} disabled={loading}>
                     <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
                   </Button>
                 </div>
               ) : (
                 <div className={UI_THEME.modal.buttons.editRow}>
-                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.categorias.hover} disabled={loading}>
+                  <Button type="submit" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} disabled={loading}>
                     <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
                   </Button>
                 </div>

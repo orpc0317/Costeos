@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { getEmpresasConSync, searchClientesWizard, type ClienteWizardResultado } from '@/app/actions/erp'
-import { ClienteModal } from '@/components/clientes/cliente-modal'
+import { ClienteAltaForm } from '@/components/clientes/cliente-alta-form'
 import type { ClienteRow } from '@/lib/types/clientes'
 import { cn } from '@/lib/utils'
 import { normalizeText } from '@/lib/utils/text'
@@ -14,11 +14,12 @@ import { SearchableSelect } from '@/components/ui/searchable-select'
 import { NumericInput } from '@/components/ui/numeric-input'
 import { FieldError } from '@/components/ui/field-error'
 import { PageHeader } from '@/components/ui/page-header'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { claseEstadoCosteo } from '@/lib/constants'
 import { UI_THEME } from '@/lib/theme'
 import { MODULE_ACCENT } from '@/lib/ui-accent'
 import { createCosteo, buscarContratosDeCliente, type ContratoExistente } from '@/app/actions/costeos'
-import { Calculator, Search, Plus, Database, Eye } from 'lucide-react'
+import { ArrowLeft, Calculator, Check, Database, Eye, FileSignature, Plus, Search, UserRound } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -27,7 +28,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 
 function hoyLocal(): string {
   const d = new Date()
@@ -80,12 +80,11 @@ export function WizardCosteo({ tiposCosteo, puedeAgregarClientes = false }: Wiza
 
   const [selectedCliente, setSelectedCliente] = useState<ClienteWizardResultado | null>(null)
   const [contratosExistentes, setContratosExistentes] = useState<ContratoExistente[]>([])
-  const [mostrarContratos, setMostrarContratos] = useState(false)
+  const [vista, setVista] = useState<'buscar' | 'alta' | 'existentes' | 'contrato'>('buscar')
   const [buscandoContratos, setBuscandoContratos] = useState(false)
   const [tipoCosteoId, setTipoCosteoId] = useState<string>('')
 
   // ── Formulario final ───────────────────────────────────────────────────────────
-  const [showForm, setShowForm] = useState(false)
   const [moneda, setMoneda] = useState<string>('GTQ')
   const [nombreProyecto, setNombreProyecto] = useState('')
   const [fechaCosteo, setFechaCosteo] = useState(hoyLocal)
@@ -154,7 +153,7 @@ export function WizardCosteo({ tiposCosteo, puedeAgregarClientes = false }: Wiza
     setSearchQuery('')
     setSelectedCliente(null)
     setContratosExistentes([])
-    setMostrarContratos(false)
+    setVista('buscar')
   }
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -199,8 +198,7 @@ export function WizardCosteo({ tiposCosteo, puedeAgregarClientes = false }: Wiza
         const encontrados = await buscarContratosDeCliente(Number(empresaId), cliente.clienteLocalId)
         if (encontrados.length > 0) {
           setContratosExistentes(encontrados)
-          setMostrarContratos(true)
-          setShowForm(false)
+          setVista('existentes')
           return
         }
       } catch {
@@ -211,13 +209,11 @@ export function WizardCosteo({ tiposCosteo, puedeAgregarClientes = false }: Wiza
       }
     }
     setContratosExistentes([])
-    setMostrarContratos(false)
-    setShowForm(true)
+    setVista('contrato')
   }
 
   const handleCrearNuevo = () => {
-    setMostrarContratos(false)
-    setShowForm(true)
+    setVista('contrato')
   }
 
   const handleVerContrato = (costeoId: number) => {
@@ -226,13 +222,11 @@ export function WizardCosteo({ tiposCosteo, puedeAgregarClientes = false }: Wiza
 
   const handleBackToSearch = () => {
     setFormError(null)
-    if (showForm && contratosExistentes.length > 0) {
-      setShowForm(false)
-      setMostrarContratos(true)
+    if (vista === 'contrato' && contratosExistentes.length > 0) {
+      setVista('existentes')
       return
     }
-    setShowForm(false)
-    setMostrarContratos(false)
+    setVista('buscar')
     setSelectedCliente(null)
     setContratosExistentes([])
   }
@@ -280,36 +274,47 @@ export function WizardCosteo({ tiposCosteo, puedeAgregarClientes = false }: Wiza
     }
   }
 
+  const enContrato = vista === 'contrato'
+
   // ── Render ─────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       <PageHeader
         icon={Calculator}
         title="Nuevo Contrato"
-        subtitle="Busca el cliente. Si ya tiene contrato, se abre su costeo."
+        subtitle="Primero el cliente. Luego los datos del contrato."
         accent={MODULE_ACCENT.contratos}
       />
 
-      {/* Error global de carga (antes de mostrar form) */}
-      {formError && !showForm && (
-        <div className={UI_THEME.forms.globalError}>
-          {formError}
-        </div>
+      <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-card p-4 sm:p-6">
+      <Tabs value={enContrato ? 'contrato' : 'cliente'} className="gap-0">
+        <TabsList variant="line" className={cn(UI_THEME.tabs.modalListClass, '-mt-4 sm:-mt-6')}>
+          <TabsTrigger
+            value="cliente"
+            onClick={() => { if (vista !== 'buscar') handleBackToSearch() }}
+          >
+            <UserRound className="mr-2 h-4 w-4" />
+            Cliente
+          </TabsTrigger>
+          <TabsTrigger value="contrato" disabled={!enContrato}>
+            <FileSignature className="mr-2 h-4 w-4" />
+            Contrato
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {formError && vista !== 'alta' && (
+        <div className={`${UI_THEME.forms.globalError} mt-4`}>{formError}</div>
       )}
 
-      {/* Paso 1: Filtros de Búsqueda */}
-      {!showForm && !mostrarContratos && (
-        <Card className="max-w-xl">
-          <CardHeader>
-            <CardTitle className="text-lg text-indigo-900">1. Datos Iniciales</CardTitle>
-            <CardDescription>Selecciona la empresa y busca al cliente.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSearch} className="flex flex-col gap-6">
+      <div className="pt-4">
+
+      {vista === 'buscar' && (
+        <>
+        <form onSubmit={handleSearch} className="flex flex-col gap-6">
               <div className="space-y-2">
-                <Label htmlFor="empresa">Empresa</Label>
+                <Label htmlFor="empresa" className={UI_THEME.forms.labelBase}>Empresa</Label>
                 <SearchableSelect
-                  className="[&>button]:!border-b-[3px]"
                   options={empresas}
                   value={empresaId}
                   onChange={val => {
@@ -323,9 +328,8 @@ export function WizardCosteo({ tiposCosteo, puedeAgregarClientes = false }: Wiza
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="tipoCosteoSelect">Tipo Costeo</Label>
+                <Label htmlFor="tipoCosteoSelect" className={UI_THEME.forms.labelBase}>Tipo Costeo</Label>
                 <SearchableSelect
-                  className="[&>button]:!border-b-[3px]"
                   options={filteredTiposCosteo.map((tc: any) => ({ value: String(tc.id), label: tc.nombre }))}
                   value={tipoCosteoId}
                   onChange={setTipoCosteoId}
@@ -335,10 +339,10 @@ export function WizardCosteo({ tiposCosteo, puedeAgregarClientes = false }: Wiza
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="search">
+                <Label htmlFor="search" className={UI_THEME.forms.labelBase}>
                   Buscar Cliente{' '}
                   {syncClientesActivo && (
-                    <span className="ml-1 text-xs font-normal text-indigo-500 inline-flex items-center gap-1">
+                    <span className="ml-1 text-xs font-normal text-muted-foreground inline-flex items-center gap-1">
                       <Database className="w-3 h-3" /> + ERP
                     </span>
                   )}
@@ -353,13 +357,12 @@ export function WizardCosteo({ tiposCosteo, puedeAgregarClientes = false }: Wiza
                       setFieldErrors(prev => ({ ...prev, search: '' }))
                     }}
                     disabled={!empresaId}
-                    className="flex-1 !border-b-[3px]"
+                    className={`${UI_THEME.forms.inputBase} flex-1`}
                     aria-invalid={!!fieldErrors.search}
                   />
                   <Button
                     type="submit"
                     disabled={!empresaId || isLoading}
-                    className="bg-indigo-600 hover:bg-indigo-700 whitespace-nowrap"
                   >
                     <Search className="mr-2 h-4 w-4" />
                     {isLoading ? 'Buscando...' : 'Buscar'}
@@ -368,38 +371,23 @@ export function WizardCosteo({ tiposCosteo, puedeAgregarClientes = false }: Wiza
                 <FieldError message={fieldErrors.search} />
               </div>
             </form>
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Paso 2: Resultados */}
-      {searched && !showForm && !mostrarContratos && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-lg text-indigo-900">Resultados Búsqueda</CardTitle>
-              <CardDescription>
+        {searched && (
+          <div className="mt-8 flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm text-muted-foreground">
                 {clientes.length} cliente(s) encontrado(s).{' '}
                 {puedeAgregarClientes
                   ? 'Selecciona uno o crea uno nuevo.'
                   : 'Selecciona uno que ya está en Costeos.'}
-              </CardDescription>
+              </p>
+              {puedeAgregarClientes && empresaId && (
+                <Button type="button" variant="outline" onClick={() => { setFormError(null); setVista('alta') }}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Cliente Nuevo
+                </Button>
+              )}
             </div>
-            {puedeAgregarClientes && empresaId && (
-              <ClienteModal
-                empresaFijaId={Number(empresaId)}
-                empresaFijaNombre={empresaNombre}
-                onCreado={(row) => { void handleSelectCliente(clienteLocalDesdeAlta(row)) }}
-                trigger={
-                  <Button type="button" variant="outline" className="border-indigo-600 text-indigo-600 hover:bg-indigo-50">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Cliente Nuevo
-                  </Button>
-                }
-              />
-            )}
-          </CardHeader>
-          <CardContent>
             {clientes.length > 0 ? (
               <div className={UI_THEME.table.container}>
                 <Table>
@@ -452,26 +440,26 @@ export function WizardCosteo({ tiposCosteo, puedeAgregarClientes = false }: Wiza
                 <p>No se encontraron clientes que coincidan con la búsqueda.</p>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        )}
+        </>
       )}
 
-      {mostrarContratos && !showForm && selectedCliente && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-4">
-            <div>
-              <CardTitle className="text-lg text-indigo-900">Contratos del Cliente</CardTitle>
-              <CardDescription>
-                {selectedCliente.razonSocial} ya tiene {contratosExistentes.length === 1 ? 'un contrato' : `${contratosExistentes.length} contratos`}.
-                Abre el costeo o crea uno nuevo.
-              </CardDescription>
-            </div>
-            <Button type="button" onClick={handleCrearNuevo} className="bg-indigo-600 hover:bg-indigo-700 whitespace-nowrap">
-              <Plus className="mr-2 h-4 w-4" />
-              Crear Nuevo
-            </Button>
-          </CardHeader>
-          <CardContent>
+      {vista === 'alta' && (
+        <ClienteAltaForm
+          empresaId={Number(empresaId)}
+          empresaNombre={empresaNombre}
+          onCreado={(row) => { void handleSelectCliente(clienteLocalDesdeAlta(row)) }}
+          onCancelar={() => setVista('buscar')}
+        />
+      )}
+
+      {vista === 'existentes' && selectedCliente && (
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-muted-foreground">
+            {selectedCliente.razonSocial} ya tiene {contratosExistentes.length === 1 ? 'un contrato' : `${contratosExistentes.length} contratos`}.
+            Abre el costeo o crea uno nuevo.
+          </p>
             <div className={UI_THEME.table.container}>
               <Table>
                 <TableHeader>
@@ -519,42 +507,32 @@ export function WizardCosteo({ tiposCosteo, puedeAgregarClientes = false }: Wiza
                 </TableBody>
               </Table>
             </div>
-            <div className="pt-4">
-              <Button type="button" variant="outline" onClick={handleBackToSearch}>
-                Volver
-              </Button>
+            <div className={UI_THEME.modal.footer}>
+              <div className="flex w-full items-center justify-between">
+                <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={handleBackToSearch}>
+                  <ArrowLeft className={UI_THEME.modal.buttons.icon} /> Volver
+                </Button>
+                <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={handleCrearNuevo}>
+                  <Plus className={UI_THEME.modal.buttons.icon} /> Crear Nuevo
+                </Button>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+        </div>
       )}
 
-      {/* Paso 3: Detalles del Costeo */}
-      {showForm && selectedCliente && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg text-indigo-900">2. Detalles Costeo</CardTitle>
-            <CardDescription>
-              Cliente seleccionado:{' '}
-              <span className="font-semibold text-indigo-700">{selectedCliente.razonSocial}</span>{' '}
-              ({selectedCliente.nit})
-              {selectedCliente.fuente === 'LOCAL' && (
-                <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-semibold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">
-                  <Database className="w-2.5 h-2.5" />
-                  Local
-                </span>
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {formError && (
-              <div className={`${UI_THEME.forms.globalError} mb-4`}>
-                {formError}
-              </div>
-            )}
-            <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+      {vista === 'contrato' && selectedCliente && (
+            <form onSubmit={handleSubmit} className="flex flex-col" noValidate>
+              <div className="space-y-6">
+              <p className="text-sm text-muted-foreground">
+                {empresaNombre}
+                {selectedTipoCosteo ? ` · ${selectedTipoCosteo.nombre}` : ''}
+                {' · '}
+                <span className="font-medium text-foreground">{selectedCliente.razonSocial}</span>
+                {' '}({selectedCliente.nit})
+              </p>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="nombreProyecto">Nombre Proyecto</Label>
+                  <Label htmlFor="nombreProyecto" className={UI_THEME.forms.labelBase}>Nombre Proyecto</Label>
                   <Input
                     id="nombreProyecto"
                     placeholder="Ej. Seguridad Oficinas Centrales"
@@ -570,7 +548,7 @@ export function WizardCosteo({ tiposCosteo, puedeAgregarClientes = false }: Wiza
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="fechaCosteo">Fecha Costeo</Label>
+                  <Label htmlFor="fechaCosteo" className={UI_THEME.forms.labelBase}>Fecha Costeo</Label>
                   <Input
                     id="fechaCosteo"
                     type="date"
@@ -586,7 +564,7 @@ export function WizardCosteo({ tiposCosteo, puedeAgregarClientes = false }: Wiza
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="fechaInicio">Fecha Inicio</Label>
+                  <Label htmlFor="fechaInicio" className={UI_THEME.forms.labelBase}>Fecha Inicio</Label>
                   <Input
                     id="fechaInicio"
                     type="date"
@@ -602,7 +580,7 @@ export function WizardCosteo({ tiposCosteo, puedeAgregarClientes = false }: Wiza
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="plazoMeses">Plazo Meses</Label>
+                  <Label htmlFor="plazoMeses" className={UI_THEME.forms.labelBase}>Plazo Meses</Label>
                   <NumericInput
                     value={plazoMeses}
                     isInteger={true}
@@ -627,7 +605,7 @@ export function WizardCosteo({ tiposCosteo, puedeAgregarClientes = false }: Wiza
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="monedaSelect">Moneda</Label>
+                  <Label htmlFor="monedaSelect" className={UI_THEME.forms.labelBase}>Moneda</Label>
                   <SearchableSelect
                     id="monedaSelect"
                     options={[
@@ -640,23 +618,29 @@ export function WizardCosteo({ tiposCosteo, puedeAgregarClientes = false }: Wiza
                   />
                 </div>
               </div>
+              </div>
 
-              <div className="flex justify-between pt-4">
-                <Button type="button" variant="outline" onClick={handleBackToSearch} disabled={isSubmitting}>
-                  Volver
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={!tipoCosteoId || isSubmitting}
-                  className="bg-indigo-600 hover:bg-indigo-700"
-                >
-                  {isSubmitting ? 'Creando...' : 'Crear Contrato'}
-                </Button>
+              <div className={UI_THEME.modal.footer}>
+                <div className="flex w-full items-center justify-between">
+                  <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={handleBackToSearch} disabled={isSubmitting}>
+                    <ArrowLeft className={UI_THEME.modal.buttons.icon} /> Volver
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="ghost"
+                    size="sm"
+                    className={UI_THEME.modal.buttons.accion}
+                    disabled={!tipoCosteoId || isSubmitting}
+                  >
+                    <Check className={UI_THEME.modal.buttons.icon} />
+                    {isSubmitting ? 'Creando...' : 'Crear Contrato'}
+                  </Button>
+                </div>
               </div>
             </form>
-          </CardContent>
-        </Card>
       )}
+      </div>
+      </div>
     </div>
   )
 }

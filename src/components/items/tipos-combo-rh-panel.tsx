@@ -189,7 +189,7 @@ export function TiposComboRHPanel({ trigger }: TiposComboRHPanelProps) {
     () => [
       {
         accessorKey: 'id',
-        header: 'ID',
+        header: 'Codigo',
         enableHiding: false,
         cell: ({ row }) => (
           <span className="font-mono text-xs text-muted-foreground">{row.original.id}</span>

@@ -173,24 +173,24 @@ export const UI_THEME = {
     contentStandard:
       "flex flex-col w-full sm:max-w-[36rem] h-[85vh] sm:h-[520px] max-h-[90vh] overflow-hidden gap-3 bg-muted",
     header:
-      "-mx-4 -mt-4 px-5 pt-4 pb-2 sm:-mx-6 sm:-mt-6 bg-gradient-to-br to-transparent border-b-[3px] border-border shrink-0",
+      "-mx-4 -mt-4 px-5 pt-4 pb-2 sm:-mx-6 sm:-mt-6 bg-gradient-to-br to-transparent border-b-[1.5px] border-border shrink-0",
     iconBadge: "shrink-0 rounded-xl p-2",
     columns: "flex gap-6 items-start",
     column: "flex-1 min-w-0 grid grid-cols-2 gap-2 content-start",
     divider: "w-px self-stretch bg-primary/30",
     /**
      * Recuadro de un grupo de campos. Fondo blanco sobre el gris del modal.
-     * Borde de 3px, el mismo peso del encabezado, la barra de pestañas y el footer.
+     * Borde de 1.5px, el mismo peso del encabezado, la barra de pestañas y el footer.
      */
-    segment: "bg-white border-[3px] border-primary/30",
+    segment: "bg-white border-[1.5px] border-primary/30",
 
     /**
      * Footer fijo al fondo del modal.
-     * Fondo blanco (bg-card) y borde superior de 3px, de lado a lado.
+     * Fondo blanco (bg-card) y borde superior de 1.5px, de lado a lado.
      */
     footer:
       "flex flex-row items-center justify-between mt-auto -mx-4 -mb-4 px-4 py-3 sm:-mx-6 sm:-mb-6 " +
-      "border-t-[3px] border-border bg-card sm:rounded-b-xl shrink-0",
+      "border-t-[1.5px] border-border bg-card sm:rounded-b-xl shrink-0",
 
     /**
      * Interior de la pestaña, donde van los campos.
@@ -207,16 +207,22 @@ export const UI_THEME = {
      *        Esto garantiza uniformidad visual en todos los modales.
      *
      * Vista: una sola fila a la izquierda, ghost size sm.
-     *   Historial, accion extra, Eliminar, Editar. Hover del acento del modulo.
-     * Edicion de un registro: Cancelar y Guardar ghost size sm, a la derecha,
-     *   con icono (X y Check) y el mismo hover del modulo.
-     * Alta: solo Guardar ghost size sm, con icono Check, hover del acento.
+     *   Historial, accion extra, Eliminar, Editar.
+     * Edicion: Cancelar y Guardar ghost size sm, a la derecha, con icono X y Check.
+     * Alta: Guardar ghost con icono Check. Atras, si existe, usa el mismo label.
+     * El texto es el del label de pestaña: 14px, peso medio, gris de la pestaña
+     * inactiva (text-foreground/60). Al pasar el mouse el gris se oscurece
+     * y el fondo no se pinta. No usar el hover de color del modulo.
+     * Eliminar conserva el rojo, con el mismo tamaño y sin fondo al pasar el mouse.
      */
     buttons: {
       viewRow: "flex w-full items-center gap-1",
       editRow: "flex w-full justify-end gap-2",
       icon: "mr-1.5 h-3.5 w-3.5",
-      eliminar: "text-destructive hover:text-destructive",
+      accion:
+        "text-sm font-medium leading-5 text-foreground/60 hover:bg-transparent hover:text-foreground",
+      eliminar:
+        "text-sm font-medium leading-5 text-destructive hover:bg-transparent hover:text-destructive",
     },
   },
 
@@ -230,13 +236,16 @@ export const UI_THEME = {
 
     /**
      * Barra de pestañas de un modal de catálogo.
-     * Fondo blanco, igual que el footer. Borde inferior de 3px de lado a lado.
+     * Fondo blanco, igual que el footer. Borde inferior de 1.5px de lado a lado.
      * El margen negativo y el ancho calc cubren el padding del diálogo (p-4 / sm:-mx-6).
-     * -mt-5 + pt-5 tapan el hueco gris bajo el título cuando el form lleva pt-2
-     * y el diálogo tiene gap-3. No usar en el Costeador.
+     * -mt-5 tapa el hueco gris bajo el título cuando el form lleva pt-2
+     * y el diálogo tiene gap-3.
+     * pt-[13px] pb-[7px] dejan el label a la mitad de la altura de la barra.
+     * No volver a un relleno solo arriba (pt-5): el texto queda bajo.
+     * No usar en el Costeador.
      */
     modalListClass:
-      "shrink-0 -mx-4 -mt-5 w-[calc(100%+2rem)] border-b-[3px] border-border bg-card px-4 pt-5 " +
+      "shrink-0 -mx-4 -mt-5 w-[calc(100%+2rem)] border-b-[1.5px] border-border bg-card px-4 pt-[13px] pb-[7px] " +
       "sm:-mx-6 sm:w-[calc(100%+3rem)] sm:px-6",
   },
 

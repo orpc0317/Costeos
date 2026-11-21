@@ -23,7 +23,7 @@ import { SearchableSelect } from '@/components/ui/searchable-select'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { NumericInput } from '@/components/ui/numeric-input'
 import { FieldError } from '@/components/ui/field-error'
-import { SegmentCard, SingleColumn } from '@/components/ui/form-layout'
+import { SegmentCard } from '@/components/ui/form-layout'
 import { getEmpresasForUser } from '@/app/actions/erp'
 import { crearTipoCosteo, editarTipoCosteo, toggleActivo, buscarTipoCosteoSimilares, obtenerTipoCosteo } from '@/app/actions/tipos-costeo'
 import { useRegistroFresco } from '@/hooks/use-registro-fresco'
@@ -325,7 +325,7 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess, onActualizado 
           accent={MODULE_ACCENT.tiposCosteo}
           icon={Network}
           mode={mode === 'create' ? 'create' : mode === 'edit' ? 'edit' : 'view'}
-          title={mode === 'create' ? 'Nuevo Tipo Costeo' : mode === 'edit' ? 'Editar Tipo Costeo' : 'Detalle Tipo Costeo'}
+          title="Tipos Costeos"
         />
 
         <form onSubmit={handleSubmit} data-form-mode={mode} className="flex-1 min-h-0 flex flex-col pt-2" noValidate>
@@ -346,14 +346,10 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess, onActualizado 
               </TabsTrigger>
             </TabsList>
             
-            <div className={UI_THEME.modal.scrollArea}>
-              <TabsContent value="general" className="outline-none mt-0">
-              <SingleColumn>
-              <SegmentCard label="General">
-              <div className="col-span-2 grid grid-cols-2 gap-x-6 gap-y-4">
-                
-                {/* Empresa */}
-                <div className="space-y-1.5 col-span-4">
+            <div className={cn(UI_THEME.modal.scrollArea, activeTab === 'niveles' && 'overflow-hidden flex flex-col')}>
+              <TabsContent value="general" className="outline-none mt-0 flex flex-col gap-2">
+              <SegmentCard label="Identificacion">
+                <div className={`space-y-1.5 ${mode === 'create' ? 'col-span-2' : ''}`}>
                   <Label className={UI_THEME.forms.labelBase}>
                     Empresa <span className="text-red-500">*</span>
                   </Label>
@@ -375,14 +371,28 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess, onActualizado 
                     <Input
                       value={empresas.find(e => e.value === empresaId)?.label ?? tipoCosteo?.empresaNombre ?? empresaId}
                       disabled
+                      data-view-mode={mode === 'view'}
                       className={UI_THEME.forms.inputBase}
                     />
                   )}
-                    <FieldError message={fieldErrors.empresaId} />
+                  <FieldError message={fieldErrors.empresaId} />
+                </div>
+                {mode !== 'create' && tipoCosteo && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="tc-codigo" className={UI_THEME.forms.labelBase}>Codigo</Label>
+                    <Input
+                      id="tc-codigo"
+                      value={String(tipoCosteo.id)}
+                      disabled
+                      data-view-mode={mode === 'view'}
+                      className={UI_THEME.forms.inputBase}
+                    />
                   </div>
+                )}
+              </SegmentCard>
 
-                {/* Nombre */}
-                <div className="space-y-1.5 col-span-4">
+              <SegmentCard label="General">
+                <div className="space-y-1.5 col-span-2">
                   <Label htmlFor="tc-nombre">
                     Nombre <span className="text-red-500">*</span>
                   </Label>
@@ -452,8 +462,7 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess, onActualizado 
                   )}
                 </div>
 
-                {/* Línea Etiqueta */}
-                <div className="space-y-2 col-span-4">
+                <div className="space-y-1.5 col-span-2">
                   <Label htmlFor="tc-linea">
                     Etiqueta Línea <span className="text-red-500">*</span>
                   </Label>
@@ -480,281 +489,268 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess, onActualizado 
                   />
                   <FieldError message={fieldErrors.lineaEtiqueta} />
                 </div>
-              </div>
               </SegmentCard>
-              </SingleColumn>
             </TabsContent>
 
-            <TabsContent value="niveles" className="outline-none mt-0">
-
-              
-              <div className="space-y-3">
-                <div className="flex gap-4">
-                  <div className="space-y-1.5 w-1/4">
-                    <Label htmlFor="tc-cantidadNiveles">
-                      Cantidad Niveles
-                    </Label>
-                    <NumericInput
-                      id="tc-cantidadNiveles"
-                      value={cantidadNiveles}
-                      onChange={(val) => {
-                        setCantidadNiveles(val || 0)
-                      }}
-                      isInteger={true}
-                      min="0"
-                      max="10"
-                      disabled={mode === 'view' || !!tipoCosteo?.enUso}
-                      data-view-mode={mode === 'view'}
-                      aria-invalid={!!fieldErrors.cantidadNiveles}
-                    />
-                    <FieldError message={fieldErrors.cantidadNiveles} />
-                  </div>
-                  
-                  <div className="space-y-1.5 w-1/4">
-                    <Label htmlFor="tc-nivelConDireccion">
-                      Nivel Con Dirección
-                    </Label>
-                    <NumericInput
-                      id="tc-nivelConDireccion"
-                      value={nivelConDireccion}
-                      onChange={(val) => {
-                        setNivelConDireccion(val || 0)
-                      }}
-                      isInteger={true}
-                      min="0"
-                      max={cantidadNiveles.toString()}
-                      disabled={mode === 'view' || !!tipoCosteo?.enUso}
-                      data-view-mode={mode === 'view'}
-                      aria-invalid={!!fieldErrors.nivelConDireccion}
-                    />
-                    <p className="text-[11px] text-muted-foreground !mt-0.5 leading-none">0 = Ningún nivel maneja dirección</p>
-                    <FieldError message={fieldErrors.nivelConDireccion} />
-                  </div>
+            <TabsContent value="niveles" className="outline-none mt-0 flex-1 min-h-0 flex flex-col gap-2 pb-3">
+              <SegmentCard label="Configuracion">
+                <div className="space-y-1.5">
+                  <Label htmlFor="tc-cantidadNiveles" className={UI_THEME.forms.labelBase}>
+                    Cantidad Niveles
+                  </Label>
+                  <NumericInput
+                    id="tc-cantidadNiveles"
+                    value={cantidadNiveles}
+                    onChange={(val) => {
+                      setCantidadNiveles(val || 0)
+                    }}
+                    isInteger={true}
+                    min="0"
+                    max="10"
+                    disabled={mode === 'view' || !!tipoCosteo?.enUso}
+                    data-view-mode={mode === 'view'}
+                    aria-invalid={!!fieldErrors.cantidadNiveles}
+                  />
+                  <FieldError message={fieldErrors.cantidadNiveles} />
                 </div>
 
-                {cantidadNiveles > 0 && (
-                  <div className="space-y-4">
-                    <p className={UI_THEME.forms.sectionTitle}>Estructura Costeo</p>
-                    <div className="h-[250px] overflow-y-auto pr-4 py-2 space-y-3 bg-slate-50/50 rounded-md border border-slate-100 p-4">
-                      {Array.from({ length: cantidadNiveles }).map((_, i) => (
-                        <div key={i} className="flex items-start">
-                          {i > 0 && (
-                            <div className="flex shrink-0 justify-end" style={{ marginLeft: `${(i - 1) * 32}px`, width: '32px' }}>
-                              <CornerDownRight className="w-5 h-5 text-slate-300 mt-2" />
-                            </div>
-                          )}
-                          <div className={cn(
-                            "flex flex-col gap-1.5 w-full", 
-                            i > 0 && "ml-2"
-                          )}>
-                            <Label htmlFor={`tc-etiqueta-nivel-${i}`} className={`${UI_THEME.forms.labelBase} w-full justify-between`}>
-                              <span>Nivel {i + 1}</span>
-                              {nivelConDireccion === i + 1 && <span className="text-emerald-700 text-[10px] uppercase font-bold bg-emerald-100 px-2 py-0.5 rounded-full">Con Dirección</span>}
-                            </Label>
-                            <div className="flex items-center gap-2">
-                              {/* ICON DROPDOWN */}
-                              <DropdownMenu>
-                                <DropdownMenuTrigger render={
-                                  <Button variant="outline" size="icon" className={cn("h-8 w-8 shrink-0", coloresNiveles[i])} disabled={mode === 'view'}>
-                                    {(() => {
-                                      const IconComp = ICON_COMPONENTS[iconosNiveles[i] || 'Hash'] || Hash
-                                      return <IconComp className="w-4 h-4" />
-                                    })()}
-                                  </Button>
-                                } />
-                                <DropdownMenuContent align="start" className="w-[200px]">
-                                  <div className="grid grid-cols-5 gap-1 p-1">
-                                    {PREDEFINED_ICONS.map((iconName) => {
-                                      const Icon = ICON_COMPONENTS[iconName]
-                                      return (
-                                        <Button
-                                          key={iconName}
-                                          type="button"
-                                          variant="ghost"
-                                          size="icon"
-                                          className={cn("h-8 w-8", iconosNiveles[i] === iconName && "bg-accent")}
-                                          onClick={() => handleUpdateIcon(i, iconName)}
-                                        >
-                                          <Icon className="w-4 h-4" />
-                                        </Button>
-                                      )
-                                    })}
-                                  </div>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                <div className="space-y-1.5">
+                  <Label htmlFor="tc-nivelConDireccion" className={UI_THEME.forms.labelBase}>
+                    Nivel Con Direccion
+                  </Label>
+                  <NumericInput
+                    id="tc-nivelConDireccion"
+                    value={nivelConDireccion}
+                    onChange={(val) => {
+                      setNivelConDireccion(val || 0)
+                    }}
+                    isInteger={true}
+                    min="0"
+                    max={cantidadNiveles.toString()}
+                    disabled={mode === 'view' || !!tipoCosteo?.enUso}
+                    data-view-mode={mode === 'view'}
+                    aria-invalid={!!fieldErrors.nivelConDireccion}
+                  />
+                  <p className="text-[11px] text-muted-foreground !mt-0.5 leading-none">0 = Ningún nivel maneja dirección</p>
+                  <FieldError message={fieldErrors.nivelConDireccion} />
+                </div>
+              </SegmentCard>
 
-                              {/* COLOR DROPDOWN */}
-                              <DropdownMenu>
-                                <DropdownMenuTrigger render={
-                                  <Button variant="outline" size="icon" className={cn("h-8 w-8 shrink-0 bg-white")} disabled={mode === 'view'}>
-                                    <div className={cn("w-4 h-4 rounded-full border", coloresNiveles[i])} />
-                                  </Button>
-                                } />
-                                <DropdownMenuContent align="start" className="w-[180px]">
-                                  <div className="grid grid-cols-5 gap-1 p-1">
-                                    {PREDEFINED_COLORS.map((colorClass, idx) => (
+              <SegmentCard
+                label="Estructura Costeo"
+                className="flex-1 min-h-0 flex flex-col"
+                bodyClassName="flex-1 min-h-0 overflow-y-auto content-start"
+              >
+                {cantidadNiveles > 0 ? (
+                  <div className="col-span-2 space-y-3 py-1">
+                    {Array.from({ length: cantidadNiveles }).map((_, i) => (
+                      <div key={i} className="flex items-start">
+                        {i > 0 && (
+                          <div className="flex shrink-0 justify-end" style={{ marginLeft: `${(i - 1) * 32}px`, width: '32px' }}>
+                            <CornerDownRight className="w-5 h-5 text-slate-300 mt-2" />
+                          </div>
+                        )}
+                        <div className={cn(
+                          "flex flex-col gap-1.5 w-full",
+                          i > 0 && "ml-2"
+                        )}>
+                          <Label htmlFor={`tc-etiqueta-nivel-${i}`} className={`${UI_THEME.forms.labelBase} w-full justify-between`}>
+                            <span>Nivel {i + 1}</span>
+                            {nivelConDireccion === i + 1 && <span className="text-emerald-700 text-[10px] uppercase font-bold bg-emerald-100 px-2 py-0.5 rounded-full">Con Dirección</span>}
+                          </Label>
+                          <div className="flex items-center gap-2">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger render={
+                                <Button variant="outline" size="icon" className={cn("h-8 w-8 shrink-0", coloresNiveles[i])} disabled={mode === 'view'}>
+                                  {(() => {
+                                    const IconComp = ICON_COMPONENTS[iconosNiveles[i] || 'Hash'] || Hash
+                                    return <IconComp className="w-4 h-4" />
+                                  })()}
+                                </Button>
+                              } />
+                              <DropdownMenuContent align="start" className="w-[200px]">
+                                <div className="grid grid-cols-5 gap-1 p-1">
+                                  {PREDEFINED_ICONS.map((iconName) => {
+                                    const Icon = ICON_COMPONENTS[iconName]
+                                    return (
                                       <Button
-                                        key={idx}
+                                        key={iconName}
                                         type="button"
                                         variant="ghost"
                                         size="icon"
-                                        className={cn("h-8 w-8", coloresNiveles[i] === colorClass && "ring-2 ring-ring")}
-                                        onClick={() => handleUpdateColor(i, colorClass)}
+                                        className={cn("h-8 w-8", iconosNiveles[i] === iconName && "bg-accent")}
+                                        onClick={() => handleUpdateIcon(i, iconName)}
                                       >
-                                        <div className={cn("w-5 h-5 rounded-full border", colorClass)} />
+                                        <Icon className="w-4 h-4" />
                                       </Button>
-                                    ))}
-                                  </div>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                                    )
+                                  })}
+                                </div>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
 
-                              <Input
-                                id={`tc-etiqueta-nivel-${i}`}
-                                placeholder={`NIVEL ${i + 1}`}
-                                value={etiquetasNiveles[i] || ''}
-                                onChange={(e) => handleUpdateEtiqueta(i, normalizeText(e.target.value))}
-                                disabled={mode === 'view'}
-                                data-view-mode={mode === 'view'}
-                                autoComplete="off"
-                                className={cn("uppercase h-8 text-sm flex-1 font-bold", coloresNiveles[i])}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger render={
+                                <Button variant="outline" size="icon" className={cn("h-8 w-8 shrink-0 bg-white")} disabled={mode === 'view'}>
+                                  <div className={cn("w-4 h-4 rounded-full border", coloresNiveles[i])} />
+                                </Button>
+                              } />
+                              <DropdownMenuContent align="start" className="w-[180px]">
+                                <div className="grid grid-cols-5 gap-1 p-1">
+                                  {PREDEFINED_COLORS.map((colorClass, idx) => (
+                                    <Button
+                                      key={idx}
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className={cn("h-8 w-8", coloresNiveles[i] === colorClass && "ring-2 ring-ring")}
+                                      onClick={() => handleUpdateColor(i, colorClass)}
+                                    >
+                                      <div className={cn("w-5 h-5 rounded-full border", colorClass)} />
+                                    </Button>
+                                  ))}
+                                </div>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
 
-            <TabsContent value="evaluacion" className="outline-none mt-0">
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <p className={UI_THEME.forms.sectionTitle}>Base Evaluación Financiera</p>
-                  <p className="text-sm text-slate-500">
-                    Define la temporalidad sobre la cual se consolidarán y evaluarán las ventas y los costos de los contratos asociados a este Tipo de Costeo.
-                  </p>
-                </div>
-                
-
-
-                <RadioGroup 
-                  value={baseEvaluacion} 
-                  onValueChange={(val: 'GLOBAL' | 'MENSUAL') => setBaseEvaluacion(val)}
-                  disabled={mode === 'view' || !!tipoCosteo?.enUso}
-                  className="flex flex-col gap-2"
-                >
-                  <div
-                    onClick={() => { if (mode !== 'view' && !tipoCosteo?.enUso) setBaseEvaluacion('GLOBAL') }}
-                    className={cn(
-                      "flex flex-row items-center space-x-3 rounded-md border p-2 cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors",
-                      baseEvaluacion === 'GLOBAL' ? "border-indigo-600 bg-indigo-50/50" : "border-muted bg-popover",
-                      (mode === 'view' || tipoCosteo?.enUso) && "opacity-50 cursor-not-allowed"
-                    )}
-                  >
-                    <RadioGroupItem value="GLOBAL" id="eval-global" />
-                    <Label
-                      htmlFor="eval-global"
-                      className="flex-1 cursor-pointer pointer-events-none grid grid-cols-1 sm:grid-cols-[130px_1fr] gap-1 sm:gap-2 sm:items-center"
-                    >
-                      <span className="font-semibold text-sm">Plazo Completo</span>
-                      <span className="text-xs text-slate-500 font-normal leading-tight">
-                        Suma los totales de las ventas y los costos durante toda la vida del contrato.
-                      </span>
-                    </Label>
-                  </div>
-                  
-                  <div
-                    onClick={() => { if (mode !== 'view' && !tipoCosteo?.enUso) setBaseEvaluacion('MENSUAL') }}
-                    className={cn(
-                      "flex flex-row items-center space-x-3 rounded-md border p-2 cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors",
-                      baseEvaluacion === 'MENSUAL' ? "border-indigo-600 bg-indigo-50/50" : "border-muted bg-popover",
-                      (mode === 'view' || tipoCosteo?.enUso) && "opacity-50 cursor-not-allowed"
-                    )}
-                  >
-                    <RadioGroupItem value="MENSUAL" id="eval-mensual" />
-                    <Label
-                      htmlFor="eval-mensual"
-                      className="flex-1 cursor-pointer pointer-events-none grid grid-cols-1 sm:grid-cols-[130px_1fr] gap-1 sm:gap-2 sm:items-center"
-                    >
-                      <span className="font-semibold text-sm">Mensual</span>
-                      <span className="text-xs text-slate-500 font-normal leading-tight">
-                        Todas las ventas y los costos se mensualizan y la evaluación se hace mensual.
-                      </span>
-                    </Label>
-                  </div>
-                </RadioGroup>
-
-                <div className="space-y-3 pt-4 border-t mt-4">
-                  <div>
-                    <p className={UI_THEME.forms.sectionTitle}>Manejo Plazo</p>
-                    <p className="text-sm text-slate-500 mb-3">
-                      Define cómo se comportará la duración en meses de estos proyectos.
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
-                      <div className="flex flex-col gap-1.5 justify-start">
-                        <SearchableSelect
-                          id="tc-manejoPlazo"
-                          options={[
-                            { value: 'NO_APLICA', label: 'No Aplica' },
-                            { value: 'LIBRE', label: 'Libre' },
-                            { value: 'FIJO', label: 'Fijo' },
-                          ]}
-                          value={manejoPlazo}
-                          onChange={(val) => setManejoPlazo(val as 'LIBRE'|'FIJO'|'NO_APLICA')}
-                          disabled={mode === 'view'}
-                          viewMode={mode === 'view'}
-                          searchable={false}
-                        />
-                      </div>
-                      
-                      {(manejoPlazo === 'FIJO' || manejoPlazo === 'LIBRE') && (
-                        <div className="flex flex-col w-full justify-start">
-                          <div className="flex flex-row items-center gap-3 animate-in fade-in slide-in-from-left-2">
-                            <Label htmlFor="tc-fijar-plazo" className={`${UI_THEME.forms.labelBase} whitespace-nowrap`}>
-                              {manejoPlazo === 'FIJO' ? 'Meses Fijos' : 'Meses Default'}
-                            </Label>
-                            <NumericInput
-                              id="tc-fijar-plazo"
-                              value={fijarPlazo || undefined}
-                              onChange={(val) => {
-                                setFijarPlazo(val || 0)
-                                setFieldErrors(prev => ({ ...prev, fijarPlazo: '' }))
-                              }}
-                              isInteger={true}
+                            <Input
+                              id={`tc-etiqueta-nivel-${i}`}
+                              placeholder={`NIVEL ${i + 1}`}
+                              value={etiquetasNiveles[i] || ''}
+                              onChange={(e) => handleUpdateEtiqueta(i, normalizeText(e.target.value))}
                               disabled={mode === 'view'}
                               data-view-mode={mode === 'view'}
-                              aria-invalid={!!fieldErrors.fijarPlazo}
-                              className="w-full"
-                              placeholder="Cantidad de meses..."
+                              autoComplete="off"
+                              className={cn("uppercase h-8 text-sm flex-1 font-bold", coloresNiveles[i])}
                             />
                           </div>
                         </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="col-span-2 text-xs text-muted-foreground">Sin niveles</p>
+                )}
+              </SegmentCard>
+            </TabsContent>
+
+            <TabsContent value="evaluacion" className="outline-none mt-0 flex flex-col gap-2">
+              <SegmentCard label="Base Evaluacion">
+                <div className="col-span-2 space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Define la temporalidad sobre la cual se consolidarán y evaluarán las ventas y los costos de los contratos asociados a este Tipo de Costeo.
+                  </p>
+                  <RadioGroup
+                    value={baseEvaluacion}
+                    onValueChange={(val: 'GLOBAL' | 'MENSUAL') => setBaseEvaluacion(val)}
+                    disabled={mode === 'view' || !!tipoCosteo?.enUso}
+                    className="flex flex-col gap-2"
+                  >
+                    <div
+                      onClick={() => { if (mode !== 'view' && !tipoCosteo?.enUso) setBaseEvaluacion('GLOBAL') }}
+                      className={cn(
+                        "flex flex-row items-center space-x-3 rounded-md border p-2 cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors",
+                        baseEvaluacion === 'GLOBAL' ? "border-indigo-600 bg-indigo-50/50" : "border-muted bg-popover",
+                        (mode === 'view' || tipoCosteo?.enUso) && "opacity-50 cursor-not-allowed"
                       )}
+                    >
+                      <RadioGroupItem value="GLOBAL" id="eval-global" />
+                      <Label
+                        htmlFor="eval-global"
+                        className="flex-1 cursor-pointer pointer-events-none grid grid-cols-1 sm:grid-cols-[130px_1fr] gap-1 sm:gap-2 sm:items-center"
+                      >
+                        <span className="font-semibold text-sm">Plazo Completo</span>
+                        <span className="text-xs text-slate-500 font-normal leading-tight">
+                          Suma los totales de las ventas y los costos durante toda la vida del contrato.
+                        </span>
+                      </Label>
                     </div>
+
+                    <div
+                      onClick={() => { if (mode !== 'view' && !tipoCosteo?.enUso) setBaseEvaluacion('MENSUAL') }}
+                      className={cn(
+                        "flex flex-row items-center space-x-3 rounded-md border p-2 cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors",
+                        baseEvaluacion === 'MENSUAL' ? "border-indigo-600 bg-indigo-50/50" : "border-muted bg-popover",
+                        (mode === 'view' || tipoCosteo?.enUso) && "opacity-50 cursor-not-allowed"
+                      )}
+                    >
+                      <RadioGroupItem value="MENSUAL" id="eval-mensual" />
+                      <Label
+                        htmlFor="eval-mensual"
+                        className="flex-1 cursor-pointer pointer-events-none grid grid-cols-1 sm:grid-cols-[130px_1fr] gap-1 sm:gap-2 sm:items-center"
+                      >
+                        <span className="font-semibold text-sm">Mensual</span>
+                        <span className="text-xs text-slate-500 font-normal leading-tight">
+                          Todas las ventas y los costos se mensualizan y la evaluación se hace mensual.
+                        </span>
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+              </SegmentCard>
+
+              <SegmentCard label="Manejo Plazo">
+                <p className="col-span-2 text-sm text-muted-foreground">
+                  Define cómo se comportará la duración en meses de estos proyectos.
+                </p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="tc-manejoPlazo" className={UI_THEME.forms.labelBase}>
+                    Manejo
+                  </Label>
+                  <SearchableSelect
+                    id="tc-manejoPlazo"
+                    options={[
+                      { value: 'NO_APLICA', label: 'No Aplica' },
+                      { value: 'LIBRE', label: 'Libre' },
+                      { value: 'FIJO', label: 'Fijo' },
+                    ]}
+                    value={manejoPlazo}
+                    onChange={(val) => setManejoPlazo(val as 'LIBRE'|'FIJO'|'NO_APLICA')}
+                    disabled={mode === 'view'}
+                    viewMode={mode === 'view'}
+                    searchable={false}
+                  />
+                </div>
+                {(manejoPlazo === 'FIJO' || manejoPlazo === 'LIBRE') && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="tc-fijar-plazo" className={UI_THEME.forms.labelBase}>
+                      {manejoPlazo === 'FIJO' ? 'Meses Fijos' : 'Meses Default'}
+                    </Label>
+                    <NumericInput
+                      id="tc-fijar-plazo"
+                      value={fijarPlazo || undefined}
+                      onChange={(val) => {
+                        setFijarPlazo(val || 0)
+                        setFieldErrors(prev => ({ ...prev, fijarPlazo: '' }))
+                      }}
+                      isInteger={true}
+                      disabled={mode === 'view'}
+                      data-view-mode={mode === 'view'}
+                      aria-invalid={!!fieldErrors.fijarPlazo}
+                      placeholder="Cantidad de meses..."
+                    />
                     <FieldError message={fieldErrors.fijarPlazo} />
                   </div>
-                </div>
-              </div>
-              </TabsContent>
+                )}
+              </SegmentCard>
+            </TabsContent>
             </div>
           </Tabs>
 
           <div className={UI_THEME.modal.footer}>
             {mode === 'view' ? (
               <div className={UI_THEME.modal.buttons.viewRow}>
-                <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.tiposCosteo.hover} onClick={() => setHistorialOpen(true)}>
+                <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => setHistorialOpen(true)}>
                   <History className={UI_THEME.modal.buttons.icon} /> Historial
                 </Button>
                 {tipoCosteo && (
-                  <Button type="button" variant="ghost" size="sm" className={tipoCosteo.activo ? UI_THEME.modal.buttons.eliminar : MODULE_ACCENT.tiposCosteo.hover} disabled={isPendingToggle} onClick={handleToggle}>
+                  <Button type="button" variant="ghost" size="sm" className={tipoCosteo.activo ? UI_THEME.modal.buttons.eliminar : UI_THEME.modal.buttons.accion} disabled={isPendingToggle} onClick={handleToggle}>
                     {tipoCosteo.activo
                       ? <><PowerOff className={UI_THEME.modal.buttons.icon} /> Desactivar</>
                       : <><Power className={UI_THEME.modal.buttons.icon} /> Activar</>}
                   </Button>
                 )}
-                <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.tiposCosteo.hover} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
+                <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
                   <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
                 </Button>
               </div>
@@ -769,7 +765,7 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess, onActualizado 
                   )}
                 </div>
                 <div className="flex gap-2 shrink-0">
-                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.tiposCosteo.hover} disabled={loading} onClick={() => {
+                  <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} disabled={loading} onClick={() => {
                     setEmpresaId(initialTipoCosteo?.empresaId?.toString() ?? '')
                     setNombre(initialTipoCosteo?.nombre ?? '')
                     setCantidadNiveles(initialTipoCosteo?.cantidadNiveles ?? 2)
@@ -786,14 +782,14 @@ export function TipoCosteoModal({ tipoCosteo, trigger, onSuccess, onActualizado 
                   }}>
                     <X className={UI_THEME.modal.buttons.icon} /> Cancelar
                   </Button>
-                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.tiposCosteo.hover} disabled={loading}>
+                  <Button type="submit" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} disabled={loading}>
                     <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
                   </Button>
                 </div>
               </div>
             ) : (
               <div className={UI_THEME.modal.buttons.editRow}>
-                <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.tiposCosteo.hover} disabled={loading}>
+                <Button type="submit" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} disabled={loading}>
                   <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
                 </Button>
               </div>

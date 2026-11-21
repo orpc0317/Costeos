@@ -12,14 +12,12 @@ export function ModalHeading({
   icon: Icon,
   mode,
   title,
-  subtitle,
   className,
 }: {
   accent: ModuleAccent
   icon: LucideIcon
   mode: Mode
   title: string
-  subtitle?: string | null
   className?: string
 }) {
   const creating = mode === 'create'
@@ -36,9 +34,6 @@ export function ModalHeading({
         </div>
         <div className="min-w-0 flex-1">
           <DialogTitle className={UI_THEME.modal.title}>{title}</DialogTitle>
-          {subtitle ? (
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">{subtitle}</p>
-          ) : null}
         </div>
       </div>
     </DialogHeader>

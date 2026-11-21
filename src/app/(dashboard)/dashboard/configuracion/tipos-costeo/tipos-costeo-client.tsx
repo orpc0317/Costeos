@@ -42,7 +42,7 @@ export function TiposCosteoClient({ initialData, permisos }: Props) {
   const columns: ColumnDef<TipoCosteoRow>[] = useMemo(() => [
     {
       accessorKey: 'id',
-      header: 'ID',
+      header: 'Codigo',
       enableHiding: false,
       cell: ({ row }) => <span className="font-mono text-sm text-muted-foreground">{row.original.id}</span>,
     },

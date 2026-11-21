@@ -5,6 +5,7 @@ import { ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/ui/data-table'
 import { TipoComboModal } from '@/components/tipos-combo/tipo-combo-modal'
 import { Layers, Plus, Eye } from 'lucide-react'
+import { IconoDibujo, etiquetaIcono, nombreIcono } from '@/lib/iconos'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/ui/page-header'
 import { UI_THEME } from '@/lib/theme'
@@ -39,7 +40,7 @@ export function TiposComboClient({ initialData, permisos }: Props) {
   const columns: ColumnDef<TipoComboRow>[] = useMemo(() => [
     {
       accessorKey: 'id',
-      header: 'ID',
+      header: 'Codigo',
       enableHiding: false,
       cell: ({ row }) => <span className="font-mono text-sm text-muted-foreground">{row.original.id}</span>,
     },
@@ -57,7 +58,16 @@ export function TiposComboClient({ initialData, permisos }: Props) {
     {
       accessorKey: 'icono',
       header: 'Icono',
-      cell: ({ row }) => <span className="font-mono text-xs text-muted-foreground">{row.original.icono ?? '—'}</span>,
+      cell: ({ row }) => {
+        const nombre = nombreIcono(row.original.icono)
+        if (!nombre) return <span className="text-muted-foreground">—</span>
+        return (
+          <span className="inline-flex items-center gap-2">
+            <IconoDibujo nombre={nombre} className="h-4 w-4 shrink-0" />
+            <span>{etiquetaIcono(nombre)}</span>
+          </span>
+        )
+      },
     },
     {
       id: 'actions',

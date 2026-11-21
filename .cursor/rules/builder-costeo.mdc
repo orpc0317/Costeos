@@ -13,3 +13,4 @@ Esto **no** es un CRUD de catálogo. No copiar el template de entidad.
 - Costos: `costear.ts` (`manejoCostos` 1–5 / 99). Totales: `calcularResumenFinanciero`.
 - Dominio: `docs/flujo-costeo.md`. Tipos: `src/lib/types/costeos.ts`.
 - No romper MENSUAL vs UNICO ni el factor de personas en recurso humano.
+- Cromado: el panel y el alta usan `bg-muted` (`#eef2f6`). Los grupos son `SegmentCard` (borde 1.5px) y el icono del titulo sale de `src/lib/iconos-seccion.ts`. La línea bajo el título, la de las pestañas y la de los botones pesan 1.5px. No usar `modalListClass`. La fila de pestañas no lleva relleno solo arriba: el label queda al centro de esa fila.

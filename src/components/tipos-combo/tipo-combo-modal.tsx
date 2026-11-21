@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { FieldError } from '@/components/ui/field-error'
-import { SegmentCard, SingleColumn } from '@/components/ui/form-layout'
+import { SegmentCard } from '@/components/ui/form-layout'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { HistorialDrawer } from '@/components/shared/historial-drawer'
 import { Layers, Pencil, History, Trash2, Check, Loader2, X } from 'lucide-react'
@@ -32,6 +32,8 @@ import { cn } from '@/lib/utils'
 import { UI_THEME } from '@/lib/theme'
 import { MODULE_ACCENT } from '@/lib/ui-accent'
 import { ModalHeading } from '@/components/ui/modal-heading'
+import { IconoPicker } from '@/components/ui/icono-picker'
+import { nombreIcono } from '@/lib/iconos'
 import type { TipoComboRow } from '@/lib/types/tipos-combo'
 import type { SimilarItem } from '@/lib/utils/similarity'
 
@@ -149,14 +151,14 @@ export function TipoComboModal({ tipoCombo, trigger, onActualizado }: TipoComboM
       if (mode === 'edit' && initialTipoCombo) {
         result = await editarTipoCombo(initialTipoCombo.id, {
           nombre,
-          icono: icono || null,
+          icono: nombreIcono(icono),
           registroVersion: initialTipoCombo.registroVersion,
         })
       } else {
         result = await crearTipoCombo({
           empresaId: parseInt(empresaId, 10),
           nombre,
-          icono: icono || null,
+          icono: nombreIcono(icono),
         })
       }
 
@@ -252,7 +254,7 @@ export function TipoComboModal({ tipoCombo, trigger, onActualizado }: TipoComboM
             accent={MODULE_ACCENT.tiposCombo}
             icon={Layers}
             mode={mode === 'create' ? 'create' : mode === 'edit' ? 'edit' : 'view'}
-            title={mode === 'create' ? 'Nuevo Tipo Combo' : mode === 'edit' ? 'Editar Tipo Combo' : 'Detalle Tipo Combo'}
+            title="Tipos Combo"
           />
 
           {/* Error global */}
@@ -273,13 +275,9 @@ export function TipoComboModal({ tipoCombo, trigger, onActualizado }: TipoComboM
               </TabsList>
 
               <div className={UI_THEME.modal.scrollArea}>
-                <TabsContent value="general" className="mt-0">
-                  <SingleColumn>
-                  <SegmentCard label="General">
-                  <div className="col-span-2 grid grid-cols-2 gap-x-6 gap-y-4">
-
-                    {/* Empresa — select en crear, deshabilitado en ver/editar */}
-                    <div className="flex flex-col gap-1.5 col-span-2">
+                <TabsContent value="general" className="mt-0 flex flex-col gap-2">
+                  <SegmentCard label="Identificacion">
+                    <div className={`flex flex-col gap-1.5 ${mode === 'create' ? 'col-span-2' : ''}`}>
                       <Label htmlFor="tc-empresaId">
                         Empresa {mode === 'create' && <span className="text-red-500">*</span>}
                       </Label>
@@ -305,8 +303,21 @@ export function TipoComboModal({ tipoCombo, trigger, onActualizado }: TipoComboM
                         />
                       )}
                     </div>
+                    {mode !== 'create' && initialTipoCombo && (
+                      <div className="flex flex-col gap-1.5">
+                        <Label className={UI_THEME.forms.labelBase}>Codigo</Label>
+                        <Input
+                          value={String(initialTipoCombo.id)}
+                          disabled
+                          data-view-mode={mode === 'view'}
+                          className={UI_THEME.forms.inputBase}
+                        />
+                      </div>
+                    )}
+                  </SegmentCard>
+                  <SegmentCard label="General">
+                  <div className="col-span-2 grid gap-4">
 
-                    {/* Nombre */}
                     <div className="flex flex-col gap-1.5 col-span-2">
                       <Label htmlFor="tc-nombre">
                         Nombre <span className="text-red-500">*</span>
@@ -361,27 +372,19 @@ export function TipoComboModal({ tipoCombo, trigger, onActualizado }: TipoComboM
                       )}
                     </div>
 
-                    {/* Icono (opcional) */}
                     <div className="flex flex-col gap-1.5 col-span-2">
-                      <Label htmlFor="tc-icono">
-                        Icono{' '}
-                        <span className="text-xs text-muted-foreground font-normal">(opcional)</span>
-                      </Label>
-                      <Input
+                      <Label htmlFor="tc-icono">Icono</Label>
+                      <IconoPicker
                         id="tc-icono"
                         value={icono}
-                        onChange={e => setIcono(e.target.value)}
-                        placeholder="Ej: shield, hard-hat, shirt"
+                        onChange={setIcono}
                         disabled={mode === 'view'}
-                        data-view-mode={mode === 'view'}
-                        autoComplete="off"
-                        className="font-mono text-sm"
+                        viewMode={mode === 'view'}
                       />
                     </div>
 
                   </div>
                   </SegmentCard>
-                  </SingleColumn>
                 </TabsContent>
               </div>
             </Tabs>
@@ -391,7 +394,7 @@ export function TipoComboModal({ tipoCombo, trigger, onActualizado }: TipoComboM
               {mode === 'view' ? (
                 <div className={UI_THEME.modal.buttons.viewRow}>
                   {initialTipoCombo && (
-                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.tiposCombo.hover} onClick={() => setHistorialOpen(true)}>
+                    <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => setHistorialOpen(true)}>
                       <History className={UI_THEME.modal.buttons.icon} /> Historial
                     </Button>
                   )}
@@ -401,22 +404,22 @@ export function TipoComboModal({ tipoCombo, trigger, onActualizado }: TipoComboM
                       Eliminar
                     </Button>
                   )}
-                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.tiposCombo.hover} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
+                  <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
                     <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
                   </Button>
                 </div>
               ) : isEditing ? (
                 <div className={UI_THEME.modal.buttons.editRow}>
-                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.tiposCombo.hover} onClick={handleCancelar} disabled={loading}>
+                  <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={handleCancelar} disabled={loading}>
                     <X className={UI_THEME.modal.buttons.icon} /> Cancelar
                   </Button>
-                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.tiposCombo.hover} disabled={loading}>
+                  <Button type="submit" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} disabled={loading}>
                     <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
                   </Button>
                 </div>
               ) : (
                 <div className={UI_THEME.modal.buttons.editRow}>
-                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.tiposCombo.hover} disabled={loading}>
+                  <Button type="submit" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} disabled={loading}>
                     {loading ? <Loader2 className={`${UI_THEME.modal.buttons.icon} animate-spin`} /> : <Check className={UI_THEME.modal.buttons.icon} />}
                     {loading ? 'Guardando…' : 'Guardar'}
                   </Button>

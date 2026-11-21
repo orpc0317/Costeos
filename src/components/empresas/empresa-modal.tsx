@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useEditClick } from '@/lib/use-edit-click'
-import { Building2, Pencil, History, Check, Loader2, Plug, X } from 'lucide-react'
+import { Building2, Package, Pencil, History, Check, Loader2, Plug, Truck, UserRound, X, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -24,7 +24,13 @@ import { ModalHeading } from '@/components/ui/modal-heading'
 import { SegmentCard, TwoColumns } from '@/components/ui/form-layout'
 import { esConflicto } from '@/lib/conflicto'
 
-// ─── Props ────────────────────────────────────────────────────────────────────
+const ICONO_CATALOGO: Record<string, { Icono: LucideIcon; color: string }> = {
+  CLIENTES: { Icono: UserRound, color: MODULE_ACCENT.clientes.icon },
+  PROVEEDORES: { Icono: Truck, color: MODULE_ACCENT.proveedores.icon },
+  ITEMS: { Icono: Package, color: MODULE_ACCENT.items.icon },
+}
+
+// --- Props --------------------------------------------------------------------
 
 interface EmpresaModalProps {
   empresa?: EmpresaRow
@@ -35,7 +41,7 @@ interface EmpresaModalProps {
   onActualizado?: (row: EmpresaRow) => void
 }
 
-// ─── Componente ───────────────────────────────────────────────────────────────
+// --- Componente ---------------------------------------------------------------
 
 export function EmpresaModal({
   empresa,
@@ -54,17 +60,17 @@ export function EmpresaModal({
   const isExisting = !!empresa
   const [historialOpen, setHistorialOpen] = useState(false)
 
-  // ── Estado del modo ─────────────────────────────────────────────────────────
+  // -- Estado del modo ---------------------------------------------------------
   const [mode, setMode] = useState<'view' | 'edit'>('view')
   const { onEditMouseDown, onEditClick, blockAccidentalSubmit } = useEditClick(setMode)
 
-  // ── Estado del formulario ───────────────────────────────────────────────────
+  // -- Estado del formulario ---------------------------------------------------
   const [nombre, setNombre]           = useState('')
   const [razonSocial, setRazonSocial] = useState('')
   const [nit, setNit]                 = useState('')
   const [codigoErp, setCodigoErp]     = useState('')
 
-  // ── Estado pestaña ERP ──────────────────────────────────────────────────────
+  // -- Estado pestaña ERP ------------------------------------------------------
   const [catalogosSync, setCatalogosSync] = useState<CatalogoSyncRow[]>([])
   const { ficha, cargando: cargandoFicha } = useRegistroFresco({
     open,
@@ -86,18 +92,18 @@ export function EmpresaModal({
     },
   })
 
-  // ── Estado del lookup ERP ───────────────────────────────────────────────────
+  // -- Estado del lookup ERP ---------------------------------------------------
   const [nombreErp, setNombreErp]       = useState<string | null>(null)
   const [buscandoErp, setBuscandoErp]   = useState(false)
 
-  // ── Estado de errores y UI ──────────────────────────────────────────────────
+  // -- Estado de errores y UI --------------------------------------------------
   const [globalError, setGlobalError]   = useState<string | null>(null)
   const [fieldErrors, setFieldErrors]   = useState<Record<string, string>>({})
   const [loading, setLoading]           = useState(false)
   const [activeTab, setActiveTab]       = useState('general')
   const [similares, setSimilares]       = useState<SimilarItem[]>([])
 
-  // ── Reset del formulario ────────────────────────────────────────────────────
+  // -- Reset del formulario ----------------------------------------------------
   const resetForm = (data?: EmpresaRow) => {
     setNombre(data?.nombre ?? '')
     setRazonSocial(data?.razonSocial ?? '')
@@ -109,7 +115,7 @@ export function EmpresaModal({
     setNombreErp(null)
   }
 
-  // ── Apertura/Cierre del modal ───────────────────────────────────────────────
+  // -- Apertura/Cierre del modal -----------------------------------------------
   // CRÍTICO: Inicializar estado AQUÍ, cuando newOpen === true.
   // NUNCA en useEffect con dependencias en `empresa` o `mode`.
   function handleOpenChange(newOpen: boolean) {
@@ -123,7 +129,7 @@ export function EmpresaModal({
     setOpen(newOpen)
   }
 
-  // ── Cargar nombre ERP al abrir empresa existente con código ──────────────────
+  // -- Cargar nombre ERP al abrir empresa existente con código ------------------
   // SOLO depende de [open] — convención anti-flash.
   useEffect(() => {
     if (open && isExisting && empresa?.codigoErp) {
@@ -133,7 +139,7 @@ export function EmpresaModal({
     }
   }, [open])
 
-  // ── Lookup ERP al salir del campo Código ERP ─────────────────────────────────
+  // -- Lookup ERP al salir del campo Código ERP ---------------------------------
   async function handleCodigoErpBlur() {
     const codigo = codigoErp.trim()
     if (!codigo) {
@@ -159,7 +165,7 @@ export function EmpresaModal({
     }
   }
 
-  // ── Toggle de catálogo — solo actualiza estado local (se guarda en handleSave) ─
+  // -- Toggle de catálogo — solo actualiza estado local (se guarda en handleSave) -
   function handleToggleCatalogo(catalogo: string, nuevoValor: boolean) {
     setCatalogosSync(prev => {
       const existe = prev.some(c => c.catalogo === catalogo)
@@ -170,7 +176,7 @@ export function EmpresaModal({
     })
   }
 
-  // ── Submit ──────────────────────────────────────────────────────────────────
+  // -- Submit ------------------------------------------------------------------
 
   /** Ejecuta el guardado real (sin verificación de similares). */
   async function doSave() {
@@ -277,7 +283,7 @@ export function EmpresaModal({
     await doSave()
   }
 
-  // ── Pestaña ERP: visible solo en empresa existente con codigoErp ─────────────
+  // -- Pestaña ERP: visible solo en empresa existente con codigoErp -------------
   const mostrarTabErp = isExisting && !!empresa?.codigoErp
 
   // Construir el estado visual de cada catálogo mezclando el hardcode con el estado guardado
@@ -290,20 +296,14 @@ export function EmpresaModal({
     }
   })
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-  const title = !isExisting
-    ? 'Nueva Empresa'
-    : mode === 'view'
-    ? 'Detalle Empresa'
-    : 'Editar Empresa'
-
+  // -- Render -----------------------------------------------------------------
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
         {trigger && <DialogTrigger render={trigger as React.ReactElement} />}
 
         <DialogContent className={UI_THEME.modal.contentWide}>
-          <ModalHeading accent={MODULE_ACCENT.empresas} icon={Building2} mode={!isExisting ? 'create' : mode === 'view' ? 'view' : 'edit'} title={title} />
+          <ModalHeading accent={MODULE_ACCENT.empresas} icon={Building2} mode={!isExisting ? 'create' : mode === 'view' ? 'view' : 'edit'} title="Empresas" />
 
           {/* Error global */}
           {globalError && (
@@ -329,10 +329,71 @@ export function EmpresaModal({
 
               <div className={UI_THEME.modal.scrollArea}>
 
-                {/* ── Pestaña General ──────────────────────────────────────────── */}
+                {/* -- Pestaña General -------------------------------------------- */}
                 <TabsContent value="general" className="mt-0">
                   <TwoColumns
-                    left={<SegmentCard label="Identificacion"><div className="contents">
+                    left={<>
+                    <SegmentCard label="Identificacion">
+                      {isExisting && empresa && (
+                        <div className="flex flex-col gap-1.5">
+                          <Label className={UI_THEME.forms.labelBase}>Codigo</Label>
+                          <Input
+                            value={String(empresa.id)}
+                            disabled
+                            data-view-mode={mode === 'view'}
+                            className={UI_THEME.forms.inputBase}
+                          />
+                        </div>
+                      )}
+                      <div className={`flex flex-col gap-1.5 ${isExisting && empresa ? '' : 'col-span-2'}`}>
+                        <Label htmlFor="empresa-codigo-erp">Codigo ERP</Label>
+                        {isExisting ? (
+                          <>
+                            <Input
+                              id="empresa-codigo-erp"
+                              value={codigoErp}
+                              disabled
+                              data-view-mode={mode === 'view'}
+                              className={`${UI_THEME.forms.inputBase} font-mono`}
+                            />
+                            {nombreErp && (
+                              <p className="text-xs text-emerald-600 !mt-0.5 leading-none font-medium">
+                                ✓ {nombreErp}
+                              </p>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <div className="relative">
+                              <Input
+                                id="empresa-codigo-erp"
+                                value={codigoErp}
+                                onChange={e => {
+                                  setCodigoErp(e.target.value)
+                                  setNombreErp(null)
+                                  setFieldErrors(prev => { const e2 = { ...prev }; delete e2.codigoErp; return e2 })
+                                }}
+                                onBlur={handleCodigoErpBlur}
+                                maxLength={10}
+                                className={`${UI_THEME.forms.inputBase} font-mono pr-8`}
+                                placeholder="Opcional"
+                                aria-invalid={!!fieldErrors.codigoErp}
+                              />
+                              {buscandoErp && (
+                                <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                              )}
+                            </div>
+                            {nombreErp && (
+                              <p className="text-xs text-emerald-600 !mt-0.5 leading-none font-medium">
+                                ✓ {nombreErp}
+                              </p>
+                            )}
+                            <FieldError message={fieldErrors.codigoErp} />
+                          </>
+                        )}
+                      </div>
+                    </SegmentCard>
+                    <SegmentCard label="General"><div className="contents">
 
                     {/* Nombre */}
                     <div className="flex flex-col gap-1.5 col-span-2">
@@ -403,10 +464,7 @@ export function EmpresaModal({
                       <FieldError message={fieldErrors.razonSocial} />
                     </div>
 
-                    </div></SegmentCard>}
-                    right={<SegmentCard label="Fiscal"><div className="contents">
-                    {/* NIT */}
-                    <div className="flex flex-col gap-1.5 col-span-1">
+                    <div className="flex flex-col gap-1.5 col-span-2">
                       <Label htmlFor="empresa-nit">NIT <span className="text-red-500">*</span></Label>
                       <Input
                         id="empresa-nit"
@@ -420,121 +478,73 @@ export function EmpresaModal({
                       <FieldError message={fieldErrors.nit} />
                     </div>
 
-                    {/* Código ERP */}
-                    <div className="flex flex-col gap-1.5 col-span-1">
-                      <Label htmlFor="empresa-codigo-erp">Código ERP</Label>
-                      {isExisting ? (
-                        <>
-                          <Input
-                            id="empresa-codigo-erp"
-                            value={codigoErp}
-                            disabled={true}
-                            data-view-mode={mode === 'view'}
-                            className={`${UI_THEME.forms.inputBase} font-mono`}
-                          />
-                          {nombreErp && (
-                            <p className="text-xs text-emerald-600 !mt-0.5 leading-none font-medium">
-                              ✓ {nombreErp}
-                            </p>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          <div className="relative">
-                            <Input
-                              id="empresa-codigo-erp"
-                              value={codigoErp}
-                              onChange={e => {
-                                setCodigoErp(e.target.value)
-                                setNombreErp(null)
-                                setFieldErrors(prev => { const e2 = { ...prev }; delete e2.codigoErp; return e2 })
-                              }}
-                              onBlur={handleCodigoErpBlur}
-                              maxLength={10}
-                              className={`${UI_THEME.forms.inputBase} font-mono pr-8`}
-                              placeholder="Opcional"
-                              aria-invalid={!!fieldErrors.codigoErp}
-                            />
-                            {buscandoErp && (
-                              <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                            )}
-                          </div>
-                          {nombreErp && (
-                            <p className="text-xs text-emerald-600 !mt-0.5 leading-none font-medium">
-                              ✓ {nombreErp}
-                            </p>
-                          )}
-                          <FieldError message={fieldErrors.codigoErp} />
-                        </>
-                      )}
-                    </div>
-
-                    </div></SegmentCard>}
+                    </div></SegmentCard>
+                    </>}
+                    right={null}
                   />
                 </TabsContent>
 
-                {/* ── Pestaña ERP ──────────────────────────────────────────────── */}
+                {/* -- Pestaña ERP ------------------------------------------------ */}
                 {mostrarTabErp && (
                   <TabsContent value="erp" className="mt-0">
-                    <div className="space-y-4">
-
-
-
-                      {/* Lista de catálogos */}
-                      <div>
-                        <p className="text-xs font-semibold text-muted-foreground tracking-wide mb-2">
-                          Catalogos Sincronizar
-                        </p>
-                        <div className="divide-y rounded-lg border overflow-hidden">
-                          {catalogosConEstado.map(cat => (
-                            <div
-                              key={cat.key}
-                              className="flex items-center justify-between px-4 py-3 bg-white hover:bg-slate-50 transition-colors"
-                            >
-                              <div className="flex flex-col gap-0.5">
-                                <span className="text-sm font-medium">{cat.label}</span>
+                    <TwoColumns
+                      left={
+                        <SegmentCard label="Catalogos">
+                          <div className="col-span-2 flex flex-col">
+                            {catalogosConEstado.map(cat => {
+                              const meta = ICONO_CATALOGO[cat.key]
+                              return (
+                              <div
+                                key={cat.key}
+                                className="flex items-center justify-between border-b border-border py-2 last:border-b-0"
+                              >
+                                <span className="flex items-center gap-2 text-sm font-medium">
+                                  {meta ? <meta.Icono className={`h-4 w-4 ${meta.color}`} /> : null}
+                                  {cat.label}
+                                </span>
+                                <Switch
+                                  checked={cat.sincronizar}
+                                  onCheckedChange={val => handleToggleCatalogo(cat.key, val)}
+                                  disabled={mode === 'view'}
+                                  aria-label={`Sincronizar ${cat.label}`}
+                                />
                               </div>
-                              <Switch
-                                checked={cat.sincronizar}
-                                onCheckedChange={val => handleToggleCatalogo(cat.key, val)}
-                                disabled={mode === 'view'}
-                                aria-label={`Sincronizar ${cat.label}`}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                    </div>
+                              )
+                            })}
+                          </div>
+                        </SegmentCard>
+                      }
+                      right={null}
+                    />
                   </TabsContent>
                 )}
 
               </div>
             </Tabs>
 
-            {/* ── Footer estándar ── */}
+            {/* -- Footer estándar -- */}
             <div className={UI_THEME.modal.footer}>
               {mode === 'view' ? (
                 <div className={UI_THEME.modal.buttons.viewRow}>
-                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.empresas.hover} onClick={() => setHistorialOpen(true)}>
+                  <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => setHistorialOpen(true)}>
                     <History className={UI_THEME.modal.buttons.icon} /> Historial
                   </Button>
-                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.empresas.hover} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
+                  <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
                     <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
                   </Button>
                 </div>
               ) : isExisting ? (
                 <div className={UI_THEME.modal.buttons.editRow}>
-                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.empresas.hover} onClick={() => { resetForm(empresa); setMode('view') }} disabled={loading}>
+                  <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => { resetForm(empresa); setMode('view') }} disabled={loading}>
                     <X className={UI_THEME.modal.buttons.icon} /> Cancelar
                   </Button>
-                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.empresas.hover} disabled={loading || buscandoErp}>
+                  <Button type="submit" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} disabled={loading || buscandoErp}>
                     <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : buscandoErp ? 'Verificando...' : 'Guardar'}
                   </Button>
                 </div>
               ) : (
                 <div className={UI_THEME.modal.buttons.editRow}>
-                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.empresas.hover} disabled={loading || buscandoErp}>
+                  <Button type="submit" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} disabled={loading || buscandoErp}>
                     <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : buscandoErp ? 'Verificando...' : 'Guardar'}
                   </Button>
                 </div>

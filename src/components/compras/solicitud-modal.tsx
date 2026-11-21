@@ -325,19 +325,13 @@ export function SolicitudModal({
     3: UI_THEME.badge.danger,
   }
 
-  const titulo = !isEditing
-    ? 'Nueva Solicitud'
-    : mode === 'edit'
-    ? `Editar Solicitud #${solicitud!.id}`
-    : `Solicitud #${solicitud!.id}`
-
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
         {trigger && <DialogTrigger render={trigger as React.ReactElement} />}
 
         <DialogContent className={UI_THEME.modal.contentWide}>
-          <ModalHeading accent={MODULE_ACCENT.solicitudes} icon={ClipboardList} mode={!isEditing ? 'create' : mode === 'edit' ? 'edit' : 'view'} title={titulo} />
+          <ModalHeading accent={MODULE_ACCENT.solicitudes} icon={ClipboardList} mode={!isEditing ? 'create' : mode === 'edit' ? 'edit' : 'view'} title="Solicitudes" />
 
           <form onSubmit={handleSave} data-form-mode={mode} className="flex flex-col flex-1 min-h-0 pt-2">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
@@ -364,9 +358,10 @@ export function SolicitudModal({
                 {/* ─── Tab General ─── */}
                 <TabsContent value="general" className="mt-0">
                   <TwoColumns
-                    left={<SegmentCard label="Pedido"><div className="col-span-2 flex flex-col gap-3">
-
-                  {/* Empresa */}
+                    left={<>
+                    <SegmentCard label="Identificacion">
+                      <div className={`flex flex-col gap-1.5 ${isEditing ? '' : 'col-span-2'}`}>
+                    {/* Empresa */}
                   <div className="flex flex-col gap-1.5">
                     <Label className={UI_THEME.forms.labelBase}>
                       Empresa {!isEditing && <span className="text-red-500">*</span>}
@@ -393,6 +388,20 @@ export function SolicitudModal({
                     )}
                     <FieldError message={fieldErrors.empresaId} />
                   </div>
+                      {isEditing && solicitud && (
+                        <div className="flex flex-col gap-1.5">
+                          <Label className={UI_THEME.forms.labelBase}>Codigo</Label>
+                          <Input
+                            value={String(solicitud.id)}
+                            disabled
+                            data-view-mode={mode === 'view'}
+                            className={UI_THEME.forms.inputBase}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    </SegmentCard>
+                    <SegmentCard label="General"><div className="col-span-2 flex flex-col gap-3">
 
                   {/* Ítem */}
                   <div className="flex flex-col gap-1.5">
@@ -465,7 +474,8 @@ export function SolicitudModal({
                     {/* cols 3 y 4 vacías intencionalmente */}
                   </div>
 
-                    </div></SegmentCard>}
+                    </div></SegmentCard>
+                    </>}
                     right={<SegmentCard label="Seguimiento"><div className="col-span-2 flex flex-col gap-3">
                   {/* Tipo (scope) — no editable; solo visible en view/edit */}
                   {isEditing && (
@@ -684,28 +694,28 @@ export function SolicitudModal({
             <div className={UI_THEME.modal.footer}>
               {mode === 'view' && isEditing ? (
                 <div className={UI_THEME.modal.buttons.viewRow}>
-                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.solicitudes.hover} onClick={() => setHistorialOpen(true)}>
+                  <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => setHistorialOpen(true)}>
                     <History className={UI_THEME.modal.buttons.icon} /> Historial
                   </Button>
                   <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.eliminar} onClick={handleEliminar}>
                     <Trash2 className={UI_THEME.modal.buttons.icon} /> Eliminar
                   </Button>
-                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.solicitudes.hover} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
+                  <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
                     <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
                   </Button>
                 </div>
               ) : isEditing ? (
                 <div className={UI_THEME.modal.buttons.editRow}>
-                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.solicitudes.hover} onClick={() => { resetForm(solicitud); setMode('view') }} disabled={loading}>
+                  <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => { resetForm(solicitud); setMode('view') }} disabled={loading}>
                     <X className={UI_THEME.modal.buttons.icon} /> Cancelar
                   </Button>
-                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.solicitudes.hover} disabled={loading}>
+                  <Button type="submit" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} disabled={loading}>
                     <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
                   </Button>
                 </div>
               ) : (
                 <div className={UI_THEME.modal.buttons.editRow}>
-                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.solicitudes.hover} disabled={loading}>
+                  <Button type="submit" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} disabled={loading}>
                     <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
                   </Button>
                 </div>

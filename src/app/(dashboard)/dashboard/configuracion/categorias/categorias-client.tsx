@@ -40,7 +40,7 @@ export function CategoriasClient({ initialData, permisos }: Props) {
   const columns: ColumnDef<CategoriaRow>[] = useMemo(() => [
     {
       accessorKey: 'id',
-      header: 'ID',
+      header: 'Codigo',
       enableHiding: false,
       cell: ({ row }) => <span className="font-mono text-sm text-muted-foreground">{row.original.id}</span>,
     },

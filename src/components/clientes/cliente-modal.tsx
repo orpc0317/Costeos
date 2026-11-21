@@ -14,9 +14,10 @@ import { NumericInput } from '@/components/ui/numeric-input'
 import { Building2, Settings2, Check, Pencil, History, Search, ArrowLeft, UserRound, X } from 'lucide-react'
 import { HistorialDrawer } from '@/components/shared/historial-drawer'
 import { crearCliente, actualizarCliente, buscarClientesSimilares, obtenerCliente } from '@/app/actions/clientes'
+import { ClienteAltaForm } from '@/components/clientes/cliente-alta-form'
 import { useRegistroFresco } from '@/hooks/use-registro-fresco'
 import type { ClienteSimilarConOrigen } from '@/app/actions/clientes'
-import { getEmpresasForUser, getDepartamentosERP, getMunicipiosERP } from '@/app/actions/erp'
+import { getEmpresasForUser, getDepartamentosERP, getMunicipiosERP, buscarNombreCatalogoErp } from '@/app/actions/erp'
 import { normalizeText } from '@/lib/utils/text'
 import { isConsumidorFinal, normalizeNIT, validateNIT } from '@/lib/utils/nit'
 import type { ClienteInput, ClienteRow } from '@/lib/types/clientes'
@@ -81,6 +82,7 @@ export function ClienteModal({
   const [municipio, setMunicipio] = useState<string>('')
   const [diasCredito, setDiasCredito] = useState<number | undefined>(0)
   const [codigoErp, setCodigoErp] = useState<string | null>(null)
+  const [nombreErp, setNombreErp] = useState<string | null>(null)
   const { ficha, cargando: cargandoFicha } = useRegistroFresco({
     open,
     mode,
@@ -188,6 +190,21 @@ export function ClienteModal({
     return () => { active = false }
   }, [open, departamento])
 
+  useEffect(() => {
+    if (!open) return
+    const codigo = codigoErp && codigoErp !== 'NULL' ? codigoErp : ''
+    const empId = parseInt(empresaId, 10)
+    if (!codigo || !empId) {
+      setNombreErp(null)
+      return
+    }
+    let active = true
+    buscarNombreCatalogoErp('cliente', empId, codigo).then(nombre => {
+      if (active) setNombreErp(nombre)
+    })
+    return () => { active = false }
+  }, [open, codigoErp, empresaId])
+
   const resetForm = (data?: ClienteRow) => {
     setEmpresaId(data?.empresaId.toString() ?? '')
     setNit(data?.nit ?? '')
@@ -198,6 +215,7 @@ export function ClienteModal({
     setDiasCredito(data?.diasCredito ?? 0)
     const rawCodigo = data?.codigoErp ?? null
     setCodigoErp(rawCodigo && rawCodigo !== 'NULL' ? rawCodigo : null)
+    setNombreErp(null)
     setGlobalError(null)
     setFieldErrors({})
     setActiveTab('general')
@@ -489,8 +507,7 @@ export function ClienteModal({
             accent={MODULE_ACCENT.clientes}
             icon={UserRound}
             mode={!isEditing ? 'create' : mode === 'view' ? 'view' : 'edit'}
-            title={isEditing ? (mode === 'view' ? 'Detalle Cliente' : 'Editar Cliente') : 'Nuevo Cliente'}
-            subtitle={isEditing ? empresaNombre : null}
+            title="Clientes"
           />
 
           {globalError && (
@@ -686,10 +703,33 @@ export function ClienteModal({
             </div>
           )}
 
+          {!isEditing && step === 'formulario' && (
+            <ClienteAltaForm
+              key={`${nit}|${razonSocial}|${codigoErp ?? ''}`}
+              variante="modal"
+              empresaId={Number(empresaId)}
+              empresaNombre={empresaNombre}
+              inicial={{
+                nit,
+                razonSocial,
+                direccionFiscal,
+                departamento,
+                municipio,
+                diasCredito,
+                codigoErp,
+              }}
+              onCreado={(row) => {
+                onCreado?.(row)
+                setOpen(false)
+              }}
+              onCancelar={empresaFijaId != null ? undefined : () => { clearFormFields(); setStep('busqueda') }}
+            />
+          )}
+
           {/* ══════════════════════════════════════════════════════
-              PASO 2 — FORMULARIO
+              PASO 2 — FORMULARIO (ver y editar)
           ══════════════════════════════════════════════════════ */}
-          {(isEditing || step === 'formulario') && (
+          {isEditing && (
             <form onSubmit={handleSave} noValidate data-form-mode={mode} className="flex-1 min-h-0 flex flex-col pt-2">
               <Tabs
                 value={activeTab}
@@ -708,7 +748,7 @@ export function ClienteModal({
                     <TwoColumns
                       left={<><SegmentCard label="Identificacion"><div className="contents">
 
-                      <div className="flex flex-col gap-1.5 col-span-4">
+                      <div className="flex flex-col gap-1.5 col-span-2">
                         <Label className={UI_THEME.forms.labelBase}>Empresa</Label>
                         <Input
                           value={empresaNombre}
@@ -717,8 +757,37 @@ export function ClienteModal({
                           className={UI_THEME.forms.inputBase}
                         />
                       </div>
+                      {isEditing && cliente && (
+                        <div className="flex flex-col gap-1.5">
+                          <Label className={UI_THEME.forms.labelBase}>Codigo</Label>
+                          <Input
+                            value={String(cliente.id)}
+                            disabled
+                            data-view-mode={mode === 'view'}
+                            className={UI_THEME.forms.inputBase}
+                          />
+                        </div>
+                      )}
+                      <div className={`flex flex-col gap-1.5 ${isEditing && cliente ? '' : 'col-span-2'}`}>
+                        <Label htmlFor="codigoErp">Codigo ERP</Label>
+                        <Input
+                          id="codigoErp"
+                          value={codigoErp && codigoErp !== 'NULL' ? codigoErp : ''}
+                          disabled
+                          data-view-mode={mode === 'view'}
+                          className={`${UI_THEME.forms.inputBase} font-mono`}
+                          title="Asignado automaticamente al vincular con el ERP"
+                        />
+                        {nombreErp && (
+                          <p className="text-xs text-emerald-600 !mt-0.5 leading-none font-medium">
+                            ✓ {nombreErp}
+                          </p>
+                        )}
+                      </div>
 
-                      {/* NIT */}
+                      </div></SegmentCard>
+                      <SegmentCard label="General"><div className="contents">
+
                       <div className="flex flex-col gap-1.5 col-span-2">
                         <Label htmlFor="nit">
                           NIT <span className="text-red-500">*</span>
@@ -761,7 +830,7 @@ export function ClienteModal({
 
                       </div></SegmentCard>
                       <SegmentCard label="Otros">
-                        <div className="flex flex-col gap-1.5">
+                        <div className="col-span-2 flex flex-col gap-1.5">
                           <Label htmlFor="diasCredito">Dias Credito</Label>
                           <NumericInput
                             id="diasCredito"
@@ -770,16 +839,6 @@ export function ClienteModal({
                             disabled={mode === 'view'}
                             data-view-mode={mode === 'view'}
                             onChange={val => setDiasCredito(val)}
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                          <Label htmlFor="codigoErp">Codigo ERP</Label>
-                          <Input
-                            id="codigoErp"
-                            value={codigoErp && codigoErp !== 'NULL' ? codigoErp : ''}
-                            disabled
-                            className={`${UI_THEME.forms.inputBase} font-mono`}
-                            title="Asignado automáticamente al vincular con el ERP"
                           />
                         </div>
                       </SegmentCard>
@@ -875,30 +934,30 @@ export function ClienteModal({
               <div className={UI_THEME.modal.footer}>
                 {mode === 'view' ? (
                   <div className={UI_THEME.modal.buttons.viewRow}>
-                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.clientes.hover} onClick={() => setHistorialOpen(true)}>
+                    <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => setHistorialOpen(true)}>
                       <History className={UI_THEME.modal.buttons.icon} /> Historial
                     </Button>
-                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.clientes.hover} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
+                    <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
                       <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
                     </Button>
                   </div>
                 ) : isEditing ? (
                   <div className={UI_THEME.modal.buttons.editRow}>
-                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.clientes.hover} onClick={() => { resetForm(cliente); setMode('view') }} disabled={loading}>
+                    <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => { resetForm(cliente); setMode('view') }} disabled={loading}>
                       <X className={UI_THEME.modal.buttons.icon} /> Cancelar
                     </Button>
-                    <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.clientes.hover} disabled={loading}>
+                    <Button type="submit" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} disabled={loading}>
                       <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
                     </Button>
                   </div>
                 ) : (
                   <div className={empresaFijaId != null ? UI_THEME.modal.buttons.editRow : 'flex w-full items-center justify-between'}>
                     {empresaFijaId == null && (
-                      <Button type="button" variant="ghost" size="sm" onClick={() => { clearFormFields(); setStep('busqueda') }} disabled={loading}>
+                      <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => { clearFormFields(); setStep('busqueda') }} disabled={loading}>
                         <ArrowLeft className={UI_THEME.modal.buttons.icon} /> Atras
                       </Button>
                     )}
-                    <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.clientes.hover} disabled={loading}>
+                    <Button type="submit" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} disabled={loading}>
                       <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
                     </Button>
                   </div>

@@ -392,13 +392,6 @@ export function CotizacionModal({
     }
   }
 
-  // ── Título dinámico ────────────────────────────────────────────────────────
-  const titulo = !isEditing
-    ? 'Nueva Cotización'
-    : mode === 'edit'
-    ? `Editar Cotización #${cotizacion!.id}`
-    : `Cotización #${cotizacion!.id}`
-
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
@@ -406,7 +399,7 @@ export function CotizacionModal({
         {trigger && <DialogTrigger render={trigger as React.ReactElement} />}
 
         <DialogContent className={UI_THEME.modal.contentWide}>
-          <ModalHeading accent={MODULE_ACCENT.cotizaciones} icon={FileText} mode={!isEditing ? 'create' : mode === 'edit' ? 'edit' : 'view'} title={titulo} />
+          <ModalHeading accent={MODULE_ACCENT.cotizaciones} icon={FileText} mode={!isEditing ? 'create' : mode === 'edit' ? 'edit' : 'view'} title="Cotizaciones" />
 
           <form onSubmit={handleSave} data-form-mode={mode} className="flex flex-col flex-1 min-h-0 pt-2">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
@@ -433,8 +426,9 @@ export function CotizacionModal({
                 {/* ─── Tab General ─── */}
                 <TabsContent value="general" className="mt-0">
                   <TwoColumns
-                    left={<SegmentCard label="Pedido"><div className="contents">
-
+                    left={<>
+                    <SegmentCard label="Identificacion">
+                    <div className={`flex flex-col gap-1.5 ${isEditing ? '' : 'col-span-2'}`}>
                     {/* Empresa */}
                     <div className="flex flex-col gap-1.5 col-span-2">
                       <Label className={UI_THEME.forms.labelBase}>
@@ -463,6 +457,20 @@ export function CotizacionModal({
                       )}
                       <FieldError message={fieldErrors.empresaId} />
                     </div>
+                    {isEditing && cotizacion && (
+                      <div className="flex flex-col gap-1.5">
+                        <Label className={UI_THEME.forms.labelBase}>Codigo</Label>
+                        <Input
+                          value={String(cotizacion.id)}
+                          disabled
+                          data-view-mode={mode === 'view'}
+                          className={UI_THEME.forms.inputBase}
+                        />
+                      </div>
+                    )}
+                    </div>
+                    </SegmentCard>
+                    <SegmentCard label="General"><div className="contents">
 
                     {/* Ítem */}
                     <div className="flex flex-col gap-1.5 col-span-2">
@@ -523,7 +531,8 @@ export function CotizacionModal({
                       <FieldError message={fieldErrors.proveedorId} />
                     </div>
 
-                    </div></SegmentCard>}
+                    </div></SegmentCard>
+                    </>}
                     right={<SegmentCard label="Detalle"><div className="contents">
                     {/* Vigente (solo en vista) */}
                     {isEditing && (
@@ -779,7 +788,7 @@ export function CotizacionModal({
                       {/* ID Solicitud */}
                       {cotizacion!.solicitudId != null && (
                         <div className="flex flex-col gap-1.5">
-                          <Label className={UI_THEME.forms.labelBase}>ID Solicitud</Label>
+                          <Label className={UI_THEME.forms.labelBase}>Codigo Solicitud</Label>
                           <Input
                             value={cotizacion!.solicitudId}
                             disabled
@@ -823,22 +832,22 @@ export function CotizacionModal({
             <div className={UI_THEME.modal.footer}>
               {mode === 'view' && isEditing ? (
                 <div className={UI_THEME.modal.buttons.viewRow}>
-                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.cotizaciones.hover} onClick={() => setHistorialOpen(true)}>
+                  <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => setHistorialOpen(true)}>
                     <History className={UI_THEME.modal.buttons.icon} /> Historial
                   </Button>
                   {vigenteLocal !== 1 && (
-                    <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.cotizaciones.hover} onClick={handleMarcarVigente} disabled={submittingVigente}>
+                    <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={handleMarcarVigente} disabled={submittingVigente}>
                       <CheckCircle2 className={UI_THEME.modal.buttons.icon} />
                       {submittingVigente ? 'Procesando...' : 'Marcar Vigente'}
                     </Button>
                   )}
-                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.cotizaciones.hover} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
+                  <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onMouseDown={onEditMouseDown} onClick={onEditClick} disabled={cargandoFicha}>
                     <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
                   </Button>
                 </div>
               ) : isEditing ? (
                 <div className={UI_THEME.modal.buttons.editRow}>
-                  <Button type="button" variant="ghost" size="sm" className={MODULE_ACCENT.cotizaciones.hover} disabled={loading} onClick={() => {
+                  <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} disabled={loading} onClick={() => {
                     setReferencia(cotizacion!.referencia ?? '')
                     setFecha(cotizacion!.fecha ?? new Date().toISOString().split('T')[0])
                     setCantidad(cotizacion!.cantidad)
@@ -851,13 +860,13 @@ export function CotizacionModal({
                   }}>
                     <X className={UI_THEME.modal.buttons.icon} /> Cancelar
                   </Button>
-                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.cotizaciones.hover} disabled={loading}>
+                  <Button type="submit" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} disabled={loading}>
                     <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
                   </Button>
                 </div>
               ) : (
                 <div className={UI_THEME.modal.buttons.editRow}>
-                  <Button type="submit" variant="ghost" size="sm" className={MODULE_ACCENT.cotizaciones.hover} disabled={loading}>
+                  <Button type="submit" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} disabled={loading}>
                     <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
                   </Button>
                 </div>

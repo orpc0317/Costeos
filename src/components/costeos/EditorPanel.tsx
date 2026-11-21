@@ -37,6 +37,7 @@ import { montosDeLinea } from '@/lib/utils/financial-calculations';
 import { esBorradorCosteo } from '@/lib/constants';
 import { SolicitarCostosModal, type ItemSolicitarCosto } from './modals/SolicitarCostosModal';
 import { FuenteCostoPanel } from './FuenteCostoPanel';
+import { NombreTipoCombo } from '@/lib/iconos';
 
 
 const OPCIONES_CUBRE_DESCANSO = [
@@ -53,7 +54,7 @@ export default function EditorPanel() {
 
   if (!selectedNode) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-slate-400 bg-slate-50/30">
+      <div className="flex-1 flex flex-col items-center justify-center text-slate-400 bg-muted">
         <p>Selecciona un elemento en el árbol para editarlo</p>
       </div>
     );
@@ -368,6 +369,7 @@ export default function EditorPanel() {
   const [tiposComboRH, setTiposComboRH] = useState<TipoComboRHRow[]>([]);
   // Mapa id→nombre de TiposCombos de la empresa (nueva arquitectura)
   const [tiposCombosNombres, setTiposCombosNombres] = useState<Record<number, string>>({});
+  const [tiposCombosIconos, setTiposCombosIconos] = useState<Record<number, string | null>>({});
   // Controla si el usuario incluyó cada item adicional opcional (obligatorio=false)
   // undefined = derivado de si ya existe un recurso hijo; true/false = elección explícita del usuario
   const [combosOptIncluidos, setCombosOptIncluidos] = useState<Record<number, boolean | undefined>>({});
@@ -527,8 +529,13 @@ export default function EditorPanel() {
         setTurnos(turnosData);
         setTiposComboRH(tiposData);
         const nombresMap: Record<number, string> = {};
-        tiposCombosData.forEach(t => { nombresMap[t.id] = t.nombre; });
+        const iconosMap: Record<number, string | null> = {};
+        tiposCombosData.forEach(t => {
+          nombresMap[t.id] = t.nombre;
+          iconosMap[t.id] = t.icono;
+        });
         setTiposCombosNombres(nombresMap);
+        setTiposCombosIconos(iconosMap);
       });
     }
     return () => { active = false; };
@@ -692,7 +699,7 @@ export default function EditorPanel() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-6 py-4 border-b flex justify-between items-start">
+      <div className="px-6 py-4 border-b-[1.5px] border-border flex justify-between items-start">
         <div>
           <h2 className="text-xl font-bold text-slate-800">{title}</h2>
           {pathNames.length > 0 && (
@@ -704,13 +711,13 @@ export default function EditorPanel() {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col min-h-0 bg-slate-50/30 overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-0 bg-muted overflow-hidden">
         
         {selectedNode.type === 'PROYECTO' && (
           <div className="p-6 pt-4 h-full w-full min-w-0 min-h-0 flex flex-col overflow-hidden">
           <div className="flex flex-col flex-1 min-h-0 min-w-0 w-full">
             <Tabs defaultValue="general" className="flex-1 flex flex-col min-h-0 w-full">
-              <TabsList variant="line" className={`${UI_THEME.tabs.listClass} mb-4 shrink-0`}>
+              <TabsList variant="line" className={`${UI_THEME.tabs.listClass} mb-4 shrink-0 w-full border-b-[1.5px] border-border`}>
                 <TabsTrigger value="general">
                   <Settings2 className="w-4 h-4 mr-2" />
                   General
@@ -892,7 +899,7 @@ export default function EditorPanel() {
 
         {selectedNode.type === 'RECURSO' && (
           <Tabs defaultValue="general" className="flex-1 flex flex-col min-h-0 w-full bg-muted">
-              <TabsList variant="line" className="shrink-0 w-full border-b-[3px] border-border bg-card px-6">
+              <TabsList variant="line" className="shrink-0 w-full border-b-[1.5px] border-border bg-card px-6">
                 <TabsTrigger value="general">
                   <Settings2 className="w-4 h-4 mr-2" />
                   General
@@ -1069,7 +1076,9 @@ export default function EditorPanel() {
 
                          return (
                            <tr key={asoc.tipoComboId} className={claseFilaTabla(filaIdx)}>
-                             <td className="px-3 py-2 font-medium text-slate-700">{nombreTipo}</td>
+                             <td className="px-3 py-2 font-medium text-slate-700">
+                               <NombreTipoCombo nombre={nombreTipo} icono={tiposCombosIconos[asoc.tipoComboId]} />
+                             </td>
 
                              {/* Columna Ítem */}
                              <td className="px-3 py-2">
@@ -1439,7 +1448,7 @@ export default function EditorPanel() {
       </div>
       
       {selectedNode.type !== 'PROYECTO' && (
-        <div className="flex flex-row items-center justify-between px-6 py-4 border-t bg-slate-50 shrink-0">
+        <div className="flex flex-row items-center justify-between px-6 py-4 border-t-[1.5px] border-border bg-card shrink-0">
           <div className="flex items-center gap-2">
           {!(selectedNode.type === 'NODO' && nodeData?.nivel === 1) && !nodeData?.esCombo && (
               <Button 
@@ -1619,7 +1628,7 @@ function NodoEditor({ nodeData, handleChange, handleDelete, tc, etiquetas, proye
   return (
     <div className="flex flex-col flex-1 min-h-0 min-w-0 w-full">
       <Tabs defaultValue="general" className="flex-1 flex flex-col min-h-0 w-full">
-        <TabsList variant="line" className={`${UI_THEME.tabs.listClass} mb-4 shrink-0`}>
+        <TabsList variant="line" className={`${UI_THEME.tabs.listClass} mb-4 shrink-0 w-full border-b-[1.5px] border-border`}>
           <TabsTrigger value="general">
             <Settings2 className="w-4 h-4 mr-2" />
             General

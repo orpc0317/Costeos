@@ -19,6 +19,10 @@ import React, { useEffect, useState } from "react";
 import { getFuenteCosto, type FuenteCostoInfo } from "@/app/actions/fuente-costo";
 import { ShoppingCart, PenLine, Link2, UserCheck, Package, Ban, Loader2, ExternalLink } from "lucide-react";
 import { formatNumber } from "@/lib/utils/format";
+import { SegmentCard } from "@/components/ui/form-layout";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { UI_THEME } from "@/lib/theme";
 
 // ─── Helpers visuales ────────────────────────────────────────────────────────
 
@@ -42,12 +46,23 @@ function ManejoBadge({ manejoCostos }: { manejoCostos: number }) {
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
+function Campo({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-start gap-2 text-sm">
-      <span className="text-muted-foreground w-32 shrink-0 text-xs pt-0.5">{label}</span>
-      <span className="font-medium text-slate-800 break-words">{value}</span>
+    <div className="flex flex-col gap-1.5">
+      <Label>{label}</Label>
+      <Input value={value} readOnly tabIndex={-1} className={UI_THEME.forms.inputBase} />
     </div>
+  );
+}
+
+function Nota({ children, tono }: { children: React.ReactNode; tono: "aviso" | "info" }) {
+  const cls = tono === "aviso"
+    ? "text-amber-700 bg-amber-50 border-amber-200"
+    : "text-sky-700 bg-sky-50 border-sky-200";
+  return (
+    <p className={`col-span-2 text-xs rounded-md border px-2.5 py-1.5 ${cls}`}>
+      {children}
+    </p>
   );
 }
 
@@ -96,168 +111,134 @@ export function FuenteCostoPanel({ itemId, costeoId, costoActual }: FuenteCostoP
     return () => { active = false; };
   }, [loadKey, itemId, costeoId]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-        Cargando referencia de costo...
-      </div>
-    );
-  }
+  if (!loading && !info) return null;
 
-  if (!info) return null;
-
-  const { manejoCostos } = info;
+  const manejoCostos = info?.manejoCostos ?? 0;
 
   return (
-    <div className="pt-4">
-      {/* Header de sección */}
-      <div className="flex items-center mb-3 min-h-[24px]">
-        <h3 className="text-xs font-bold text-slate-600 uppercase tracking-wider border-l-2 border-slate-400 pl-2 leading-none">
-          FUENTE COSTO
-        </h3>
-        <div className="flex-1 border-t border-slate-200 ml-3 mt-0.5" />
-      </div>
-
-      <div className="space-y-2.5">
-        {/* Badge de tipo */}
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground w-32 shrink-0">Método</span>
-          <ManejoBadge manejoCostos={manejoCostos} />
-        </div>
-
-        {/* ── No Aplica: no mostrar más detalle ─────────────────────────── */}
-        {manejoCostos === 99 && (
-          <p className="text-xs text-muted-foreground italic pl-2">
-            Este ítem no tiene manejo de costos. Se excluye del cálculo.
-          </p>
+    <SegmentCard label="Fuente Costeo">
+      <div className="col-span-2 grid grid-cols-2 gap-3">
+        {loading && (
+          <div className="col-span-2 flex items-center gap-2 text-xs text-muted-foreground py-1">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Cargando referencia de costo...
+          </div>
         )}
 
-        {/* ── Solicitado: mensaje simple ────────────────────────────────── */}
-        {manejoCostos === 4 && (
-          <InfoRow
-            label="Origen"
-            value={
-              costoActual > 0
-                ? "Ingresado por el usuario durante el proceso de Costeo"
-                : "Pendiente — se solicitará en el próximo Costeo"
-            }
-          />
-        )}
-
-        {/* ── Compras ───────────────────────────────────────────────────── */}
-        {manejoCostos === 1 && (
+        {info && (
           <>
-            {/* Badge Por Costeo */}
-            {(info.porCosteo ?? 0) === 1 && (
-              <div className="flex items-center gap-2 text-xs text-sky-700 bg-sky-50 border border-sky-200 rounded px-2.5 py-1.5">
-                <span className="font-semibold">🔒 Por Costeo</span>
-                <span className="text-sky-500">— requiere cotización específica para cada proyecto</span>
+            <div className="flex flex-col gap-1.5">
+              <Label>Metodo</Label>
+              <div className="flex items-center" style={{ height: "var(--ui-field-height)" }}>
+                <ManejoBadge manejoCostos={manejoCostos} />
+              </div>
+            </div>
+
+            {manejoCostos === 99 && (
+              <Nota tono="aviso">
+                Este ítem no tiene manejo de costos. Se excluye del cálculo.
+              </Nota>
+            )}
+
+            {manejoCostos === 4 && (
+              <div className="col-span-2">
+                <Campo
+                  label="Origen"
+                  value={
+                    costoActual > 0
+                      ? "Ingresado por el usuario durante el proceso de Costeo"
+                      : "Pendiente — se solicitará en el próximo Costeo"
+                  }
+                />
               </div>
             )}
 
-            {info.compras ? (
-              <div className="space-y-2 border-l-2 border-sky-200 pl-3">
-                <InfoRow label="Proveedor"    value={info.compras.proveedorNombre} />
-                <InfoRow label="Fecha Cotiz." value={info.compras.fecha} />
-                {info.compras.referencia && (
-                  <InfoRow label="Referencia" value={info.compras.referencia} />
-              )}
-              <InfoRow label="Cantidad"     value={formatNumber(info.compras.cantidad, 2, 4)} />
-              <InfoRow label="Total"        value={`Q ${formatNumber(info.compras.total, 2, 2)}`} />
-              <InfoRow
-                label="Costo Unit."
-                value={
-                  <span className="text-sky-700 font-bold">
-                    Q {formatNumber(info.compras.costoUnitario, 2, 4)}
-                  </span>
-                }
-              />
-              {info.compras.impuestos === 1 && (
-                <InfoRow label="Impuestos" value={<span className="text-amber-600 text-xs">Incluye impuestos</span>} />
-              )}
-              {info.compras.archivoUrl && (
-                <InfoRow
-                  label="Archivo"
-                  value={
-                    <a
-                      href={info.compras.archivoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sky-600 underline flex items-center gap-1 text-xs"
-                    >
-                      Ver cotización <ExternalLink className="h-3 w-3" />
-                    </a>
-                  }
-                />
-              )}
-            </div>
-          ) : (
-            <div className="pl-3 border-l-2 border-amber-300">
-              <p className="text-xs text-amber-600 italic">
-                {(info.porCosteo ?? 0) === 1
-                  ? 'Sin cotización vigente para este proyecto. Genere una solicitud de compra para este costeo y registre una cotización vigente.'
-                  : 'Sin cotización vigente — costo en 0. Asigne una cotización vigente en el módulo de Compras.'}
-              </p>
-            </div>
-          )}
+            {manejoCostos === 1 && (
+              <>
+                {(info.porCosteo ?? 0) === 1 && (
+                  <Nota tono="info">
+                    <span className="font-semibold">Por Costeo</span>
+                    {" — requiere cotización específica para cada proyecto"}
+                  </Nota>
+                )}
+
+                {info.compras ? (
+                  <>
+                    <div className="col-span-2">
+                      <Campo label="Proveedor" value={info.compras.proveedorNombre} />
+                    </div>
+                    <Campo label="Fecha Cotiz." value={info.compras.fecha} />
+                    {info.compras.referencia && (
+                      <Campo label="Referencia" value={info.compras.referencia} />
+                    )}
+                    <Campo label="Cantidad" value={formatNumber(info.compras.cantidad, 2, 4)} />
+                    <Campo label="Total" value={`Q ${formatNumber(info.compras.total, 2, 2)}`} />
+                    <Campo label="Costo Unit." value={`Q ${formatNumber(info.compras.costoUnitario, 2, 4)}`} />
+                    {info.compras.impuestos === 1 && (
+                      <Campo label="Impuestos" value="Incluye impuestos" />
+                    )}
+                    {info.compras.archivoUrl && (
+                      <div className="flex flex-col gap-1.5">
+                        <Label>Archivo</Label>
+                        <a
+                          href={info.compras.archivoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`${UI_THEME.forms.inputBase} inline-flex items-center gap-1 text-sky-700`}
+                        >
+                          Ver cotización <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <Nota tono="aviso">
+                    {(info.porCosteo ?? 0) === 1
+                      ? "Sin cotización vigente para este proyecto. Genere una solicitud de compra para este costeo y registre una cotización vigente."
+                      : "Sin cotización vigente — costo en 0. Asigne una cotización vigente en el módulo de Compras."}
+                  </Nota>
+                )}
+              </>
+            )}
+
+            {(manejoCostos === 2 || manejoCostos === 5) && (
+              info.manual ? (
+                <>
+                  <Campo label="Fecha" value={info.manual.fecha} />
+                  {info.manual.usuarioNombre && (
+                    <Campo label="Registrado" value={info.manual.usuarioNombre} />
+                  )}
+                  <Campo label="Costo Unit." value={`Q ${formatNumber(info.manual.costo, 2, 4)}`} />
+                </>
+              ) : (
+                <Nota tono="aviso">
+                  Sin costo manual registrado. Registre un costo en la ficha del ítem.
+                </Nota>
+              )
+            )}
+
+            {manejoCostos === 3 && (
+              info.referencia ? (
+                <>
+                  <div className="col-span-2">
+                    <Campo label="Item Base" value={info.referencia.itemReferenciaNombre} />
+                  </div>
+                  <Campo label="Costo Base" value={`Q ${formatNumber(info.referencia.costoBase, 2, 4)}`} />
+                  <Campo label="Porcentaje" value={`${formatNumber(info.referencia.pct, 2, 2)} %`} />
+                  {info.referencia.fechaPct && (
+                    <Campo label="Fecha %" value={info.referencia.fechaPct} />
+                  )}
+                  <Campo label="Costo Unit." value={`Q ${formatNumber(info.referencia.costoCalculado, 2, 4)}`} />
+                </>
+              ) : (
+                <Nota tono="aviso">
+                  Sin ítem de referencia configurado o sin porcentaje registrado.
+                </Nota>
+              )
+            )}
           </>
         )}
-
-        {/* ── Manual / Tabla Ítem ───────────────────────────────────────── */}
-        {(manejoCostos === 2 || manejoCostos === 5) && (
-          info.manual ? (
-            <div className="space-y-2 pl-3 border-l-2 border-violet-200">
-              <InfoRow label="Fecha"      value={info.manual.fecha} />
-              {info.manual.usuarioNombre && (
-                <InfoRow label="Registrado" value={info.manual.usuarioNombre} />
-              )}
-              <InfoRow
-                label="Costo Unit."
-                value={
-                  <span className="text-violet-700 font-bold">
-                    Q {formatNumber(info.manual.costo, 2, 4)}
-                  </span>
-                }
-              />
-            </div>
-          ) : (
-            <div className="pl-3 border-l-2 border-amber-300">
-              <p className="text-xs text-amber-600 italic">
-                Sin costo manual registrado. Registre un costo en la ficha del ítem.
-              </p>
-            </div>
-          )
-        )}
-
-        {/* ── Referencia ────────────────────────────────────────────────── */}
-        {manejoCostos === 3 && (
-          info.referencia ? (
-            <div className="space-y-2 pl-3 border-l-2 border-amber-200">
-              <InfoRow label="Ítem Base"    value={info.referencia.itemReferenciaNombre} />
-              <InfoRow label="Costo Base"   value={`Q ${formatNumber(info.referencia.costoBase, 2, 4)}`} />
-              <InfoRow label="Porcentaje"   value={`${formatNumber(info.referencia.pct, 2, 2)} %`} />
-              {info.referencia.fechaPct && (
-                <InfoRow label="Fecha %"    value={info.referencia.fechaPct} />
-              )}
-              <InfoRow
-                label="Costo Unit."
-                value={
-                  <span className="text-amber-700 font-bold">
-                    Q {formatNumber(info.referencia.costoCalculado, 2, 4)}
-                  </span>
-                }
-              />
-            </div>
-          ) : (
-            <div className="pl-3 border-l-2 border-amber-300">
-              <p className="text-xs text-amber-600 italic">
-                Sin ítem de referencia configurado o sin porcentaje registrado.
-              </p>
-            </div>
-          )
-        )}
       </div>
-    </div>
+    </SegmentCard>
   );
 }

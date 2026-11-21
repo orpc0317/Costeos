@@ -94,7 +94,7 @@ Siempre usar `src/components/ui/data-table.tsx`. Nunca implementar tablas HTML m
 
 ```tsx
 const columns: ColumnDef<MiEntidad>[] = useMemo(() => [
-  { accessorKey: 'id', header: 'ID' },               // ← PRIMERA, siempre
+  { accessorKey: 'id', header: 'Codigo' },           // ← PRIMERA, siempre. El titulo visible es Codigo.
   {
     accessorKey: 'nombre',
     header: 'Nombre',
@@ -365,8 +365,7 @@ import { UI_THEME } from '@/lib/theme'
 
 {/* Footer — SIEMPRE al fondo, SIEMPRE con el token */}
 <div className={UI_THEME.modal.footer}>
-  <div /> {/* placeholder izquierda (o botón Eliminar / acción especial si aplica) */}
-  <div className={UI_THEME.modal.buttons.rightGroup}>
+  <div className={UI_THEME.modal.buttons.viewRow}>
     {/* botones según modo — ver §4.1 y §4.2 */}
   </div>
 </div>
@@ -377,74 +376,52 @@ import { UI_THEME } from '@/lib/theme'
 | Token | Descripción | Uso |
 |---|---|---|
 | `modal.footer` | Clases del contenedor del footer | `className={UI_THEME.modal.footer}` |
-| `modal.buttons.historial` | Color sky del botón Historial | `className={UI_THEME.modal.buttons.historial}` |
-| `modal.buttons.eliminar` | Color rojo del botón Eliminar | `className={UI_THEME.modal.buttons.eliminar}` |
-| `modal.buttons.accionEspecial` | Color violet para acciones secundarias opcionales | `className={UI_THEME.modal.buttons.accionEspecial}` |
-| `modal.buttons.rightGroup` | Contenedor agrupador lado derecho | `className={UI_THEME.modal.buttons.rightGroup}` |
+| `modal.buttons.viewRow` | Fila de vista: Historial, extra, Eliminar, Editar | `className={UI_THEME.modal.buttons.viewRow}` |
+| `modal.buttons.editRow` | Fila de edicion: Cancelar y Guardar a la derecha | `className={UI_THEME.modal.buttons.editRow}` |
+| `modal.buttons.accion` | Texto del boton, igual al label de pestaña inactiva. El hover solo oscurece el gris | `className={UI_THEME.modal.buttons.accion}` |
+| `modal.buttons.eliminar` | Mismo tamaño, texto rojo, sin fondo al pasar el mouse | `className={UI_THEME.modal.buttons.eliminar}` |
+| `modal.buttons.icon` | Icono del boton del pie | `className={UI_THEME.modal.buttons.icon}` |
 
-> **Nota:** El botón **Editar** usa `<Button type="button">` primario sin className extra. El botón **Cancelar** usa `variant="outline"` sin className extra. El botón **Guardar** usa `<Button type="submit">` primario sin className extra. Solo `Historial`, `Eliminar` y botones de acción especial necesitan los tokens de color.
+> **Nota:** Historial, Editar, Cancelar, Guardar y Atras usan `variant="ghost" size="sm"` y `buttons.accion`. El texto es de 14px, peso medio, en el gris de la pestaña que no está seleccionada. Al pasar el mouse ese gris se vuelve más fuerte y el fondo no cambia. No usar el hover de color del módulo. Eliminar y Desactivar usan `buttons.eliminar`.
 
 ### 4.1 Modo Vista (`mode === 'view'`)
 
 ```tsx
-<>
-  {/* Botón Activar/Desactivar — SOLO si aplica — queda a la izquierda */}
-  {isEditing && (
-    <Button type="button" variant={activo ? 'destructive' : 'default'} className="mr-auto" onClick={handleToggle}>
-      {activo ? <><PowerOff className="mr-2 h-4 w-4" /> Desactivar</> : <><Power className="mr-2 h-4 w-4" /> Activar</>}
-    </Button>
-  )}
-
-  {/* Botones a la derecha */}
-  <div className={UI_THEME.modal.buttons.rightGroup}>
-    <Button type="button" variant="outline"
-      className={UI_THEME.modal.buttons.historial}
-      onClick={() => setHistorialOpen(true)}>
-      <History className="mr-2 h-4 w-4" /> Historial
-    </Button>
-    <Button type="button" onClick={() => setMode('edit')}>
-      <Pencil className="mr-2 h-4 w-4" /> Editar
-    </Button>
-  </div>
-</>
+<div className={UI_THEME.modal.buttons.viewRow}>
+  <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => setHistorialOpen(true)}>
+    <History className={UI_THEME.modal.buttons.icon} /> Historial
+  </Button>
+  <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.eliminar} onClick={handleEliminar}>
+    <Trash2 className={UI_THEME.modal.buttons.icon} /> Eliminar
+  </Button>
+  <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => setMode('edit')}>
+    <Pencil className={UI_THEME.modal.buttons.icon} /> Editar
+  </Button>
+</div>
 ```
 
 ### 4.2 Modo Edición / Crear
 
 ```tsx
-<div className="flex items-center justify-between w-full">
-  <div className="flex-1">
-    {/* Mensaje informativo izquierda (si el registro está en uso, etc.) */}
-    {mode === 'edit' && entidad?.enUso && (
-      <p className="text-[11px] text-amber-700 font-medium flex items-center gap-1.5">
-        <Info className="w-3.5 h-3.5" /> Algunos campos bloqueados (en uso).
-      </p>
-    )}
-  </div>
-  <div className={UI_THEME.modal.buttons.rightGroup}>
-    {/* Cancelar: SOLO al editar un registro existente */}
-    {isEditing && (
-      <Button type="button" variant="outline"
-        onClick={() => { resetForm(entidad); setMode('view') }}
-        disabled={loading}>
-        Cancelar
-      </Button>
-    )}
-    <Button type="submit" disabled={loading}>
-      {loading ? 'Guardando...' : <><Save className="w-4 h-4 mr-2" />Guardar</>}
+<div className={UI_THEME.modal.buttons.editRow}>
+  {isEditing && (
+    <Button type="button" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} onClick={() => { resetForm(entidad); setMode('view') }} disabled={loading}>
+      <X className={UI_THEME.modal.buttons.icon} /> Cancelar
     </Button>
-  </div>
+  )}
+  <Button type="submit" variant="ghost" size="sm" className={UI_THEME.modal.buttons.accion} disabled={loading}>
+    <Check className={UI_THEME.modal.buttons.icon} /> {loading ? 'Guardando…' : 'Guardar'}
+  </Button>
 </div>
 ```
 
 **Tabla resumen de botones:**
 
-| Situación | Izquierda | Derecha |
-|---|---|---|
-| Modo Vista (registro existente) | — o botón `Eliminar` / acción especial | `Historial` (sky) + `Editar` (primary) |
-| Modo Crear (nuevo registro) | — | Solo `Guardar` (primary). Sin Cancelar. |
-| Modo Editar (registro existente) | — | `Cancelar` (outline) + `Guardar` (primary) |
-| Activar/Desactivar | Botón propio con `mr-auto` | igual a Modo Vista |
+| Situación | Botones |
+|---|---|
+| Modo Vista | `viewRow`: Historial, accion extra, Eliminar, Editar. Todos `buttons.accion`, salvo Eliminar |
+| Modo Crear | `editRow`: solo Guardar |
+| Modo Editar | `editRow`: Cancelar + Guardar |
 
 ---
 
@@ -469,9 +446,11 @@ import { UI_THEME } from '@/lib/theme'
 
 **Reglas:**
 - `variant="line"` siempre. Sin excepciones.
-- `className={UI_THEME.tabs.modalListClass}` en modales de catálogo. No agregar margen ni borde extra: la barra ya es blanca, de lado a lado, con borde inferior de 3px. El `<form>` lleva `pt-2`.
-- El modal es gris (`bg-muted` en `contentWide` y `contentStandard`). La barra de pestañas y el footer son blancos. El borde bajo el título, el de la barra y el del footer pesan 3px.
-- Los campos van dentro de `UI_THEME.modal.scrollArea`. Cada grupo es un `SegmentCard`: fondo blanco y borde de 3px (`UI_THEME.modal.segment`). El footer queda fuera.
+- `className={UI_THEME.tabs.modalListClass}` en modales de catálogo. No agregar margen ni borde extra: la barra ya es blanca, de lado a lado, con borde inferior de 1.5px. El label queda a la mitad de la altura de esa barra (`pt-[13px] pb-[7px]` en el token). No sustituirlo por un relleno solo arriba. El `<form>` lleva `pt-2`.
+- El modal es gris azulado (`bg-muted`, `--muted: #eef2f6`, en `contentWide` y `contentStandard`). La barra de pestañas y el footer son blancos. El borde bajo el título, el de la barra y el del footer pesan 1.5px. La raya de la pestaña activa sigue en 3px.
+- Los campos van dentro de `UI_THEME.modal.scrollArea`. Cada grupo es un `SegmentCard`: fondo blanco y borde de 1.5px (`UI_THEME.modal.segment`). El footer queda fuera. El Costeador usa el mismo gris y los mismos 1.5px en su panel y en el alta de nodo.
+- El título de la sección lleva un ícono chico (`h-3.5`), del mismo color del título, entre la línea vertical y el nombre. Lo resuelve `SegmentCard` con `src/lib/iconos-seccion.ts`. La clave es el `label` exacto: el mismo título usa siempre el mismo ícono. Al crear una sección, elegir el ícono de Lucide que mejor nombre ese título y registrarlo en el catálogo. Dos títulos distintos pueden compartir ícono cuando el dibujo les queda a los dos. No pasar el ícono en el JSX.
+- La pestaña General de un CRUD lleva, como mínimo, Identificacion y General. Identificacion muestra Empresa en la primera fila. La segunda fila lleva Codigo y, si el catálogo lo tiene, Codigo ERP. Codigo es el id numérico del registro: el label es `Codigo`, se oculta al crear y queda deshabilitado al ver y al editar (negro en Ver, gris en Editar). Si la entidad no tiene empresa, esa fila lleva Codigo y Codigo ERP. Sin ninguno de los dos, no se renderiza al crear. General agrupa el resto de los campos de esa pestaña. Direccion Fiscal, Contacto, Fiscal, Parametros, Acceso, Seguimiento, Detalle y Otros conservan su sección.
 - Cada `TabsTrigger` lleva ícono de `lucide-react` (`w-4 h-4 mr-2`) a la izquierda del texto.
 - Siempre existe la pestaña `"general"` como pestaña inicial.
 
@@ -585,15 +564,20 @@ El color del valor dice si el campo se puede editar. El subrayado inferior se co
 
 El `<form>` lleva `data-form-mode={mode}`. La regla esta en `src/app/globals.css`: con `view`, los controles deshabilitados se pintan en negro. Al salir de Ver, el gris vuelve solo en lo deshabilitado. El subrayado no cambia. No usar opacidad.
 
-### 6.2 Campos Autogenerados (Código, ID)
+### 6.2 Campos Autogenerados (Codigo)
 
-Ocultos al crear. Deshabilitados **permanentemente** al editar (no condicional con `mode`):
+El id del registro se llama Codigo en la interfaz. Vive en la sección Identificacion, al lado de Empresa. Oculto al crear. Deshabilitado al ver y al editar. En Ver lleva `data-view-mode` (negro). En Editar queda en gris. En la lista, `header: 'Codigo'` y `accessorKey: 'id'`.
 
 ```tsx
-{isEditing && (
-  <div className="flex flex-col gap-1.5 col-span-1">
-    <Label>Código</Label>
-    <Input value={codigo} disabled={true} className={`${UI_THEME.forms.inputBase} font-mono`} />
+{mode !== 'create' && entidad && (
+  <div className="flex flex-col gap-1.5">
+    <Label className={UI_THEME.forms.labelBase}>Codigo</Label>
+    <Input
+      value={String(entidad.id)}
+      disabled
+      data-view-mode={mode === 'view'}
+      className={UI_THEME.forms.inputBase}
+    />
   </div>
 )}
 ```
@@ -1062,7 +1046,8 @@ if (result.ok) {
 
 - **1 a 3 palabras**, sin preposiciones ("de", "del", "y", "la", "el").
 - Siempre **Title Case**.
-- Ejemplos: "Tipos Costeos", "Nueva Categoría", "Detalle Empresa".
+- Ejemplos: "Tipos Costeos", "Categorias", "Empresas".
+- El titulo del modal es el mismo de la pantalla, en crear, ver y editar. No usar "Nuevo", "Detalle" ni "Editar" en ese titulo. No mostrar un mensaje debajo del titulo.
 - Textos libres en MAYÚSCULAS y sin tildes.
 - Encabezados de sección internos del formulario en MAYÚSCULAS sin tilde.
 
@@ -1392,9 +1377,9 @@ Cambiar un token en `theme.ts` lo propaga automáticamente a todos los component
 | `table.container` | Contenedor de la tabla | `DataTable` |
 | `modal.title` | Título del modal (`DialogTitle`) | `dialog.tsx` → todos los modales |
 | `modal.footer` | Footer fijo al fondo del modal | Todos los modales |
-| `modal.segment` | Grupo de campos: fondo blanco, borde 3px | `SegmentCard` |
+| `modal.segment` | Grupo de campos: fondo blanco, borde 1.5px | `SegmentCard` |
 | `modal.scrollArea` | Interior de la pestaña, sobre el gris del modal | Todos los modales |
-| `tabs.modalListClass` | Barra blanca de pestañas, borde inferior 3px, de lado a lado | `TabsList variant="line"` en modales de catálogo |
+| `tabs.modalListClass` | Barra blanca de pestañas, borde inferior 1.5px, de lado a lado. Label a la mitad: `pt-[13px] pb-[7px]` | `TabsList variant="line"` en modales de catálogo |
 | `tabs.listClass` | Pestañas sin el sangrado del modal | Costeador y portada |
 | `badge.active` | Badge "Activo" | `*-client.tsx` con columna Estado |
 | `badge.inactive` | Badge "Inactivo" | `*-client.tsx` con columna Estado |

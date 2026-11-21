@@ -32,7 +32,7 @@ export function ContratosClient({ contratos, permisos }: { contratos: ContratoLi
     () => [
       {
         accessorKey: 'id',
-        header: 'ID',
+        header: 'Codigo',
         enableHiding: false,
         meta: { align: 'center' },
         cell: ({ row }) => (

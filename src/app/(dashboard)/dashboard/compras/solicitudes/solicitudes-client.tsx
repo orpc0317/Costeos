@@ -30,7 +30,7 @@ export function SolicitudesClient({ solicitudes, permisos }: { solicitudes: Soli
     // 1 — ID
     {
       accessorKey: 'id',
-      header: 'ID',
+      header: 'Codigo',
       enableHiding: false,
       cell: ({ row }) => (
         <span className="font-mono text-sm text-muted-foreground">{row.original.id}</span>

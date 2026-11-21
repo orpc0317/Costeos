@@ -28,11 +28,11 @@ export async function obtenerTipoCombo(id: number): Promise<TipoComboRow | null>
 /** Lista solo los TiposCombos activos de una empresa — para selects en el modal de Item. */
 export async function listarTiposCombosPorEmpresa(
   empresaId: number,
-): Promise<{ id: number; nombre: string }[]> {
+): Promise<{ id: number; nombre: string; icono: string | null }[]> {
   if (!(await puedeConsultar(PERMISOS.TCB_CAT))) return []
   const tipos = await prisma.tipoCombo.findMany({
     where: { empresaId },
-    select: { id: true, nombre: true },
+    select: { id: true, nombre: true, icono: true },
     orderBy: { nombre: 'asc' },
   })
   return tipos

@@ -528,7 +528,7 @@ export function ComboTab({
           <table className="w-full text-sm text-left border-collapse">
             <thead className="bg-slate-100 sticky top-0 z-10 shadow-sm border-b">
               <tr>
-                <th rowSpan={2} className="font-medium p-3 align-bottom border-b w-[80px]">ID</th>
+                <th rowSpan={2} className="font-medium p-3 align-bottom border-b w-[80px]">Codigo</th>
                 <th rowSpan={2} className="font-medium p-3 align-bottom border-b border-l">
                   <div className="flex items-center gap-2">
                     <span>Nombre</span>
